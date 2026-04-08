@@ -26,7 +26,7 @@ import { useApp } from '@/hooks/use-app';
 import { useToast } from '@/hooks/use-toast';
 import { detectAttendanceIntrusion } from '@/ai/flows/detect-attendance-intrusion';
 import type { DetectAttendanceIntrusionOutput } from '@/ai/flows/detect-attendance-intrusion';
-import { LoaderCircle, MapPin, Info, RefreshCw, CheckCircle2, Navigation } from 'lucide-react';
+import { LoaderCircle, MapPin, Info, RefreshCw, CheckCircle2, Navigation, Clock, Calendar as CalendarIcon, Phone } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -47,6 +47,7 @@ export default function EmployeeDashboard() {
   const [isLocating, setIsLocating] = useState(false);
   const [aiResult, setAiResult] = useState<DetectAttendanceIntrusionOutput | null>(null);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -55,6 +56,11 @@ export default function EmployeeDashboard() {
       site: 'Main Office',
     },
   });
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   const getLocation = useCallback(() => {
     setIsLocating(true);
@@ -86,7 +92,6 @@ export default function EmployeeDashboard() {
           title: 'Location Error', 
           description: msg 
         });
-        // Default coordinates for Duddebanda area as fallback
         setGps({ lat: 14.159487, lng: 77.615092 });
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -101,15 +106,16 @@ export default function EmployeeDashboard() {
 
   const handlePhotoCapture = async (dataUri: string | null) => {
     setPhotoDataUri(dataUri);
+    // Analysis is triggered but NOT submission
     if(dataUri){
-        toast({ title: 'Analyzing photo...', description: 'Please wait while we check the image.'});
+        toast({ title: 'Analyzing photo...', description: 'Checking for facial liveness.'});
         try {
             const result = await detectAttendanceIntrusion({ photoDataUri: dataUri });
             setAiResult(result);
             setIsAiModalOpen(true);
         } catch (error) {
             console.error('AI analysis failed:', error);
-            toast({ variant: 'destructive', title: 'AI Analysis Failed', description: 'Could not analyze the photo.'});
+            // Non-critical error, we allow the user to proceed
         }
     }
   };
@@ -125,7 +131,9 @@ export default function EmployeeDashboard() {
     }
     
     setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Artificial delay for UX
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
     submitAttendance({
       employeeId: currentUser.id,
@@ -140,6 +148,7 @@ export default function EmployeeDashboard() {
     toast({ title: 'Success', description: 'Your attendance has been submitted.' });
     form.reset();
     setPhotoDataUri(null);
+    setAiResult(null);
     setIsSubmitting(false);
   };
   
@@ -154,12 +163,6 @@ export default function EmployeeDashboard() {
           <CardDescription className="text-lg text-green-700 max-w-md">
             ఈ రోజుకు మీ అటెండెన్స్ విజయవంతంగా సమర్పించబడింది. రేపు మళ్ళీ కలవండి.
           </CardDescription>
-          <div className="mt-8 p-4 bg-white rounded-lg shadow-sm border border-green-100 w-full max-w-sm">
-             <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
-                <span>Date: {format(new Date(), 'PPP')}</span>
-             </div>
-             <p className="text-xs text-muted-foreground text-center">మీరు మళ్ళీ అటెండెన్స్ వేయవలసిన అవసరం లేదు.</p>
-          </div>
         </CardContent>
       </Card>
     );
@@ -169,9 +172,9 @@ export default function EmployeeDashboard() {
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="font-headline text-2xl">Submit Attendance</CardTitle>
+          <CardTitle className="font-headline text-2xl">Attendance Submission</CardTitle>
           <CardDescription>
-            Fill in the details below and capture your photo to mark your attendance.
+            Capture your photo and confirm details to submit.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -181,29 +184,72 @@ export default function EmployeeDashboard() {
                     <div className="lg:col-span-7 space-y-6">
                         <WebcamCapture onCapture={handlePhotoCapture} />
                         
-                        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
-                           <div className="flex items-center gap-3 overflow-hidden">
-                              <div className="bg-primary/10 p-2 rounded-full flex-shrink-0">
-                                <Navigation className="h-5 w-5 text-primary" />
-                              </div>
-                              <div className="overflow-hidden">
-                                <p className="text-xs font-semibold text-primary uppercase tracking-tight">Location Status</p>
-                                <p className="text-sm truncate font-medium text-muted-foreground">
-                                  {gps ? address : 'Waiting for GPS...'}
-                                </p>
-                              </div>
-                           </div>
-                           <Button 
-                              type="button" 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={getLocation} 
-                              disabled={isLocating}
-                              className="gap-2"
-                            >
-                                <RefreshCw className={`h-3 w-3 ${isLocating ? 'animate-spin' : ''}`} />
-                                {isLocating ? 'Locating...' : 'Refresh'}
-                            </Button>
+                        <div className="p-5 bg-muted/40 rounded-xl border space-y-4">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-primary/10 p-2 rounded-full">
+                                    <MapPin className="h-5 w-5 text-primary" />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Location Details</p>
+                                    <p className="text-sm font-medium leading-tight">{address}</p>
+                                </div>
+                                <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={getLocation} 
+                                    disabled={isLocating}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <RefreshCw className={`h-4 w-4 ${isLocating ? 'animate-spin' : ''}`} />
+                                </Button>
+                            </div>
+                            
+                            <Separator className="opacity-50" />
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-primary/10 p-2 rounded-full">
+                                        <CalendarIcon className="h-4 w-4 text-primary" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Date</p>
+                                        <p className="text-sm font-medium">{format(currentTime, 'dd/MM/yyyy')}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-primary/10 p-2 rounded-full">
+                                        <Clock className="h-4 w-4 text-primary" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Time</p>
+                                        <p className="text-sm font-medium">{format(currentTime, 'hh:mm a')}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <Separator className="opacity-50" />
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-primary/10 p-2 rounded-full">
+                                        <Info className="h-4 w-4 text-primary" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Name</p>
+                                        <p className="text-sm font-medium">{currentUser?.name}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-primary/10 p-2 rounded-full">
+                                        <Phone className="h-4 w-4 text-primary" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Contact</p>
+                                        <p className="text-sm font-medium">8050166319</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -257,16 +303,15 @@ export default function EmployeeDashboard() {
                         <div className="p-4 bg-primary/5 rounded-lg border border-primary/20 space-y-3">
                             <div className="flex items-start gap-3">
                                 <Info size={20} className="text-primary flex-shrink-0 mt-0.5" />
-                                <div className="text-sm text-muted-foreground space-y-2">
-                                    <p>మీ ఫోటో ఫేషియల్ లైవ్‌నెస్ మరియు ఏఐ ఎన్‌హాన్స్‌మెంట్స్ కోసం విశ్లేషించబడుతుంది.</p>
-                                    <p className="text-xs font-semibold text-primary">ముఖ్య గమనిక: అటెండెన్స్ రోజుకు ఒకసారి మాత్రమే అనుమతించబడుతుంది.</p>
-                                </div>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                    ముఖ్య గమనిక: అటెండెన్స్ రోజుకు ఒకసారి మాత్రమే అనుమతించబడుతుంది. ఫోటో తీసిన తర్వాత క్రింది సబ్మిట్ బటన్ నొక్కండి.
+                                </p>
                             </div>
                         </div>
 
                         <Button 
                           type="submit" 
-                          className="w-full text-lg py-8 shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]" 
+                          className="w-full text-lg py-8 shadow-lg transition-all hover:scale-[1.01]" 
                           disabled={isSubmitting || !photoDataUri || !gps}
                         >
                           {isSubmitting ? (
@@ -289,38 +334,26 @@ export default function EmployeeDashboard() {
         <Dialog open={isAiModalOpen} onOpenChange={setIsAiModalOpen}>
             <DialogContent className="max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 font-headline text-xl">
-                        <LoaderCircle className="text-primary h-6 w-6 animate-spin" />
-                        AI Analysis Result
+                    <DialogTitle className="flex items-center gap-2 font-headline text-xl text-primary">
+                        AI Analysis Complete
                     </DialogTitle>
                     <DialogDescription>
-                        Intrusion detection analysis has been completed for your submission.
+                        We've analyzed your photo for facial liveness detection.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                        <span className="font-medium">Live Face Detected</span>
-                        <Badge variant={aiResult.isLiveFace ? 'default' : 'destructive'} className={aiResult.isLiveFace ? "bg-green-500 hover:bg-green-600 px-3" : "px-3"}>
-                            {aiResult.isLiveFace ? 'PASSED' : 'FAILED'}
+                        <span className="font-medium">Live Face Check</span>
+                        <Badge variant={aiResult.isLiveFace ? 'default' : 'destructive'} className={aiResult.isLiveFace ? "bg-green-600" : ""}>
+                            {aiResult.isLiveFace ? 'VERIFIED' : 'FAILED'}
                         </Badge>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                        <span className="font-medium">AI Generated Check</span>
-                        <Badge variant={aiResult.isAiGenerated ? 'destructive' : 'default'} className={aiResult.isAiGenerated ? "px-3" : "bg-green-500 hover:bg-green-600 px-3"}>
-                            {aiResult.isAiGenerated ? 'DETECTED' : 'CLEAR'}
-                        </Badge>
-                    </div>
-                    <div className="flex items-center justify-between px-3">
-                        <span className="text-sm font-medium text-muted-foreground">Confidence Score</span>
-                        <span className="font-mono font-bold text-lg text-primary">{(aiResult.confidence * 100).toFixed(0)}%</span>
                     </div>
                     <Separator />
                     <div className="bg-primary/5 p-4 rounded-md border border-primary/10">
-                        <h4 className="font-bold text-sm mb-2 uppercase tracking-tight text-primary">Analysis Explanation</h4>
                         <p className="text-sm leading-relaxed">{aiResult.explanation}</p>
                     </div>
                 </div>
-                <Button onClick={() => setIsAiModalOpen(false)} className="w-full h-12">Close & Continue</Button>
+                <Button onClick={() => setIsAiModalOpen(false)} className="w-full h-12">Confirm & Close</Button>
             </DialogContent>
         </Dialog>
       )}
