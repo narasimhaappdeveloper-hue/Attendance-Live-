@@ -26,12 +26,11 @@ import { useApp } from '@/hooks/use-app';
 import { useToast } from '@/hooks/use-toast';
 import { detectAttendanceIntrusion } from '@/ai/flows/detect-attendance-intrusion';
 import type { DetectAttendanceIntrusionOutput } from '@/ai/flows/detect-attendance-intrusion';
-import { LoaderCircle, MapPin, Info, RefreshCw, CheckCircle2, Phone, User } from 'lucide-react';
+import { LoaderCircle, MapPin, Info, RefreshCw, CheckCircle2, Navigation } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
-import Image from 'next/image';
 
 const formSchema = z.object({
   shift: z.enum(['Shift A', 'Shift B', 'Shift C', 'General']),
@@ -44,9 +43,6 @@ export default function EmployeeDashboard() {
   const [photoDataUri, setPhotoDataUri] = useState<string | null>(null);
   const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
   const [address, setAddress] = useState<string>('5j9f+gm3, Duddebanda, Andhra Pradesh 515164, India');
-  const [area, setArea] = useState<string>('Duddebanda');
-  const [state, setState] = useState<string>('Andhra Pradesh');
-  const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [aiResult, setAiResult] = useState<DetectAttendanceIntrusionOutput | null>(null);
@@ -59,13 +55,6 @@ export default function EmployeeDashboard() {
       site: 'Main Office',
     },
   });
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   const getLocation = useCallback(() => {
     setIsLocating(true);
@@ -97,6 +86,7 @@ export default function EmployeeDashboard() {
           title: 'Location Error', 
           description: msg 
         });
+        // Default coordinates for Duddebanda area as fallback
         setGps({ lat: 14.159487, lng: 77.615092 });
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -191,71 +181,28 @@ export default function EmployeeDashboard() {
                     <div className="lg:col-span-7 space-y-6">
                         <WebcamCapture onCapture={handlePhotoCapture} />
                         
-                        {/* GPS Map Camera Overlay */}
-                        <div className="bg-neutral-900 text-white p-4 rounded-lg flex gap-4 overflow-hidden relative border border-white/10 shadow-2xl">
-                          <div className="absolute top-2 right-2 bg-black/40 px-2 py-0.5 rounded text-[8px] flex items-center gap-1 border border-white/5 z-10">
-                             <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_5px_rgba(59,130,246,0.8)]"></div>
-                             GPS Map Camera
-                          </div>
-
-                          {/* Left Section: Map & Badge */}
-                          <div className="flex flex-col gap-2 w-24 flex-shrink-0">
-                             <div className="bg-green-600 text-[10px] font-bold py-1 px-1 rounded text-center leading-tight">
-                                Time & Attendance
-                             </div>
-                             <div className="relative aspect-square w-full rounded overflow-hidden border border-white/20">
-                                <Image 
-                                  src="https://picsum.photos/seed/map/200/200" 
-                                  alt="Map" 
-                                  fill 
-                                  className="object-cover opacity-80" 
-                                  data-ai-hint="map satellite"
-                                />
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                   <MapPin className="text-red-600 h-6 w-6 drop-shadow-md fill-red-600" />
-                                </div>
-                             </div>
-                             <div className="mt-auto opacity-70 grayscale contrast-125">
-                                <Image src="https://picsum.photos/seed/googlelogo/100/40" alt="Google" width={40} height={16} />
-                             </div>
-                          </div>
-
-                          {/* Middle Section: Location Details - Simplified to show only address */}
-                          <div className="flex-1 space-y-1.5 overflow-hidden justify-center flex flex-col">
-                             <h3 className="text-base md:text-xl font-bold leading-tight">
-                                {area}, {state}, India 🇮🇳
-                             </h3>
-                             <p className="text-[10px] md:text-xs opacity-90 leading-tight font-medium">
-                                {address}
-                             </p>
-                          </div>
-
-                          {/* Right Section: Selfie Preview */}
-                          <div className="flex items-center flex-shrink-0">
-                             <div className="w-14 h-14 md:w-16 md:h-16 rounded border border-white/30 overflow-hidden bg-neutral-800 shadow-inner">
-                                {photoDataUri ? (
-                                   <Image src={photoDataUri} alt="User" width={64} height={64} className="object-cover" />
-                                ) : (
-                                   <div className="w-full h-full flex items-center justify-center opacity-30">
-                                      <User className="h-8 w-8" />
-                                   </div>
-                                )}
-                             </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between p-2 bg-muted/50 rounded-md border border-dashed border-muted-foreground/30">
-                           <p className="text-[10px] text-muted-foreground italic">Location is automatically captured using GPS Map Camera mode.</p>
+                        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
+                           <div className="flex items-center gap-3 overflow-hidden">
+                              <div className="bg-primary/10 p-2 rounded-full flex-shrink-0">
+                                <Navigation className="h-5 w-5 text-primary" />
+                              </div>
+                              <div className="overflow-hidden">
+                                <p className="text-xs font-semibold text-primary uppercase tracking-tight">Location Status</p>
+                                <p className="text-sm truncate font-medium text-muted-foreground">
+                                  {gps ? address : 'Waiting for GPS...'}
+                                </p>
+                              </div>
+                           </div>
                            <Button 
                               type="button" 
-                              variant="ghost" 
+                              variant="outline" 
                               size="sm" 
                               onClick={getLocation} 
                               disabled={isLocating}
-                              className="h-8 gap-2 text-xs"
+                              className="gap-2"
                             >
                                 <RefreshCw className={`h-3 w-3 ${isLocating ? 'animate-spin' : ''}`} />
-                                {isLocating ? 'Locating...' : 'Refresh GPS'}
+                                {isLocating ? 'Locating...' : 'Refresh'}
                             </Button>
                         </div>
                     </div>
