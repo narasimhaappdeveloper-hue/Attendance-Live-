@@ -140,7 +140,7 @@ export function LoginForm() {
             <Info className="h-4 w-4" />
             <span>Demo Credentials</span>
           </div>
-          <div className="grid grid-cols-1 gap-2 w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
             <Button 
               variant="outline" 
               size="sm" 
@@ -155,7 +155,23 @@ export function LoginForm() {
               className="justify-start font-normal text-xs h-auto py-2"
               onClick={() => fillDemo('Alice Johnson', 'EMP001')}
             >
-              <span className="font-bold mr-2">Staff:</span> Alice Johnson / EMP001
+              <span className="font-bold mr-2">Alice:</span> EMP001
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="justify-start font-normal text-xs h-auto py-2"
+              onClick={() => fillDemo('Bob Williams', 'EMP002')}
+            >
+              <span className="font-bold mr-2">Bob:</span> EMP002
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="justify-start font-normal text-xs h-auto py-2"
+              onClick={() => fillDemo('Diana Miller', 'EMP004')}
+            >
+              <span className="font-bold mr-2">Diana:</span> EMP004
             </Button>
           </div>
         </CardFooter>
