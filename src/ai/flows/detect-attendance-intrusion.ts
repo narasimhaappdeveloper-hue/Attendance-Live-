@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -43,10 +44,9 @@ const detectAttendanceIntrusionFlow = ai.defineFlow(
     outputSchema: DetectAttendanceIntrusionOutputSchema,
   },
   async input => {
-    // We use gemini-1.5-flash which is highly stable for image processing.
-    // Explicitly passing the full data URI in the media part.
+    // We use gemini-2.0-flash which is highly stable and confirmed to be available for image processing.
     const {output} = await ai.generate({
-      model: 'googleai/gemini-1.5-flash',
+      model: 'googleai/gemini-2.0-flash',
       system: `You are an AI expert in detecting fraudulent attendance submissions.
 Analyze the provided photo of the employee and determine if the face is a live face (not a photo of a photo, a screen, or a mask) and whether it exhibits characteristics of AI-generated enhancements.
 Consider factors such as facial texture, lighting, depth, and any anomalies that might indicate manipulation.`,
