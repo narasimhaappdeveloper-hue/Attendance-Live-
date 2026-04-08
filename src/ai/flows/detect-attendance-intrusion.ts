@@ -36,23 +36,6 @@ export async function detectAttendanceIntrusion(
   return detectAttendanceIntrusionFlow(input);
 }
 
-const detectAttendanceIntrusionPrompt = ai.definePrompt({
-  name: 'detectAttendanceIntrusionPrompt',
-  input: {schema: DetectAttendanceIntrusionInputSchema},
-  output: {schema: DetectAttendanceIntrusionOutputSchema},
-  prompt: `You are an AI expert in detecting fraudulent attendance submissions.
-
-You will analyze the provided photo of the employee and determine if the face is a live face and whether it exhibits characteristics of AI-generated enhancements.
-
-Analyze the following photo:
-{{media url=photoDataUri}}
-
-Based on your analysis, set the isLiveFace and isAiGenerated output fields appropriately. Provide a confidence score for your analysis. Explain your reasoning in the explanation field.
-
-Consider factors such as facial movements, texture, lighting, and any anomalies that might indicate manipulation or artificial generation.
-`,
-});
-
 const detectAttendanceIntrusionFlow = ai.defineFlow(
   {
     name: 'detectAttendanceIntrusionFlow',
@@ -60,7 +43,29 @@ const detectAttendanceIntrusionFlow = ai.defineFlow(
     outputSchema: DetectAttendanceIntrusionOutputSchema,
   },
   async input => {
-    const {output} = await detectAttendanceIntrusionPrompt(input);
-    return output!;
+    // We use ai.generate directly to handle multi-modal input (photo) more reliably.
+    // Explicitly setting the contentType for the media part prevents "Unsupported MIME type: data:" 
+    // errors that can occur when relying on automatic inference from large data URI strings.
+    const {output} = await ai.generate({
+      system: `You are an AI expert in detecting fraudulent attendance submissions.
+Analyze the provided photo of the employee and determine if the face is a live face (not a photo of a photo, a screen, or a mask) and whether it exhibits characteristics of AI-generated enhancements.
+Consider factors such as facial texture, lighting, depth, and any anomalies that might indicate manipulation.`,
+      prompt: [
+        {text: 'Analyze the following photo for attendance verification:'},
+        {
+          media: {
+            url: input.photoDataUri,
+            contentType: 'image/jpeg',
+          },
+        },
+      ],
+      output: {schema: DetectAttendanceIntrusionOutputSchema},
+    });
+
+    if (!output) {
+      throw new Error('AI failed to produce an analysis output.');
+    }
+
+    return output;
   }
 );
