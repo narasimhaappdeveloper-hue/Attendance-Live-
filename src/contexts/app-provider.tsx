@@ -1,14 +1,16 @@
 'use client';
 
-import { createContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useState, useEffect, useMemo, type ReactNode } from 'react';
 import { initialEmployees, hrUser } from '@/lib/initial-data';
 import type { Employee, AttendanceRecord, CurrentUser } from '@/lib/types';
 import { useRouter } from 'next/navigation';
+import { isSameDay } from 'date-fns';
 
 interface AppContextType {
   currentUser: CurrentUser | null;
   employees: Employee[];
   attendanceRecords: AttendanceRecord[];
+  hasSubmittedToday: boolean;
   login: (id: string, name: string) => 'employee' | 'hr' | 'not_found' | 'pending';
   logout: () => void;
   addEmployee: (employee: Omit<Employee, 'status'>) => void;
@@ -57,6 +59,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [currentUser, employees, attendanceRecords, isLoaded]);
 
+  const hasSubmittedToday = useMemo(() => {
+    if (!currentUser || currentUser.role !== 'employee') return false;
+    return attendanceRecords.some(record => 
+      record.employeeId === currentUser.id && 
+      isSameDay(new Date(record.dateTime), new Date())
+    );
+  }, [currentUser, attendanceRecords]);
+
   const login = (id: string, name: string): 'employee' | 'hr' | 'not_found' | 'pending' => {
     if (id === hrUser.id && name.toLowerCase() === hrUser.name.toLowerCase()) {
       const user: CurrentUser = { id, name, role: 'hr' };
@@ -103,6 +113,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const submitAttendance = (record: Omit<AttendanceRecord, 'id' | 'employeeName'>) => {
     if (!currentUser) return;
+    
+    // Safety check for duplicate submission
+    const alreadySubmitted = attendanceRecords.some(r => 
+      r.employeeId === currentUser.id && 
+      isSameDay(new Date(r.dateTime), new Date())
+    );
+    
+    if (alreadySubmitted) {
+      console.warn("Attendance already submitted for today.");
+      return;
+    }
+
     const newRecord: AttendanceRecord = { 
         ...record, 
         id: `ATT${Date.now()}`,
@@ -117,6 +139,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         currentUser,
         employees,
         attendanceRecords,
+        hasSubmittedToday,
         login,
         logout,
         addEmployee,

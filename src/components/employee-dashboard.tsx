@@ -26,7 +26,7 @@ import { useApp } from '@/hooks/use-app';
 import { useToast } from '@/hooks/use-toast';
 import { detectAttendanceIntrusion } from '@/ai/flows/detect-attendance-intrusion';
 import type { DetectAttendanceIntrusionOutput } from '@/ai/flows/detect-attendance-intrusion';
-import { LoaderCircle, MapPin, Camera, AlertTriangle, ShieldCheck, Info, RefreshCw, Calendar, Clock } from 'lucide-react';
+import { LoaderCircle, MapPin, Camera, AlertTriangle, ShieldCheck, Info, RefreshCw, Calendar, Clock, CheckCircle2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -38,7 +38,7 @@ const formSchema = z.object({
 });
 
 export default function EmployeeDashboard() {
-  const { currentUser, submitAttendance } = useApp();
+  const { currentUser, submitAttendance, hasSubmittedToday } = useApp();
   const { toast } = useToast();
   const [photoDataUri, setPhotoDataUri] = useState<string | null>(null);
   const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
@@ -105,8 +105,10 @@ export default function EmployeeDashboard() {
   }, [toast]);
 
   useEffect(() => {
-    getLocation();
-  }, [getLocation]);
+    if (!hasSubmittedToday) {
+      getLocation();
+    }
+  }, [getLocation, hasSubmittedToday]);
 
   const handlePhotoCapture = async (dataUri: string | null) => {
     setPhotoDataUri(dataUri);
@@ -133,6 +135,15 @@ export default function EmployeeDashboard() {
       return;
     }
     
+    if (hasSubmittedToday) {
+      toast({
+        variant: 'destructive',
+        title: 'Already Submitted',
+        description: 'You have already submitted your attendance for today.',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -153,6 +164,28 @@ export default function EmployeeDashboard() {
     setIsSubmitting(false);
   };
   
+  if (hasSubmittedToday) {
+    return (
+      <Card className="border-green-100 bg-green-50/30">
+        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="bg-green-100 p-4 rounded-full mb-6">
+            <CheckCircle2 className="h-16 w-16 text-green-600" />
+          </div>
+          <CardTitle className="text-3xl font-headline text-green-800 mb-2">Attendance Completed!</CardTitle>
+          <CardDescription className="text-lg text-green-700 max-w-md">
+            ఈ రోజుకు మీ అటెండెన్స్ విజయవంతంగా సమర్పించబడింది. రేపు మళ్ళీ కలవండి.
+          </CardDescription>
+          <div className="mt-8 p-4 bg-white rounded-lg shadow-sm border border-green-100 w-full max-w-sm">
+             <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
+                <span>Date: {format(new Date(), 'PPP')}</span>
+             </div>
+             <p className="text-xs text-muted-foreground text-center">మీరు మళ్ళీ అటెండెన్స్ వేయవలసిన అవసరం లేదు.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <>
       <Card>
