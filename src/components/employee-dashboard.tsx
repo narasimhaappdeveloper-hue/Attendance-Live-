@@ -52,6 +52,14 @@ export default function EmployeeDashboard() {
   const [aiResult, setAiResult] = useState<DetectAttendanceIntrusionOutput | null>(null);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      shift: 'General',
+      site: 'Main Office',
+    },
+  });
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -89,7 +97,6 @@ export default function EmployeeDashboard() {
           title: 'Location Error', 
           description: msg 
         });
-        // Set mock values for demo if GPS fails but we want to show the requested UI
         setGps({ lat: 14.159487, lng: 77.615092 });
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -128,7 +135,6 @@ export default function EmployeeDashboard() {
     }
     
     setIsSubmitting(true);
-    
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     submitAttendance({
