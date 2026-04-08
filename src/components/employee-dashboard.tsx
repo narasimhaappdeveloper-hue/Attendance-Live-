@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -26,7 +27,7 @@ import { useApp } from '@/hooks/use-app';
 import { useToast } from '@/hooks/use-toast';
 import { detectAttendanceIntrusion } from '@/ai/flows/detect-attendance-intrusion';
 import type { DetectAttendanceIntrusionOutput } from '@/ai/flows/detect-attendance-intrusion';
-import { LoaderCircle, MapPin, Camera, AlertTriangle, ShieldCheck, Info } from 'lucide-react';
+import { LoaderCircle, MapPin, Camera, AlertTriangle, ShieldCheck, Info, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -43,6 +44,7 @@ export default function EmployeeDashboard() {
   const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
   const [address, setAddress] = useState<string>('Fetching address...');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const [aiResult, setAiResult] = useState<DetectAttendanceIntrusionOutput | null>(null);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
@@ -50,22 +52,53 @@ export default function EmployeeDashboard() {
     resolver: zodResolver(formSchema),
   });
 
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setGps({ lat: latitude, lng: longitude });
-          // Mock reverse geocoding
-          setAddress(`Near ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`);
-        },
-        () => {
-          setAddress('Unable to retrieve location.');
-          toast({ variant: 'destructive', title: 'Could not get location' });
-        }
-      );
+  const getLocation = useCallback(() => {
+    setIsLocating(true);
+    setAddress('Accessing GPS...');
+    
+    if (!navigator.geolocation) {
+      setAddress('Geolocation not supported.');
+      setIsLocating(false);
+      toast({ 
+        variant: 'destructive', 
+        title: 'Error', 
+        description: 'Your browser does not support geolocation.' 
+      });
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setGps({ lat: latitude, lng: longitude });
+        // Mock reverse geocoding
+        setAddress(`Near ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        setIsLocating(false);
+      },
+      (error) => {
+        let msg = 'Unable to retrieve location.';
+        if (error.code === error.PERMISSION_DENIED) {
+          msg = 'Location access denied. Please enable location in browser settings.';
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          msg = 'Location information is unavailable.';
+        } else if (error.code === error.TIMEOUT) {
+          msg = 'Location request timed out.';
+        }
+        setAddress(msg);
+        setIsLocating(false);
+        toast({ 
+          variant: 'destructive', 
+          title: 'Location Error', 
+          description: msg 
+        });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   }, [toast]);
+
+  useEffect(() => {
+    getLocation();
+  }, [getLocation]);
 
   const handlePhotoCapture = async (dataUri: string | null) => {
     setPhotoDataUri(dataUri);
@@ -87,13 +120,14 @@ export default function EmployeeDashboard() {
       toast({
         variant: 'destructive',
         title: 'Submission Error',
-        description: 'Please capture a photo and ensure location is enabled.',
+        description: 'Please capture a photo and ensure location is detected correctly.',
       });
       return;
     }
     
     setIsSubmitting(true);
     
+    // Artificial delay for UX
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     submitAttendance({
@@ -127,13 +161,25 @@ export default function EmployeeDashboard() {
                 <div className="grid md:grid-cols-2 gap-8">
                     <div className="space-y-6">
                         <WebcamCapture onCapture={handlePhotoCapture} />
-                        <div className="flex items-start gap-3 rounded-lg border p-4 text-sm">
-                            <MapPin className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                            <div>
-                                <p className="font-semibold">Location Details</p>
-                                <p className="text-muted-foreground">{address}</p>
-                                {gps && <p className="text-xs text-muted-foreground/80">({gps.lat.toFixed(4)}, {gps.lng.toFixed(4)})</p>}
+                        <div className="flex items-start justify-between gap-3 rounded-lg border p-4 text-sm bg-muted/30">
+                            <div className="flex gap-3">
+                                <MapPin className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                                <div>
+                                    <p className="font-semibold">Location Details</p>
+                                    <p className="text-muted-foreground">{address}</p>
+                                    {gps && <p className="text-xs text-muted-foreground/80">({gps.lat.toFixed(4)}, {gps.lng.toFixed(4)})</p>}
+                                </div>
                             </div>
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={getLocation} 
+                              disabled={isLocating}
+                              className="flex-shrink-0"
+                            >
+                                <RefreshCw className={`h-4 w-4 ${isLocating ? 'animate-spin' : ''}`} />
+                            </Button>
                         </div>
                     </div>
                     <div className="space-y-6">
@@ -181,19 +227,21 @@ export default function EmployeeDashboard() {
                             </FormItem>
                         )}
                         />
-                        <p className="text-sm text-muted-foreground flex items-start gap-2 pt-4">
-                            <Info size={24} className="text-primary flex-shrink-0" />
-                            <span>
-                                Your photo will be analyzed for liveness and AI-generated enhancements to prevent fraudulent submissions.
-                            </span>
-                        </p>
+                        <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                            <p className="text-sm text-muted-foreground flex items-start gap-2">
+                                <Info size={20} className="text-primary flex-shrink-0 mt-0.5" />
+                                <span>
+                                    మీ ఫోటో ఫేషియల్ లైవ్‌నెస్ కోసం విశ్లేషించబడుతుంది. దీనివల్ల తప్పుడు అటెండెన్స్ నిరోధించవచ్చు.
+                                </span>
+                            </p>
+                        </div>
                     </div>
                 </div>
 
-              <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting || !photoDataUri}>
+              <Button type="submit" className="w-full sm:w-auto text-lg py-6" disabled={isSubmitting || !photoDataUri || !gps}>
                 {isSubmitting ? (
                   <>
-                    <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                    <LoaderCircle className="mr-2 h-5 w-5 animate-spin" />
                     Submitting...
                   </>
                 ) : (
@@ -220,19 +268,19 @@ export default function EmployeeDashboard() {
                 <div className="space-y-4 py-4">
                     <div className="flex items-center justify-between">
                         <span className="font-medium">Live Face Detected</span>
-                        <Badge variant={aiResult.isLiveFace ? 'default' : 'destructive'} className="bg-green-500 text-white">
+                        <Badge variant={aiResult.isLiveFace ? 'default' : 'destructive'} className={aiResult.isLiveFace ? "bg-green-500 hover:bg-green-600" : ""}>
                             {aiResult.isLiveFace ? 'Yes' : 'No'}
                         </Badge>
                     </div>
                     <div className="flex items-center justify-between">
                         <span className="font-medium">AI Generated</span>
-                        <Badge variant={aiResult.isAiGenerated ? 'destructive' : 'default'} className="bg-red-500 text-white">
+                        <Badge variant={aiResult.isAiGenerated ? 'destructive' : 'default'} className={aiResult.isAiGenerated ? "bg-red-500 hover:bg-red-600" : ""}>
                             {aiResult.isAiGenerated ? 'Yes' : 'No'}
                         </Badge>
                     </div>
                     <div className="flex items-center justify-between">
                         <span className="font-medium">Confidence Score</span>
-                        <span>{(aiResult.confidence * 100).toFixed(0)}%</span>
+                        <span className="font-mono">{(aiResult.confidence * 100).toFixed(0)}%</span>
                     </div>
                     <Separator />
                     <div>
@@ -240,7 +288,7 @@ export default function EmployeeDashboard() {
                         <p className="text-sm text-muted-foreground p-3 bg-muted rounded-md">{aiResult.explanation}</p>
                     </div>
                 </div>
-                <Button onClick={() => setIsAiModalOpen(false)}>Close</Button>
+                <Button onClick={() => setIsAiModalOpen(false)} className="w-full">Close</Button>
             </DialogContent>
         </Dialog>
       )}
