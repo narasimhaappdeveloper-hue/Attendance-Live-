@@ -26,11 +26,12 @@ import { useApp } from '@/hooks/use-app';
 import { useToast } from '@/hooks/use-toast';
 import { detectAttendanceIntrusion } from '@/ai/flows/detect-attendance-intrusion';
 import type { DetectAttendanceIntrusionOutput } from '@/ai/flows/detect-attendance-intrusion';
-import { LoaderCircle, MapPin, Camera, AlertTriangle, ShieldCheck, Info, RefreshCw, Calendar, Clock, CheckCircle2 } from 'lucide-react';
+import { LoaderCircle, MapPin, Camera, ShieldCheck, Info, RefreshCw, CheckCircle2, Phone, User } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
+import Image from 'next/image';
 
 const formSchema = z.object({
   shift: z.enum(['Shift A', 'Shift B', 'Shift C', 'General']),
@@ -43,6 +44,8 @@ export default function EmployeeDashboard() {
   const [photoDataUri, setPhotoDataUri] = useState<string | null>(null);
   const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
   const [address, setAddress] = useState<string>('Fetching address...');
+  const [area, setArea] = useState<string>('Duddebanda');
+  const [state, setState] = useState<string>('Andhra Pradesh');
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
@@ -53,7 +56,7 @@ export default function EmployeeDashboard() {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 60000);
+    }, 1000); // Updated to 1s for real-time feel
     return () => clearInterval(timer);
   }, []);
 
@@ -80,7 +83,10 @@ export default function EmployeeDashboard() {
       (position) => {
         const { latitude, longitude } = position.coords;
         setGps({ lat: latitude, lng: longitude });
-        setAddress(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}, Plot 42, Tech Park, Hyderabad, TG 500081`);
+        // Mocking detailed address based on provided image reference
+        setArea('Duddebanda');
+        setState('Andhra Pradesh');
+        setAddress(`5j9f+gm3, Duddebanda, Andhra Pradesh 515164, India`);
         setIsLocating(false);
       },
       (error) => {
@@ -198,61 +204,112 @@ export default function EmployeeDashboard() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                <div className="grid md:grid-cols-2 gap-8">
-                    <div className="space-y-6">
+                <div className="grid lg:grid-cols-12 gap-8">
+                    <div className="lg:col-span-7 space-y-6">
                         <WebcamCapture onCapture={handlePhotoCapture} />
-                        <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
-                            <div className="flex items-start justify-between">
-                                <div className="flex gap-3">
-                                    <MapPin className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                                    <div>
-                                        <p className="font-semibold text-sm">Location Details</p>
-                                        <p className="text-sm text-muted-foreground leading-relaxed">{address}</p>
-                                    </div>
+                        
+                        {/* Custom GPS Map Camera Overlay */}
+                        <div className="bg-neutral-900 text-white p-4 rounded-lg flex gap-4 overflow-hidden relative border border-white/10 shadow-2xl">
+                          {/* Top Right Label */}
+                          <div className="absolute top-2 right-2 bg-black/40 px-2 py-0.5 rounded text-[8px] flex items-center gap-1 border border-white/5 z-10">
+                             <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_5px_rgba(59,130,246,0.8)]"></div>
+                             GPS Map Camera
+                          </div>
+
+                          {/* Left Section: Map & Badge */}
+                          <div className="flex flex-col gap-2 w-24 flex-shrink-0">
+                             <div className="bg-green-600 text-[10px] font-bold py-1 px-1 rounded text-center leading-tight">
+                                Time & Attendance
+                             </div>
+                             <div className="relative aspect-square w-full rounded overflow-hidden border border-white/20">
+                                <Image 
+                                  src="https://picsum.photos/seed/map/200/200" 
+                                  alt="Map" 
+                                  fill 
+                                  className="object-cover opacity-80" 
+                                  data-ai-hint="map satellite"
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                   <MapPin className="text-red-600 h-6 w-6 drop-shadow-md fill-red-600" />
                                 </div>
-                                <Button 
-                                  type="button" 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  onClick={getLocation} 
-                                  disabled={isLocating}
-                                  className="h-8 w-8"
-                                >
-                                    <RefreshCw className={`h-4 w-4 ${isLocating ? 'animate-spin' : ''}`} />
-                                </Button>
-                            </div>
-                            
-                            <Separator />
-                            
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="flex items-center gap-2">
-                                    <Calendar className="h-4 w-4 text-primary" />
-                                    <div>
-                                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Date</p>
-                                        <p className="text-sm font-medium">{format(currentTime, 'PPP')}</p>
-                                    </div>
+                             </div>
+                             <div className="mt-auto opacity-70 grayscale contrast-125">
+                                <Image src="https://picsum.photos/seed/googlelogo/100/40" alt="Google" width={40} height={16} />
+                             </div>
+                          </div>
+
+                          {/* Middle Section: Location Details */}
+                          <div className="flex-1 space-y-1.5 overflow-hidden">
+                             <h3 className="text-base md:text-xl font-bold leading-tight truncate">
+                                {area}, {state}, India 🇮🇳
+                             </h3>
+                             <div className="space-y-0.5">
+                                <p className="text-[10px] md:text-xs opacity-90 leading-tight font-medium">
+                                   {address}
+                                </p>
+                                <div className="flex flex-col gap-0.5 text-[9px] md:text-[10px] opacity-80 font-mono">
+                                   <p className="flex items-center gap-1">
+                                      <span>Lat {gps?.lat?.toFixed(6) || '0.000000'}°</span>
+                                      <span>Long {gps?.lng?.toFixed(6) || '0.000000'}°</span>
+                                   </p>
+                                   <p className="font-semibold uppercase">
+                                      {format(currentTime, "EEEE, MM/dd/yyyy hh:mm a 'GMT +05:30'")}
+                                   </p>
+                                   <p className="flex items-center gap-1">
+                                      Person Name : -{currentUser?.name}
+                                   </p>
+                                   <div className="flex items-center gap-1.5 mt-0.5">
+                                      <div className="bg-blue-500/20 p-0.5 rounded">
+                                        <Phone className="h-3 w-3 text-blue-400" />
+                                      </div>
+                                      <span className="font-bold">8050166319</span>
+                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <Clock className="h-4 w-4 text-primary" />
-                                    <div>
-                                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Time</p>
-                                        <p className="text-sm font-medium">{format(currentTime, 'pp')}</p>
-                                    </div>
-                                </div>
-                            </div>
+                             </div>
+                          </div>
+
+                          {/* Right Section: Selfie Preview */}
+                          <div className="flex items-center flex-shrink-0">
+                             <div className="w-14 h-14 md:w-16 md:h-16 rounded border border-white/30 overflow-hidden bg-neutral-800 shadow-inner">
+                                {photoDataUri ? (
+                                   <Image src={photoDataUri} alt="User" width={64} height={64} className="object-cover" />
+                                ) : (
+                                   <div className="w-full h-full flex items-center justify-center opacity-30">
+                                      <User className="h-8 w-8" />
+                                   </div>
+                                )}
+                             </div>
+                          </div>
+                        </div>
+
+                        {/* Controls Container */}
+                        <div className="flex items-center justify-between p-2 bg-muted/50 rounded-md border border-dashed border-muted-foreground/30">
+                           <p className="text-[10px] text-muted-foreground italic">Location is automatically captured using GPS Map Camera mode.</p>
+                           <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={getLocation} 
+                              disabled={isLocating}
+                              className="h-8 gap-2 text-xs"
+                            >
+                                <RefreshCw className={`h-3 w-3 ${isLocating ? 'animate-spin' : ''}`} />
+                                {isLocating ? 'Locating...' : 'Refresh GPS'}
+                            </Button>
                         </div>
                     </div>
-                    <div className="space-y-6">
+
+                    <div className="lg:col-span-5 space-y-6">
                         <FormField
                         control={form.control}
                         name="shift"
                         render={({ field }) => (
                             <FormItem>
-                            <FormLabel>Shift</FormLabel>
+                            <FormLabel className="font-bold">Select Shift</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select your shift" />
+                                <SelectTrigger className="h-12">
+                                    <SelectValue placeholder="Choose shift" />
                                 </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
@@ -271,11 +328,11 @@ export default function EmployeeDashboard() {
                         name="site"
                         render={({ field }) => (
                             <FormItem>
-                            <FormLabel>Site</FormLabel>
+                            <FormLabel className="font-bold">Work Site</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select your work site" />
+                                <SelectTrigger className="h-12">
+                                    <SelectValue placeholder="Choose site" />
                                 </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
@@ -288,27 +345,33 @@ export default function EmployeeDashboard() {
                             </FormItem>
                         )}
                         />
-                        <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-                            <p className="text-sm text-muted-foreground flex items-start gap-2">
+                        
+                        <div className="p-4 bg-primary/5 rounded-lg border border-primary/20 space-y-3">
+                            <div className="flex items-start gap-3">
                                 <Info size={20} className="text-primary flex-shrink-0 mt-0.5" />
-                                <span>
-                                    మీ ఫోటో ఫేషియల్ లైవ్‌నెస్ కోసం విశ్లేషించబడుతుంది. దీనివల్ల తప్పుడు అటెండెన్స్ నిరోధించవచ్చు.
-                                </span>
-                            </p>
+                                <div className="text-sm text-muted-foreground space-y-2">
+                                    <p>మీ ఫోటో ఫేషియల్ లైవ్‌నెస్ మరియు ఏఐ ఎన్‌హాన్స్‌మెంట్స్ కోసం విశ్లేషించబడుతుంది.</p>
+                                    <p className="text-xs font-semibold text-primary">ముఖ్య గమనిక: అటెండెన్స్ రోజుకు ఒకసారి మాత్రమే అనుమతించబడుతుంది.</p>
+                                </div>
+                            </div>
                         </div>
+
+                        <Button 
+                          type="submit" 
+                          className="w-full text-lg py-8 shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]" 
+                          disabled={isSubmitting || !photoDataUri || !gps}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <LoaderCircle className="mr-2 h-6 w-6 animate-spin" />
+                              Submitting...
+                            </>
+                          ) : (
+                            'Submit Attendance'
+                          )}
+                        </Button>
                     </div>
                 </div>
-
-              <Button type="submit" className="w-full sm:w-auto text-lg py-6" disabled={isSubmitting || !photoDataUri || !gps}>
-                {isSubmitting ? (
-                  <>
-                    <LoaderCircle className="mr-2 h-5 w-5 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  'Submit Attendance'
-                )}
-              </Button>
             </form>
           </Form>
         </CardContent>
@@ -316,40 +379,40 @@ export default function EmployeeDashboard() {
 
       {aiResult && (
         <Dialog open={isAiModalOpen} onOpenChange={setIsAiModalOpen}>
-            <DialogContent>
+            <DialogContent className="max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 font-headline">
-                        <ShieldCheck className="text-primary" />
-                        Photo Analysis Complete
+                    <DialogTitle className="flex items-center gap-2 font-headline text-xl">
+                        <ShieldCheck className="text-primary h-6 w-6" />
+                        AI Analysis Result
                     </DialogTitle>
                     <DialogDescription>
-                        Here are the results of the intrusion detection analysis.
+                        Intrusion detection analysis has been completed for your submission.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                         <span className="font-medium">Live Face Detected</span>
-                        <Badge variant={aiResult.isLiveFace ? 'default' : 'destructive'} className={aiResult.isLiveFace ? "bg-green-500 hover:bg-green-600" : ""}>
-                            {aiResult.isLiveFace ? 'Yes' : 'No'}
+                        <Badge variant={aiResult.isLiveFace ? 'default' : 'destructive'} className={aiResult.isLiveFace ? "bg-green-500 hover:bg-green-600 px-3" : "px-3"}>
+                            {aiResult.isLiveFace ? 'PASSED' : 'FAILED'}
                         </Badge>
                     </div>
-                    <div className="flex items-center justify-between">
-                        <span className="font-medium">AI Generated</span>
-                        <Badge variant={aiResult.isAiGenerated ? 'destructive' : 'default'} className={aiResult.isAiGenerated ? "bg-red-500 hover:bg-red-600" : ""}>
-                            {aiResult.isAiGenerated ? 'Yes' : 'No'}
+                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <span className="font-medium">AI Generated Check</span>
+                        <Badge variant={aiResult.isAiGenerated ? 'destructive' : 'default'} className={aiResult.isAiGenerated ? "px-3" : "bg-green-500 hover:bg-green-600 px-3"}>
+                            {aiResult.isAiGenerated ? 'DETECTED' : 'CLEAR'}
                         </Badge>
                     </div>
-                    <div className="flex items-center justify-between">
-                        <span className="font-medium">Confidence Score</span>
-                        <span className="font-mono">{(aiResult.confidence * 100).toFixed(0)}%</span>
+                    <div className="flex items-center justify-between px-3">
+                        <span className="text-sm font-medium text-muted-foreground">Confidence Score</span>
+                        <span className="font-mono font-bold text-lg text-primary">{(aiResult.confidence * 100).toFixed(0)}%</span>
                     </div>
                     <Separator />
-                    <div>
-                        <h4 className="font-semibold mb-2">Explanation</h4>
-                        <p className="text-sm text-muted-foreground p-3 bg-muted rounded-md">{aiResult.explanation}</p>
+                    <div className="bg-primary/5 p-4 rounded-md border border-primary/10">
+                        <h4 className="font-bold text-sm mb-2 uppercase tracking-tight text-primary">Analysis Explanation</h4>
+                        <p className="text-sm leading-relaxed">{aiResult.explanation}</p>
                     </div>
                 </div>
-                <Button onClick={() => setIsAiModalOpen(false)} className="w-full">Close</Button>
+                <Button onClick={() => setIsAiModalOpen(false)} className="w-full h-12">Close & Continue</Button>
             </DialogContent>
         </Dialog>
       )}
