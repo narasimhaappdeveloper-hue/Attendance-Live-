@@ -1,14 +1,16 @@
+
 'use client';
 
 import { createContext, useState, useEffect, useMemo, type ReactNode } from 'react';
 import { initialEmployees, hrUser } from '@/lib/initial-data';
-import type { Employee, AttendanceRecord, CurrentUser } from '@/lib/types';
+import type { Employee, AttendanceRecord, CurrentUser, Site } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { isSameDay } from 'date-fns';
 
 interface AppContextType {
   currentUser: CurrentUser | null;
   employees: Employee[];
+  sites: Site[];
   attendanceRecords: AttendanceRecord[];
   hasSubmittedToday: boolean;
   login: (id: string, name: string) => 'employee' | 'hr' | 'not_found' | 'pending';
@@ -16,14 +18,23 @@ interface AppContextType {
   addEmployee: (employee: Omit<Employee, 'status'>) => void;
   updateEmployeeStatus: (id: string, status: 'Approved' | 'Pending') => void;
   deleteEmployee: (id: string) => void;
+  addSite: (name: string) => void;
+  deleteSite: (id: string) => void;
   submitAttendance: (record: Omit<AttendanceRecord, 'id' | 'employeeName'>) => void;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const defaultSites: Site[] = [
+  { id: 'S1', name: 'Main Office' },
+  { id: 'S2', name: 'Warehouse' },
+  { id: 'S3', name: 'Remote' },
+];
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+  const [sites, setSites] = useState<Site[]>(defaultSites);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const router = useRouter();
@@ -40,6 +51,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } else {
         setEmployees(initialEmployees);
       }
+      const storedSites = localStorage.getItem('sites');
+      if (storedSites) {
+        setSites(JSON.parse(storedSites));
+      }
       const storedAttendance = localStorage.getItem('attendanceRecords');
       if (storedAttendance) {
         setAttendanceRecords(JSON.parse(storedAttendance));
@@ -55,9 +70,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (isLoaded) {
       localStorage.setItem('currentUser', JSON.stringify(currentUser));
       localStorage.setItem('employees', JSON.stringify(employees));
+      localStorage.setItem('sites', JSON.stringify(sites));
       localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
     }
-  }, [currentUser, employees, attendanceRecords, isLoaded]);
+  }, [currentUser, employees, sites, attendanceRecords, isLoaded]);
 
   const hasSubmittedToday = useMemo(() => {
     if (!currentUser || currentUser.role !== 'employee') return false;
@@ -116,10 +132,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAttendanceRecords((prev) => prev.filter((rec) => rec.employeeId !== id));
   };
 
+  const addSite = (name: string) => {
+    const newSite: Site = { id: `SITE${Date.now()}`, name };
+    setSites((prev) => [...prev, newSite]);
+  };
+
+  const deleteSite = (id: string) => {
+    setSites((prev) => prev.filter((site) => site.id !== id));
+  };
+
   const submitAttendance = (record: Omit<AttendanceRecord, 'id' | 'employeeName'>) => {
     if (!currentUser) return;
     
-    // Safety check for duplicate submission
     const alreadySubmitted = attendanceRecords.some(r => 
       r.employeeId === currentUser.id && 
       isSameDay(new Date(r.dateTime), new Date())
@@ -143,6 +167,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         currentUser,
         employees,
+        sites,
         attendanceRecords,
         hasSubmittedToday,
         login,
@@ -150,6 +175,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addEmployee,
         updateEmployeeStatus,
         deleteEmployee,
+        addSite,
+        deleteSite,
         submitAttendance,
       }}
     >

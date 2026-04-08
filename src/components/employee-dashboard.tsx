@@ -32,11 +32,11 @@ import { format } from 'date-fns';
 
 const formSchema = z.object({
   shift: z.enum(['Shift A', 'Shift B', 'Shift C', 'General']),
-  site: z.enum(['Main Office', 'Warehouse', 'Remote']),
+  site: z.string().min(1, { message: 'దయచేసి సైట్‌ను ఎంచుకోండి.' }),
 });
 
 export default function EmployeeDashboard() {
-  const { currentUser, submitAttendance, hasSubmittedToday } = useApp();
+  const { currentUser, sites, submitAttendance, hasSubmittedToday } = useApp();
   const { toast } = useToast();
   const [photoDataUri, setPhotoDataUri] = useState<string | null>(null);
   const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
@@ -47,7 +47,7 @@ export default function EmployeeDashboard() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       shift: 'General',
-      site: 'Main Office',
+      site: '',
     },
   });
 
@@ -89,7 +89,7 @@ export default function EmployeeDashboard() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'దయచేసి ఫోటో తీసి కన్ఫర్మ్ చేయండి.',
+        description: 'దయచేసి ఫోటో తీసి కన్ఫర్మ్ (OK) చేయండి.',
       });
       return;
     }
@@ -112,7 +112,7 @@ export default function EmployeeDashboard() {
 
         submitAttendance({
             employeeId: currentUser.id,
-            shift: values.shift,
+            shift: values.shift as any,
             site: values.site,
             dateTime: new Date().toISOString(),
             gpsCoordinates: gps || { lat: 14.159487, lng: 77.615092 },
@@ -224,7 +224,7 @@ export default function EmployeeDashboard() {
         <Card className="h-full">
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Submission Details</CardTitle>
-            <CardDescription>షిఫ్ట్ వివరాలను ఎంచుకుని అటెండెన్స్ పంపండి.</CardDescription>
+            <CardDescription>షిఫ్ట్ మరియు సైట్ వివరాలను ఎంచుకుని అటెండెన్స్ పంపండి.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -265,9 +265,9 @@ export default function EmployeeDashboard() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Main Office">Main Office</SelectItem>
-                          <SelectItem value="Warehouse">Warehouse</SelectItem>
-                          <SelectItem value="Remote">Remote</SelectItem>
+                          {sites.map((site) => (
+                            <SelectItem key={site.id} value={site.name}>{site.name}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -277,7 +277,7 @@ export default function EmployeeDashboard() {
                 
                 <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
                   <p className="text-xs text-amber-800 leading-relaxed font-medium">
-                    గమనిక: ఫోటో తీసిన తర్వాత 'OK' బటన్ నొక్కి కన్ఫర్మ్ చేయండి. ఆ తర్వాతే 'Submit' బటన్ పనిచేస్తుంది.
+                    గమనిక: ఫోటో తీసిన తర్వాత 'OK' బటన్ నొక్కి కన్ఫర్మ్ చేయండి. ఆ తర్వాతే 'Submit Attendance' బటన్ పనిచేస్తుంది.
                   </p>
                 </div>
 

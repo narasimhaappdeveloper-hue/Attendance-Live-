@@ -1,3 +1,4 @@
+
 export type Employee = {
   id: string;
   name: string;
@@ -5,12 +6,17 @@ export type Employee = {
   phone?: string;
 };
 
+export type Site = {
+  id: string;
+  name: string;
+};
+
 export type AttendanceRecord = {
   id: string;
   employeeId: string;
   employeeName: string;
   shift: 'Shift A' | 'Shift B' | 'Shift C' | 'General';
-  site: 'Main Office' | 'Warehouse' | 'Remote';
+  site: string;
   dateTime: string;
   gpsCoordinates: { lat: number; lng: number };
   address: string;
