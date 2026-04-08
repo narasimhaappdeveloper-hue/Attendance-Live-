@@ -58,7 +58,7 @@ export default function EmployeeDashboard() {
   });
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -223,7 +223,7 @@ export default function EmployeeDashboard() {
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-bold text-muted-foreground uppercase">Time</p>
-                                        <p className="text-sm font-medium">{format(currentTime, 'hh:mm a')}</p>
+                                        <p className="text-sm font-medium">{format(currentTime, 'hh:mm:ss a')}</p>
                                     </div>
                                 </div>
                             </div>
