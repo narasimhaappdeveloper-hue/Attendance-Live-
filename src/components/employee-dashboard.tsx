@@ -27,10 +27,11 @@ import { useApp } from '@/hooks/use-app';
 import { useToast } from '@/hooks/use-toast';
 import { detectAttendanceIntrusion } from '@/ai/flows/detect-attendance-intrusion';
 import type { DetectAttendanceIntrusionOutput } from '@/ai/flows/detect-attendance-intrusion';
-import { LoaderCircle, MapPin, Camera, AlertTriangle, ShieldCheck, Info, RefreshCw } from 'lucide-react';
+import { LoaderCircle, MapPin, Camera, AlertTriangle, ShieldCheck, Info, RefreshCw, Calendar, Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { format } from 'date-fns';
 
 const formSchema = z.object({
   shift: z.enum(['Morning', 'Afternoon', 'Night']),
@@ -43,10 +44,19 @@ export default function EmployeeDashboard() {
   const [photoDataUri, setPhotoDataUri] = useState<string | null>(null);
   const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
   const [address, setAddress] = useState<string>('Fetching address...');
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [aiResult, setAiResult] = useState<DetectAttendanceIntrusionOutput | null>(null);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+
+  // Update clock every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -71,8 +81,8 @@ export default function EmployeeDashboard() {
       (position) => {
         const { latitude, longitude } = position.coords;
         setGps({ lat: latitude, lng: longitude });
-        // Mock reverse geocoding
-        setAddress(`Near ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        // Mocking a more "full" looking address for demonstration
+        setAddress(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}, Plot 42, Tech Park, Hyderabad, TG 500081`);
         setIsLocating(false);
       },
       (error) => {
@@ -161,25 +171,45 @@ export default function EmployeeDashboard() {
                 <div className="grid md:grid-cols-2 gap-8">
                     <div className="space-y-6">
                         <WebcamCapture onCapture={handlePhotoCapture} />
-                        <div className="flex items-start justify-between gap-3 rounded-lg border p-4 text-sm bg-muted/30">
-                            <div className="flex gap-3">
-                                <MapPin className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                                <div>
-                                    <p className="font-semibold">Location Details</p>
-                                    <p className="text-muted-foreground">{address}</p>
-                                    {gps && <p className="text-xs text-muted-foreground/80">({gps.lat.toFixed(4)}, {gps.lng.toFixed(4)})</p>}
+                        <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+                            <div className="flex items-start justify-between">
+                                <div className="flex gap-3">
+                                    <MapPin className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                                    <div>
+                                        <p className="font-semibold text-sm">Full Address</p>
+                                        <p className="text-sm text-muted-foreground leading-relaxed">{address}</p>
+                                    </div>
+                                </div>
+                                <Button 
+                                  type="button" 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={getLocation} 
+                                  disabled={isLocating}
+                                  className="h-8 w-8"
+                                >
+                                    <RefreshCw className={`h-4 w-4 ${isLocating ? 'animate-spin' : ''}`} />
+                                </Button>
+                            </div>
+                            
+                            <Separator />
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="flex items-center gap-2">
+                                    <Calendar className="h-4 w-4 text-primary" />
+                                    <div>
+                                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Date</p>
+                                        <p className="text-sm font-medium">{format(currentTime, 'PPP')}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Clock className="h-4 w-4 text-primary" />
+                                    <div>
+                                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Time</p>
+                                        <p className="text-sm font-medium">{format(currentTime, 'pp')}</p>
+                                    </div>
                                 </div>
                             </div>
-                            <Button 
-                              type="button" 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={getLocation} 
-                              disabled={isLocating}
-                              className="flex-shrink-0"
-                            >
-                                <RefreshCw className={`h-4 w-4 ${isLocating ? 'animate-spin' : ''}`} />
-                            </Button>
                         </div>
                     </div>
                     <div className="space-y-6">
