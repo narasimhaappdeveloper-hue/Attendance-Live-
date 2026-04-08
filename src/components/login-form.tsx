@@ -13,12 +13,13 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useApp } from '@/hooks/use-app';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { LoaderCircle } from 'lucide-react';
+import { LoaderCircle, Info } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -74,59 +75,91 @@ export function LoginForm() {
     }, 1000)
   };
 
+  const fillDemo = (name: string, id: string) => {
+    form.setValue('name', name);
+    form.setValue('employeeId', id);
+  };
+
   return (
-    <Card>
-      <CardContent className="p-6">
-        <Form {...form}>
-          <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="John Doe" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="employeeId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Employee ID</FormLabel>
-                  <FormControl>
-                    <Input placeholder="EMP001" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="flex flex-col sm:flex-row gap-2">
-                <Button 
-                    type="button" 
-                    className="w-full" 
-                    onClick={() => form.handleSubmit(() => handleLogin('employee'))()}
-                    disabled={!!loading}
-                >
-                    {loading === 'employee' ? <LoaderCircle className="animate-spin" /> : 'Login as Employee'}
-                </Button>
-                <Button 
-                    type="button" 
-                    variant="secondary" 
-                    className="w-full" 
-                    onClick={() => form.handleSubmit(() => handleLogin('hr'))()}
-                    disabled={!!loading}
-                >
-                    {loading === 'hr' ? <LoaderCircle className="animate-spin" /> : 'Login as HR'}
-                </Button>
-            </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="p-6">
+          <Form {...form}>
+            <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="employeeId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Employee ID</FormLabel>
+                    <FormControl>
+                      <Input placeholder="EMP001" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex flex-col sm:flex-row gap-2">
+                  <Button 
+                      type="button" 
+                      className="w-full" 
+                      onClick={() => form.handleSubmit(() => handleLogin('employee'))()}
+                      disabled={!!loading}
+                  >
+                      {loading === 'employee' ? <LoaderCircle className="animate-spin" /> : 'Login as Employee'}
+                  </Button>
+                  <Button 
+                      type="button" 
+                      variant="secondary" 
+                      className="w-full" 
+                      onClick={() => form.handleSubmit(() => handleLogin('hr'))()}
+                      disabled={!!loading}
+                  >
+                      {loading === 'hr' ? <LoaderCircle className="animate-spin" /> : 'Login as HR'}
+                  </Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+        <Separator />
+        <CardFooter className="flex flex-col items-start p-6 gap-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+            <Info className="h-4 w-4" />
+            <span>Demo Credentials</span>
+          </div>
+          <div className="grid grid-cols-1 gap-2 w-full">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="justify-start font-normal text-xs h-auto py-2"
+              onClick={() => fillDemo('Admin', 'HR-001')}
+            >
+              <span className="font-bold mr-2">HR:</span> Admin / HR-001
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="justify-start font-normal text-xs h-auto py-2"
+              onClick={() => fillDemo('Alice Johnson', 'EMP001')}
+            >
+              <span className="font-bold mr-2">Staff:</span> Alice Johnson / EMP001
+            </Button>
+          </div>
+        </CardFooter>
+      </Card>
+    </div>
   );
 }
