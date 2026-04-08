@@ -52,11 +52,10 @@ export default function EmployeeDashboard() {
   const [aiResult, setAiResult] = useState<DetectAttendanceIntrusionOutput | null>(null);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
-  // Update clock every minute
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 1000); // Updated to 1s for real-time feel
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -83,7 +82,6 @@ export default function EmployeeDashboard() {
       (position) => {
         const { latitude, longitude } = position.coords;
         setGps({ lat: latitude, lng: longitude });
-        // Mocking detailed address based on provided image reference
         setArea('Duddebanda');
         setState('Andhra Pradesh');
         setAddress(`5j9f+gm3, Duddebanda, Andhra Pradesh 515164, India`);
@@ -208,9 +206,8 @@ export default function EmployeeDashboard() {
                     <div className="lg:col-span-7 space-y-6">
                         <WebcamCapture onCapture={handlePhotoCapture} />
                         
-                        {/* Custom GPS Map Camera Overlay */}
+                        {/* GPS Map Camera Overlay - Preserving specified elements */}
                         <div className="bg-neutral-900 text-white p-4 rounded-lg flex gap-4 overflow-hidden relative border border-white/10 shadow-2xl">
-                          {/* Top Right Label */}
                           <div className="absolute top-2 right-2 bg-black/40 px-2 py-0.5 rounded text-[8px] flex items-center gap-1 border border-white/5 z-10">
                              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_5px_rgba(59,130,246,0.8)]"></div>
                              GPS Map Camera
@@ -282,7 +279,6 @@ export default function EmployeeDashboard() {
                           </div>
                         </div>
 
-                        {/* Controls Container */}
                         <div className="flex items-center justify-between p-2 bg-muted/50 rounded-md border border-dashed border-muted-foreground/30">
                            <p className="text-[10px] text-muted-foreground italic">Location is automatically captured using GPS Map Camera mode.</p>
                            <Button 
