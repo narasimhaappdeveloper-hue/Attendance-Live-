@@ -36,19 +36,41 @@ export function WebcamCapture({ onCapture }: WebcamCaptureProps) {
   useEffect(() => {
     startCamera();
     return () => {
-      stream?.getTracks().forEach(track => track.stop());
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
     };
-  }, [stream, startCamera]);
+  }, [startCamera]);
   
   const handleCapture = () => {
     if (videoRef.current) {
       const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
+      
+      // Set a reasonable resolution for AI processing to avoid "Unable to process image" errors
+      const maxWidth = 640;
+      const maxHeight = 480;
+      let width = videoRef.current.videoWidth;
+      let height = videoRef.current.videoHeight;
+
+      if (width > maxWidth) {
+        height = (maxWidth / width) * height;
+        width = maxWidth;
+      }
+      if (height > maxHeight) {
+        width = (maxHeight / height) * width;
+        height = maxHeight;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      
       const context = canvas.getContext('2d');
       if (context) {
+        // Horizontal flip for a more natural selfie capture if using user-facing camera
         context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const dataUri = canvas.toDataURL('image/jpeg');
+        
+        // Use a slightly lower quality (0.8) to reduce payload size
+        const dataUri = canvas.toDataURL('image/jpeg', 0.8);
         setCapturedImage(dataUri);
         onCapture(dataUri);
       }
@@ -73,7 +95,7 @@ export function WebcamCapture({ onCapture }: WebcamCaptureProps) {
       {!error && (
         <>
         {capturedImage ? (
-            <Image src={capturedImage} alt="Captured" layout="fill" objectFit="cover" />
+            <Image src={capturedImage} alt="Captured" fill className="object-cover" />
         ) : (
             <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
         )}
