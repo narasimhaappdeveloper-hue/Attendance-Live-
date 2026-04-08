@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -25,7 +26,7 @@ import { WebcamCapture } from '@/components/webcam-capture';
 import { useApp } from '@/hooks/use-app';
 import { useToast } from '@/hooks/use-toast';
 import { detectAttendanceIntrusion } from '@/ai/flows/detect-attendance-intrusion';
-import { LoaderCircle, MapPin, Info, RefreshCw, CheckCircle2, Clock, Calendar as CalendarIcon, Phone } from 'lucide-react';
+import { LoaderCircle, MapPin, Clock, Calendar as CalendarIcon, Phone, User as UserIcon } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 
@@ -39,9 +40,7 @@ export default function EmployeeDashboard() {
   const { toast } = useToast();
   const [photoDataUri, setPhotoDataUri] = useState<string | null>(null);
   const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
-  const [address, setAddress] = useState<string>('Duddebanda, Andhra Pradesh, India 🇮🇳');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLocating, setIsLocating] = useState(false);
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -58,10 +57,7 @@ export default function EmployeeDashboard() {
   }, []);
 
   const getLocation = useCallback(() => {
-    setIsLocating(true);
-    
     if (!navigator.geolocation) {
-      setIsLocating(false);
       setGps({ lat: 14.159487, lng: 77.615092 });
       return;
     }
@@ -70,10 +66,8 @@ export default function EmployeeDashboard() {
       (position) => {
         const { latitude, longitude } = position.coords;
         setGps({ lat: latitude, lng: longitude });
-        setIsLocating(false);
       },
       () => {
-        setIsLocating(false);
         setGps({ lat: 14.159487, lng: 77.615092 });
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -88,8 +82,6 @@ export default function EmployeeDashboard() {
 
   const handlePhotoCapture = (dataUri: string | null) => {
     setPhotoDataUri(dataUri);
-    // Automatic submission is REMOVED. 
-    // User must click "Submit Attendance" button below.
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -97,7 +89,7 @@ export default function EmployeeDashboard() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'దయచేసి ఫోటో తీయండి.',
+        description: 'దయచేసి ఫోటో తీసి కన్ఫర్మ్ చేయండి.',
       });
       return;
     }
@@ -105,7 +97,6 @@ export default function EmployeeDashboard() {
     setIsSubmitting(true);
     
     try {
-        // AI analysis happens during submission to ensure liveness
         toast({ title: 'విశ్లేషిస్తోంది...', description: 'ఫోటోను తనిఖీ చేస్తున్నాము.'});
         const aiResult = await detectAttendanceIntrusion({ photoDataUri });
         
@@ -125,7 +116,7 @@ export default function EmployeeDashboard() {
             site: values.site,
             dateTime: new Date().toISOString(),
             gpsCoordinates: gps || { lat: 14.159487, lng: 77.615092 },
-            address: address,
+            address: "Duddebanda, Andhra Pradesh, India 🇮🇳",
             photoDataUri: photoDataUri,
         });
 
@@ -148,8 +139,8 @@ export default function EmployeeDashboard() {
     return (
       <Card className="border-green-100 bg-green-50/30">
         <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="bg-green-100 p-4 rounded-full mb-6">
-            <CheckCircle2 className="h-16 w-16 text-green-600" />
+          <div className="bg-green-100 p-4 rounded-full mb-6 shadow-sm">
+            <Clock className="h-16 w-16 text-green-600" />
           </div>
           <CardTitle className="text-3xl font-headline text-green-800 mb-2">Attendance Completed!</CardTitle>
           <CardDescription className="text-lg text-green-700 max-w-md">
@@ -161,80 +152,83 @@ export default function EmployeeDashboard() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-headline text-2xl">Attendance Submission</CardTitle>
-        <CardDescription>
-          ఫోటో తీసి వివరాలను నిర్ధారించండి.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <div className="grid lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-7 space-y-6">
-                <WebcamCapture onCapture={handlePhotoCapture} />
-                
-                <div className="p-5 bg-muted/40 rounded-xl border space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/10 p-2 rounded-full">
-                      <MapPin className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Location</p>
-                      <p className="text-sm font-medium leading-tight">{address}</p>
-                    </div>
-                  </div>
-                  
-                  <Separator className="opacity-50" />
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-primary/10 p-2 rounded-full">
-                        <CalendarIcon className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Date</p>
-                        <p className="text-sm font-medium">{format(currentTime, 'dd/MM/yyyy')}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="bg-primary/10 p-2 rounded-full">
-                        <Clock className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Time</p>
-                        <p className="text-sm font-medium">{format(currentTime, 'hh:mm:ss a')}</p>
-                      </div>
-                    </div>
-                  </div>
+    <div className="grid lg:grid-cols-12 gap-8">
+      <div className="lg:col-span-7 space-y-6">
+        <Card className="overflow-hidden border-none shadow-none bg-transparent">
+            <WebcamCapture onCapture={handlePhotoCapture} />
+        </Card>
 
-                  <Separator className="opacity-50" />
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-primary/10 p-2 rounded-full">
-                        <Info className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Employee</p>
-                        <p className="text-sm font-medium">{currentUser?.name}</p>
-                      </div>
+        <Card>
+            <CardContent className="p-6 space-y-4">
+                <div className="flex items-start gap-3">
+                    <div className="bg-primary/10 p-2 rounded-full mt-1">
+                        <MapPin className="h-5 w-5 text-primary" />
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="bg-primary/10 p-2 rounded-full">
-                        <Phone className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Mobile</p>
-                        <p className="text-sm font-medium">{currentUser?.phone || 'Not Available'}</p>
-                      </div>
+                    <div>
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Location</p>
+                        <p className="text-sm font-medium">Duddebanda, Andhra Pradesh, India 🇮🇳</p>
+                        <p className="text-[10px] text-muted-foreground">5j9f+gm3, Duddebanda, Andhra Pradesh 515164</p>
                     </div>
-                  </div>
                 </div>
-              </div>
 
-              <div className="lg:col-span-5 space-y-6">
+                <Separator />
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-primary/10 p-2 rounded-full">
+                            <CalendarIcon className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Date</p>
+                            <p className="text-xs font-medium">{format(currentTime, 'dd/MM/yyyy')}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="bg-primary/10 p-2 rounded-full">
+                            <Clock className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Time</p>
+                            <p className="text-xs font-medium">{format(currentTime, 'hh:mm:ss a')}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-primary/10 p-2 rounded-full">
+                            <UserIcon className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Employee</p>
+                            <p className="text-xs font-medium">{currentUser?.name}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="bg-primary/10 p-2 rounded-full">
+                            <Phone className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Mobile</p>
+                            <p className="text-xs font-medium">{currentUser?.phone || 'Not Available'}</p>
+                        </div>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+      </div>
+
+      <div className="lg:col-span-5">
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle className="font-headline text-2xl">Submission Details</CardTitle>
+            <CardDescription>షిఫ్ట్ వివరాలను ఎంచుకుని అటెండెన్స్ పంపండి.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
                   control={form.control}
                   name="shift"
@@ -281,15 +275,15 @@ export default function EmployeeDashboard() {
                   )}
                 />
                 
-                <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    ముఖ్య గమనిక: అటెండెన్స్ రోజుకు ఒకసారి మాత్రమే అనుమతించబడుతుంది. ఫోటో తీసిన తర్వాత కింద ఉన్న బటన్ నొక్కండి.
+                <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                  <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                    గమనిక: ఫోటో తీసిన తర్వాత 'OK' బటన్ నొక్కి కన్ఫర్మ్ చేయండి. ఆ తర్వాతే 'Submit' బటన్ పనిచేస్తుంది.
                   </p>
                 </div>
 
                 <Button 
                   type="submit" 
-                  className="w-full text-lg py-8 shadow-lg" 
+                  className="w-full text-lg py-8 shadow-lg transition-all" 
                   disabled={isSubmitting || !photoDataUri}
                 >
                   {isSubmitting ? (
@@ -301,11 +295,11 @@ export default function EmployeeDashboard() {
                     'Submit Attendance'
                   )}
                 </Button>
-              </div>
-            </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
