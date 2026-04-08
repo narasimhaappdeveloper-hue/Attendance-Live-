@@ -220,34 +220,14 @@ export default function EmployeeDashboard() {
                              </div>
                           </div>
 
-                          {/* Middle Section: Location Details */}
-                          <div className="flex-1 space-y-1.5 overflow-hidden">
+                          {/* Middle Section: Location Details - Simplified to show only address */}
+                          <div className="flex-1 space-y-1.5 overflow-hidden justify-center flex flex-col">
                              <h3 className="text-base md:text-xl font-bold leading-tight">
                                 {area}, {state}, India 🇮🇳
                              </h3>
-                             <div className="space-y-1">
-                                <p className="text-[10px] md:text-xs opacity-90 leading-tight font-medium">
-                                   {address}
-                                </p>
-                                <div className="flex flex-col gap-0.5 text-[9px] md:text-[10px] opacity-80 font-mono">
-                                   <p className="flex items-center gap-1">
-                                      <span>Lat {gps?.lat?.toFixed(6) || '14.159487'}°</span>
-                                      <span>Long {gps?.lng?.toFixed(6) || '77.615092'}°</span>
-                                   </p>
-                                   <p className="font-semibold uppercase">
-                                      {format(currentTime, "EEEE, MM/dd/yyyy hh:mm a 'GMT +05:30'")}
-                                   </p>
-                                   <p className="flex items-center gap-1">
-                                      Person Name : -{currentUser?.name}
-                                   </p>
-                                   <div className="flex items-center gap-1.5 mt-0.5">
-                                      <div className="bg-blue-500/20 p-0.5 rounded">
-                                        <Phone className="h-3 w-3 text-blue-400" />
-                                      </div>
-                                      <span className="font-bold">8050166319</span>
-                                   </div>
-                                </div>
-                             </div>
+                             <p className="text-[10px] md:text-xs opacity-90 leading-tight font-medium">
+                                {address}
+                             </p>
                           </div>
 
                           {/* Right Section: Selfie Preview */}
