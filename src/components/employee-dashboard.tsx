@@ -42,7 +42,7 @@ export default function EmployeeDashboard() {
   const { toast } = useToast();
   const [photoDataUri, setPhotoDataUri] = useState<string | null>(null);
   const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
-  const [address, setAddress] = useState<string>('5j9f+gm3, Duddebanda, Andhra Pradesh 515164, India');
+  const [address, setAddress] = useState<string>('Duddebanda, Andhra Pradesh, India 🇮🇳');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [aiResult, setAiResult] = useState<DetectAttendanceIntrusionOutput | null>(null);
@@ -246,7 +246,7 @@ export default function EmployeeDashboard() {
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-bold text-muted-foreground uppercase">Contact</p>
-                                        <p className="text-sm font-medium">8050166319</p>
+                                        <p className="text-sm font-medium">{currentUser?.phone || 'Not Available'}</p>
                                     </div>
                                 </div>
                             </div>

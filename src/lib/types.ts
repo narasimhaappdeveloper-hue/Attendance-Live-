@@ -2,6 +2,7 @@ export type Employee = {
   id: string;
   name: string;
   status: 'Approved' | 'Pending';
+  phone?: string;
 };
 
 export type AttendanceRecord = {
@@ -20,4 +21,5 @@ export type CurrentUser = {
   id: string;
   name: string;
   role: 'employee' | 'hr';
+  phone?: string;
 };

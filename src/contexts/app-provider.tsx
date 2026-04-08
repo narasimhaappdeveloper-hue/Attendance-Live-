@@ -82,7 +82,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if(employee.status === 'Pending') {
             return 'pending';
         }
-      const user: CurrentUser = { id: employee.id, name: employee.name, role: 'employee' };
+      const user: CurrentUser = { 
+        id: employee.id, 
+        name: employee.name, 
+        role: 'employee',
+        phone: employee.phone 
+      };
       setCurrentUser(user);
       return 'employee';
     }

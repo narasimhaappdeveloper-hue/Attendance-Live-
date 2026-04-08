@@ -58,6 +58,7 @@ import { Badge } from '@/components/ui/badge';
 const addEmployeeSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   id: z.string().min(3, { message: 'ID is required.' }),
+  phone: z.string().min(10, { message: 'Phone must be at least 10 digits.' }),
 });
 
 export default function EmployeeManagement() {
@@ -70,11 +71,12 @@ export default function EmployeeManagement() {
     defaultValues: {
       name: '',
       id: '',
+      phone: '',
     },
   });
 
   const handleAddEmployee = (values: z.infer<typeof addEmployeeSchema>) => {
-    addEmployee({name: values.name, id: values.id.toUpperCase()});
+    addEmployee({name: values.name, id: values.id.toUpperCase(), phone: values.phone});
     toast({ title: 'Success', description: 'New employee has been added.' });
     form.reset();
     setIsAddDialogOpen(false);
@@ -97,6 +99,7 @@ export default function EmployeeManagement() {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Employee ID</TableHead>
+              <TableHead>Phone</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -106,6 +109,7 @@ export default function EmployeeManagement() {
               <TableRow key={employee.id}>
                 <TableCell className="font-medium">{employee.name}</TableCell>
                 <TableCell>{employee.id}</TableCell>
+                <TableCell>{employee.phone || '-'}</TableCell>
                 <TableCell>
                   <Select
                     value={employee.status}
@@ -152,7 +156,7 @@ export default function EmployeeManagement() {
               </TableRow>
             )) : (
                 <TableRow>
-                    <TableCell colSpan={4} className="text-center h-24">No employees found.</TableCell>
+                    <TableCell colSpan={5} className="text-center h-24">No employees found.</TableCell>
                 </TableRow>
             )}
           </TableBody>
@@ -190,6 +194,19 @@ export default function EmployeeManagement() {
                     <FormLabel>Employee ID</FormLabel>
                     <FormControl>
                       <Input placeholder="EMP005" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())}/>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="9876543210" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
