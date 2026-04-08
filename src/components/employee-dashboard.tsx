@@ -26,7 +26,7 @@ import { useApp } from '@/hooks/use-app';
 import { useToast } from '@/hooks/use-toast';
 import { detectAttendanceIntrusion } from '@/ai/flows/detect-attendance-intrusion';
 import type { DetectAttendanceIntrusionOutput } from '@/ai/flows/detect-attendance-intrusion';
-import { LoaderCircle, MapPin, Info, RefreshCw, CheckCircle2, Navigation, Clock, Calendar as CalendarIcon, Phone } from 'lucide-react';
+import { LoaderCircle, MapPin, Info, RefreshCw, CheckCircle2, Clock, Calendar as CalendarIcon, Phone } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
