@@ -8,7 +8,7 @@ export type AttendanceRecord = {
   id: string;
   employeeId: string;
   employeeName: string;
-  shift: 'Morning' | 'Afternoon' | 'Night';
+  shift: 'Shift A' | 'Shift B' | 'Shift C' | 'General';
   site: 'Main Office' | 'Warehouse' | 'Remote';
   dateTime: string;
   gpsCoordinates: { lat: number; lng: number };

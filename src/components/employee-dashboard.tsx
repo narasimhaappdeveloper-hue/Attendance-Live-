@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -34,7 +33,7 @@ import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 
 const formSchema = z.object({
-  shift: z.enum(['Morning', 'Afternoon', 'Night']),
+  shift: z.enum(['Shift A', 'Shift B', 'Shift C', 'General']),
   site: z.enum(['Main Office', 'Warehouse', 'Remote']),
 });
 
@@ -81,7 +80,6 @@ export default function EmployeeDashboard() {
       (position) => {
         const { latitude, longitude } = position.coords;
         setGps({ lat: latitude, lng: longitude });
-        // Mocking a more "full" looking address for demonstration
         setAddress(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}, Plot 42, Tech Park, Hyderabad, TG 500081`);
         setIsLocating(false);
       },
@@ -137,7 +135,6 @@ export default function EmployeeDashboard() {
     
     setIsSubmitting(true);
     
-    // Artificial delay for UX
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     submitAttendance({
@@ -176,7 +173,7 @@ export default function EmployeeDashboard() {
                                 <div className="flex gap-3">
                                     <MapPin className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
                                     <div>
-                                        <p className="font-semibold text-sm">Full Address</p>
+                                        <p className="font-semibold text-sm">Location Details</p>
                                         <p className="text-sm text-muted-foreground leading-relaxed">{address}</p>
                                     </div>
                                 </div>
@@ -226,9 +223,10 @@ export default function EmployeeDashboard() {
                                 </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                <SelectItem value="Morning">Morning</SelectItem>
-                                <SelectItem value="Afternoon">Afternoon</SelectItem>
-                                <SelectItem value="Night">Night</SelectItem>
+                                <SelectItem value="Shift A">Shift A</SelectItem>
+                                <SelectItem value="Shift B">Shift B</SelectItem>
+                                <SelectItem value="Shift C">Shift C</SelectItem>
+                                <SelectItem value="General">General</SelectItem>
                                 </SelectContent>
                             </Select>
                             <FormMessage />
