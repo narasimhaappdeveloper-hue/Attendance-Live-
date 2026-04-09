@@ -26,9 +26,10 @@ import { WebcamCapture } from '@/components/webcam-capture';
 import { useApp } from '@/hooks/use-app';
 import { useToast } from '@/hooks/use-toast';
 import { detectAttendanceIntrusion } from '@/ai/flows/detect-attendance-intrusion';
-import { LoaderCircle, MapPin, Clock, Calendar as CalendarIcon, Phone, User as UserIcon, RefreshCw } from 'lucide-react';
+import { LoaderCircle, MapPin, Clock, Calendar as CalendarIcon, Phone, User as UserIcon, RefreshCw, AlertCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const formSchema = z.object({
   shift: z.enum(['Shift A', 'Shift B', 'Shift C', 'General']),
@@ -44,6 +45,7 @@ export default function EmployeeDashboard() {
   const [address, setAddress] = useState<string>('చిరునామాను గుర్తిస్తున్నాము...');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -71,13 +73,13 @@ export default function EmployeeDashboard() {
         setAddress(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
       }
     } catch (error) {
-      console.error("Geocoding failed:", error);
-      setAddress("చిరునామాను పొందలేకపోయాము. (GPS Coordinates: " + lat.toFixed(4) + ", " + lng.toFixed(4) + ")");
+      setAddress("చిరునామాను పొందలేకపోయాము. (GPS: " + lat.toFixed(4) + ", " + lng.toFixed(4) + ")");
     }
   };
 
   const getLocation = useCallback(() => {
     setIsLocating(true);
+    setLocationError(null);
     setAddress('చిరునామాను గుర్తిస్తున్నాము...');
     
     if (typeof window !== 'undefined' && navigator.geolocation) {
@@ -89,16 +91,12 @@ export default function EmployeeDashboard() {
           setIsLocating(false);
         },
         (error) => {
-          console.error("Location error:", error);
+          // Instead of console.error, we show a graceful UI message
+          setLocationError("Location access denied or unavailable.");
           const fallbackGps = { lat: 14.159487, lng: 77.615092 };
           setGps(fallbackGps);
-          setAddress("Duddebanda, Andhra Pradesh (Fallback Location)");
+          setAddress("Duddebanda, Andhra Pradesh (Default Location)");
           setIsLocating(false);
-          toast({
-            variant: "destructive",
-            title: "Location Access Required",
-            description: "దయచేసి మీ బ్రౌజర్‌లో లొకేషన్ పర్మిషన్ ఇవ్వండి.",
-          });
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
@@ -106,7 +104,7 @@ export default function EmployeeDashboard() {
       setAddress("GPS Not Supported");
       setIsLocating(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     getLocation();
@@ -158,7 +156,6 @@ export default function EmployeeDashboard() {
         setPhotoDataUri(null);
         setIsPhotoConfirmed(false);
     } catch (error) {
-        console.error('Submission failed:', error);
         toast({
             variant: 'destructive',
             title: 'Error',
@@ -192,6 +189,16 @@ export default function EmployeeDashboard() {
             <WebcamCapture onCapture={handlePhotoCapture} />
         </Card>
 
+        {locationError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Location Access Required</AlertTitle>
+            <AlertDescription>
+              దయచేసి మీ బ్రౌజర్‌లో లొకేషన్ పర్మిషన్ ఇవ్వండి. ఇప్పుడు డీఫాల్ట్ లొకేషన్ వాడుతున్నాము.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Card>
             <CardContent className="p-6 space-y-4">
                 <div className="flex items-start gap-3">
@@ -207,11 +214,6 @@ export default function EmployeeDashboard() {
                             </Button>
                         </div>
                         <p className="text-sm font-medium leading-tight mt-1">{address}</p>
-                        {gps && (
-                            <p className="text-[10px] text-muted-foreground mt-1">
-                                Coordinates: {gps.lat.toFixed(6)}, {gps.lng.toFixed(6)}
-                            </p>
-                        )}
                     </div>
                 </div>
 
