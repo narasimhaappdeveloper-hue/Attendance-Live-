@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useState, useEffect, useMemo, type ReactNode } from 'react';
@@ -84,14 +83,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [currentUser, attendanceRecords]);
 
   const login = (id: string, name: string): 'employee' | 'hr' | 'not_found' | 'pending' => {
-    if (id === hrUser.id && name.toLowerCase() === hrUser.name.toLowerCase()) {
-      const user: CurrentUser = { id, name, role: 'hr' };
+    // HR Login with admin/admin (case insensitive)
+    if (id.toUpperCase() === hrUser.id.toUpperCase() && name.toLowerCase() === hrUser.name.toLowerCase()) {
+      const user: CurrentUser = { id: hrUser.id, name: 'Admin User', role: 'hr' };
       setCurrentUser(user);
       return 'hr';
     }
 
     const employee = employees.find(
-      (e) => e.id === id && e.name.toLowerCase() === name.toLowerCase()
+      (e) => e.id.toUpperCase() === id.toUpperCase() && e.name.toLowerCase() === name.toLowerCase()
     );
 
     if (employee) {

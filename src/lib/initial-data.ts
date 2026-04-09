@@ -8,6 +8,6 @@ export const initialEmployees: Employee[] = [
 ];
 
 export const hrUser = {
-    id: 'HR-001',
-    name: 'Admin',
+    id: 'ADMIN',
+    name: 'admin',
 }
