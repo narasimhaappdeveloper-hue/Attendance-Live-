@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -25,7 +26,7 @@ import { WebcamCapture } from '@/components/webcam-capture';
 import { useApp } from '@/hooks/use-app';
 import { useToast } from '@/hooks/use-toast';
 import { detectAttendanceIntrusion } from '@/ai/flows/detect-attendance-intrusion';
-import { LoaderCircle, MapPin, Clock, Calendar as CalendarIcon, Phone, User as UserIcon } from 'lucide-react';
+import { LoaderCircle, MapPin, Clock, Calendar as CalendarIcon, Phone, User as UserIcon, RefreshCw } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 
@@ -40,7 +41,9 @@ export default function EmployeeDashboard() {
   const [photoDataUri, setPhotoDataUri] = useState<string | null>(null);
   const [isPhotoConfirmed, setIsPhotoConfirmed] = useState(false);
   const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
+  const [address, setAddress] = useState<string>('చిరునామాను గుర్తిస్తున్నాము...');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -56,21 +59,54 @@ export default function EmployeeDashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  const reverseGeocode = async (lat: number, lng: number) => {
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
+        headers: { 'Accept-Language': 'te,en' }
+      });
+      const data = await response.json();
+      if (data && data.display_name) {
+        setAddress(data.display_name);
+      } else {
+        setAddress(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+      }
+    } catch (error) {
+      console.error("Geocoding failed:", error);
+      setAddress("చిరునామాను పొందలేకపోయాము. (GPS Coordinates: " + lat.toFixed(4) + ", " + lng.toFixed(4) + ")");
+    }
+  };
+
   const getLocation = useCallback(() => {
+    setIsLocating(true);
+    setAddress('చిరునామాను గుర్తిస్తున్నాము...');
+    
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setGps({ lat: position.coords.latitude, lng: position.coords.longitude });
+          const newGps = { lat: position.coords.latitude, lng: position.coords.longitude };
+          setGps(newGps);
+          reverseGeocode(newGps.lat, newGps.lng);
+          setIsLocating(false);
         },
-        () => {
-          setGps({ lat: 14.159487, lng: 77.615092 });
+        (error) => {
+          console.error("Location error:", error);
+          const fallbackGps = { lat: 14.159487, lng: 77.615092 };
+          setGps(fallbackGps);
+          setAddress("Duddebanda, Andhra Pradesh (Fallback Location)");
+          setIsLocating(false);
+          toast({
+            variant: "destructive",
+            title: "Location Access Required",
+            description: "దయచేసి మీ బ్రౌజర్‌లో లొకేషన్ పర్మిషన్ ఇవ్వండి.",
+          });
         },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     } else {
-      setGps({ lat: 14.159487, lng: 77.615092 });
+      setAddress("GPS Not Supported");
+      setIsLocating(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     getLocation();
@@ -78,11 +114,11 @@ export default function EmployeeDashboard() {
 
   const handlePhotoCapture = (dataUri: string | null) => {
     setPhotoDataUri(dataUri);
-    setIsPhotoConfirmed(!!dataUri); // In WebcamCapture, 'OK' triggers this with dataUri, 'Delete' with null
+    setIsPhotoConfirmed(!!dataUri); 
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!currentUser || !photoDataUri) {
+    if (!currentUser || !photoDataUri || !isPhotoConfirmed) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -94,7 +130,7 @@ export default function EmployeeDashboard() {
     setIsSubmitting(true);
     
     try {
-        toast({ title: 'విశ్లేషిస్తోంది...', description: 'ఫోటోను తనిఖీ చేస్తున్నాము.'});
+        toast({ title: 'విశ్లేషిస్తోంది...', description: 'ఫోటోను మరియు లొకేషన్‌ను తనిఖీ చేస్తున్నాము.'});
         const aiResult = await detectAttendanceIntrusion({ photoDataUri });
         
         if (!aiResult.isLiveFace) {
@@ -113,11 +149,11 @@ export default function EmployeeDashboard() {
             site: values.site,
             dateTime: new Date().toISOString(),
             gpsCoordinates: gps || { lat: 14.159487, lng: 77.615092 },
-            address: "Duddebanda, Andhra Pradesh, India 🇮🇳 5j9f+gm3, Duddebanda, Andhra Pradesh 515164",
+            address: address,
             photoDataUri: photoDataUri,
         });
 
-        toast({ title: 'విజయం', description: 'మీ అటెండెన్స్ సమర్పించబడింది.' });
+        toast({ title: 'విజయం', description: 'మీ అటెండెన్స్ విజయవంతంగా సమర్పించబడింది.' });
         form.reset();
         setPhotoDataUri(null);
         setIsPhotoConfirmed(false);
@@ -162,10 +198,20 @@ export default function EmployeeDashboard() {
                     <div className="bg-primary/10 p-2 rounded-full mt-1">
                         <MapPin className="h-5 w-5 text-primary" />
                     </div>
-                    <div>
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Location</p>
-                        <p className="text-sm font-medium">Duddebanda, Andhra Pradesh, India 🇮🇳</p>
-                        <p className="text-[10px] text-muted-foreground">5j9f+gm3, Duddebanda, Andhra Pradesh 515164</p>
+                    <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Present Location</p>
+                            <Button variant="ghost" size="sm" onClick={getLocation} disabled={isLocating} className="h-6 text-[10px]">
+                                <RefreshCw className={`h-3 w-3 mr-1 ${isLocating ? 'animate-spin' : ''}`} />
+                                Refresh
+                            </Button>
+                        </div>
+                        <p className="text-sm font-medium leading-tight mt-1">{address}</p>
+                        {gps && (
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                                Coordinates: {gps.lat.toFixed(6)}, {gps.lng.toFixed(6)}
+                            </p>
+                        )}
                     </div>
                 </div>
 
@@ -263,9 +309,11 @@ export default function EmployeeDashboard() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {sites.map((site) => (
+                          {sites.length > 0 ? sites.map((site) => (
                             <SelectItem key={site.id} value={site.name}>{site.name}</SelectItem>
-                          ))}
+                          )) : (
+                            <SelectItem value="No Sites" disabled>No sites available</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -282,7 +330,7 @@ export default function EmployeeDashboard() {
                 <Button 
                   type="submit" 
                   className="w-full text-lg py-8 shadow-lg transition-all" 
-                  disabled={isSubmitting || !photoDataUri}
+                  disabled={isSubmitting || !photoDataUri || !isPhotoConfirmed}
                 >
                   {isSubmitting ? (
                     <>
