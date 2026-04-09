@@ -13,13 +13,12 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { useApp } from '@/hooks/use-app';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { LoaderCircle, Info } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
+import { LoaderCircle } from 'lucide-react';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -73,11 +72,6 @@ export function LoginForm() {
           }
         setLoading(null);
     }, 1000)
-  };
-
-  const fillDemo = (name: string, id: string) => {
-    form.setValue('name', name);
-    form.setValue('employeeId', id);
   };
 
   return (
@@ -134,47 +128,6 @@ export function LoginForm() {
             </form>
           </Form>
         </CardContent>
-        <Separator />
-        <CardFooter className="flex flex-col items-start p-6 gap-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-            <Info className="h-4 w-4" />
-            <span>Demo Credentials</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="justify-start font-normal text-xs h-auto py-2"
-              onClick={() => fillDemo('Admin', 'HR-001')}
-            >
-              <span className="font-bold mr-2">HR:</span> Admin / HR-001
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="justify-start font-normal text-xs h-auto py-2"
-              onClick={() => fillDemo('Alice Johnson', 'EMP001')}
-            >
-              <span className="font-bold mr-2">Alice:</span> EMP001
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="justify-start font-normal text-xs h-auto py-2"
-              onClick={() => fillDemo('Bob Williams', 'EMP002')}
-            >
-              <span className="font-bold mr-2">Bob:</span> EMP002
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="justify-start font-normal text-xs h-auto py-2"
-              onClick={() => fillDemo('Diana Miller', 'EMP004')}
-            >
-              <span className="font-bold mr-2">Diana:</span> EMP004
-            </Button>
-          </div>
-        </CardFooter>
       </Card>
     </div>
   );
