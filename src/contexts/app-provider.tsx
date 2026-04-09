@@ -83,7 +83,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const login = (id: string, name: string): 'employee' | 'hr' | 'not_found' | 'pending' => {
     // Check HR Users
-    const hr = hrUsers.find(h => h.id.toUpperCase() === id.toUpperCase() && h.name.toLowerCase() === name.toLowerCase());
+    const hr = hrUsers.find(h => h.id.toUpperCase() === id.toUpperCase());
     if (hr) {
       setCurrentUser({ id: hr.id, name: hr.name, role: 'hr' });
       return 'hr';
@@ -91,7 +91,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Check Employees
     const employee = employees.find(
-      (e) => e.id.toUpperCase() === id.toUpperCase() && e.name.toLowerCase() === name.toLowerCase()
+      (e) => e.id.toUpperCase() === id.toUpperCase()
     );
 
     if (employee) {

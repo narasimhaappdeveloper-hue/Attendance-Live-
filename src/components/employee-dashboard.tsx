@@ -38,6 +38,7 @@ export default function EmployeeDashboard() {
   const { currentUser, sites, submitAttendance, hasSubmittedToday } = useApp();
   const { toast } = useToast();
   const [photoDataUri, setPhotoDataUri] = useState<string | null>(null);
+  const [isPhotoConfirmed, setIsPhotoConfirmed] = useState(false);
   const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
@@ -56,31 +57,28 @@ export default function EmployeeDashboard() {
   }, []);
 
   const getLocation = useCallback(() => {
-    if (!navigator.geolocation) {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setGps({ lat: position.coords.latitude, lng: position.coords.longitude });
+        },
+        () => {
+          setGps({ lat: 14.159487, lng: 77.615092 });
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    } else {
       setGps({ lat: 14.159487, lng: 77.615092 });
-      return;
     }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setGps({ lat: latitude, lng: longitude });
-      },
-      () => {
-        setGps({ lat: 14.159487, lng: 77.615092 });
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
   }, []);
 
   useEffect(() => {
-    if (!hasSubmittedToday) {
-      getLocation();
-    }
-  }, [getLocation, hasSubmittedToday]);
+    getLocation();
+  }, [getLocation]);
 
   const handlePhotoCapture = (dataUri: string | null) => {
     setPhotoDataUri(dataUri);
+    setIsPhotoConfirmed(!!dataUri); // In WebcamCapture, 'OK' triggers this with dataUri, 'Delete' with null
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -115,13 +113,14 @@ export default function EmployeeDashboard() {
             site: values.site,
             dateTime: new Date().toISOString(),
             gpsCoordinates: gps || { lat: 14.159487, lng: 77.615092 },
-            address: "Duddebanda, Andhra Pradesh, India 🇮🇳",
+            address: "Duddebanda, Andhra Pradesh, India 🇮🇳 5j9f+gm3, Duddebanda, Andhra Pradesh 515164",
             photoDataUri: photoDataUri,
         });
 
         toast({ title: 'విజయం', description: 'మీ అటెండెన్స్ సమర్పించబడింది.' });
         form.reset();
         setPhotoDataUri(null);
+        setIsPhotoConfirmed(false);
     } catch (error) {
         console.error('Submission failed:', error);
         toast({
