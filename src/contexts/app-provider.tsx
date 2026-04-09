@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useState, useEffect, useMemo, type ReactNode } from 'react';
-import { initialEmployees, hrUser } from '@/lib/initial-data';
+import { initialEmployees } from '@/lib/initial-data';
 import type { Employee, AttendanceRecord, CurrentUser, Site } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { isSameDay } from 'date-fns';
@@ -13,6 +13,7 @@ interface AppContextType {
   attendanceRecords: AttendanceRecord[];
   hasSubmittedToday: boolean;
   login: (id: string, name: string) => 'employee' | 'hr' | 'not_found' | 'pending';
+  signupHr: (id: string, name: string) => void;
   logout: () => void;
   addEmployee: (employee: Omit<Employee, 'status'>) => void;
   updateEmployeeStatus: (id: string, status: 'Approved' | 'Pending') => void;
@@ -33,6 +34,7 @@ const defaultSites: Site[] = [
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+  const [hrUsers, setHrUsers] = useState<{id: string, name: string}[]>([]);
   const [sites, setSites] = useState<Site[]>(defaultSites);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -41,23 +43,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem('currentUser');
-      if (storedUser) {
-        setCurrentUser(JSON.parse(storedUser));
-      }
+      if (storedUser) setCurrentUser(JSON.parse(storedUser));
+      
       const storedEmployees = localStorage.getItem('employees');
-      if (storedEmployees) {
-        setEmployees(JSON.parse(storedEmployees));
-      } else {
-        setEmployees(initialEmployees);
-      }
+      if (storedEmployees) setEmployees(JSON.parse(storedEmployees));
+      
+      const storedHr = localStorage.getItem('hrUsers');
+      if (storedHr) setHrUsers(JSON.parse(storedHr));
+
       const storedSites = localStorage.getItem('sites');
-      if (storedSites) {
-        setSites(JSON.parse(storedSites));
-      }
+      if (storedSites) setSites(JSON.parse(storedSites));
+      
       const storedAttendance = localStorage.getItem('attendanceRecords');
-      if (storedAttendance) {
-        setAttendanceRecords(JSON.parse(storedAttendance));
-      }
+      if (storedAttendance) setAttendanceRecords(JSON.parse(storedAttendance));
     } catch (error) {
       console.error("Failed to parse from localStorage", error);
       localStorage.clear();
@@ -69,10 +67,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (isLoaded) {
       localStorage.setItem('currentUser', JSON.stringify(currentUser));
       localStorage.setItem('employees', JSON.stringify(employees));
+      localStorage.setItem('hrUsers', JSON.stringify(hrUsers));
       localStorage.setItem('sites', JSON.stringify(sites));
       localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
     }
-  }, [currentUser, employees, sites, attendanceRecords, isLoaded]);
+  }, [currentUser, employees, hrUsers, sites, attendanceRecords, isLoaded]);
 
   const hasSubmittedToday = useMemo(() => {
     if (!currentUser || currentUser.role !== 'employee') return false;
@@ -83,32 +82,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [currentUser, attendanceRecords]);
 
   const login = (id: string, name: string): 'employee' | 'hr' | 'not_found' | 'pending' => {
-    // HR Login with admin/admin (case insensitive)
-    if (id.toUpperCase() === hrUser.id.toUpperCase() && name.toLowerCase() === hrUser.name.toLowerCase()) {
-      const user: CurrentUser = { id: hrUser.id, name: 'Admin User', role: 'hr' };
-      setCurrentUser(user);
+    // Check HR Users
+    const hr = hrUsers.find(h => h.id.toUpperCase() === id.toUpperCase() && h.name.toLowerCase() === name.toLowerCase());
+    if (hr) {
+      setCurrentUser({ id: hr.id, name: hr.name, role: 'hr' });
       return 'hr';
     }
 
+    // Check Employees
     const employee = employees.find(
       (e) => e.id.toUpperCase() === id.toUpperCase() && e.name.toLowerCase() === name.toLowerCase()
     );
 
     if (employee) {
-        if(employee.status === 'Pending') {
-            return 'pending';
-        }
-      const user: CurrentUser = { 
+      if (employee.status === 'Pending') return 'pending';
+      setCurrentUser({ 
         id: employee.id, 
         name: employee.name, 
         role: 'employee',
         phone: employee.phone 
-      };
-      setCurrentUser(user);
+      });
       return 'employee';
     }
 
     return 'not_found';
+  };
+
+  const signupHr = (id: string, name: string) => {
+    setHrUsers(prev => [...prev, { id: id.toUpperCase(), name }]);
   };
 
   const logout = () => {
@@ -143,17 +144,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const submitAttendance = (record: Omit<AttendanceRecord, 'id' | 'employeeName'>) => {
     if (!currentUser) return;
-    
-    const alreadySubmitted = attendanceRecords.some(r => 
-      r.employeeId === currentUser.id && 
-      isSameDay(new Date(r.dateTime), new Date())
-    );
-    
-    if (alreadySubmitted) {
-      console.warn("Attendance already submitted for today.");
-      return;
-    }
-
     const newRecord: AttendanceRecord = { 
         ...record, 
         id: `ATT${Date.now()}`,
@@ -171,6 +161,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         attendanceRecords,
         hasSubmittedToday,
         login,
+        signupHr,
         logout,
         addEmployee,
         updateEmployeeStatus,
