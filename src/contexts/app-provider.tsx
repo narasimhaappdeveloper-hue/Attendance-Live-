@@ -46,7 +46,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (storedUser) setCurrentUser(JSON.parse(storedUser));
       
       const storedEmployees = localStorage.getItem('employees');
-      if (storedEmployees) setEmployees(JSON.parse(storedEmployees));
+      if (storedEmployees) {
+        const parsedEmployees: Employee[] = JSON.parse(storedEmployees);
+        // Ensure no duplicates by ID from local storage
+        const uniqueEmployees = Array.from(new Map(parsedEmployees.map(emp => [emp.id, emp])).values());
+        setEmployees(uniqueEmployees);
+      }
       
       const storedHr = localStorage.getItem('hrUsers');
       if (storedHr) setHrUsers(JSON.parse(storedHr));
@@ -57,7 +62,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const storedAttendance = localStorage.getItem('attendanceRecords');
       if (storedAttendance) setAttendanceRecords(JSON.parse(storedAttendance));
     } catch (error) {
-      console.error("Failed to parse from localStorage", error);
       localStorage.clear();
     }
     setIsLoaded(true);
@@ -82,14 +86,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [currentUser, attendanceRecords]);
 
   const login = (id: string, name: string): 'employee' | 'hr' | 'not_found' | 'pending' => {
-    // Check HR Users
     const hr = hrUsers.find(h => h.id.toUpperCase() === id.toUpperCase());
     if (hr) {
       setCurrentUser({ id: hr.id, name: hr.name, role: 'hr' });
       return 'hr';
     }
 
-    // Check Employees
     const employee = employees.find(
       (e) => e.id.toUpperCase() === id.toUpperCase()
     );
@@ -109,7 +111,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const signupHr = (id: string, name: string) => {
-    setHrUsers(prev => [...prev, { id: id.toUpperCase(), name }]);
+    setHrUsers(prev => {
+        if (prev.some(h => h.id.toUpperCase() === id.toUpperCase())) return prev;
+        return [...prev, { id: id.toUpperCase(), name }];
+    });
   };
 
   const logout = () => {
@@ -118,8 +123,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const addEmployee = (employee: Omit<Employee, 'status'>) => {
-    const newEmployee: Employee = { ...employee, status: 'Pending' };
-    setEmployees((prev) => [...prev, newEmployee]);
+    setEmployees((prev) => {
+      if (prev.some(emp => emp.id === employee.id)) return prev;
+      const newEmployee: Employee = { ...employee, status: 'Pending' };
+      return [...prev, newEmployee];
+    });
   };
 
   const updateEmployeeStatus = (id: string, status: 'Approved' | 'Pending') => {

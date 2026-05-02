@@ -76,6 +76,16 @@ export default function EmployeeManagement() {
   });
 
   const handleAddEmployee = (values: z.infer<typeof addEmployeeSchema>) => {
+    // Check for duplicate ID before adding
+    if (employees.some(emp => emp.id.toUpperCase() === values.id.toUpperCase())) {
+        toast({ 
+            variant: 'destructive', 
+            title: 'Duplicate ID', 
+            description: 'Employee ID already exists.' 
+        });
+        return;
+    }
+
     addEmployee({name: values.name, id: values.id.toUpperCase(), phone: values.phone});
     toast({ title: 'Success', description: 'New employee has been added.' });
     form.reset();
@@ -106,7 +116,7 @@ export default function EmployeeManagement() {
           </TableHeader>
           <TableBody>
             {employees.length > 0 ? employees.map((employee) => (
-              <TableRow key={employee.id}>
+              <TableRow key={`emp-${employee.id}`}>
                 <TableCell className="font-medium">{employee.name}</TableCell>
                 <TableCell>{employee.id}</TableCell>
                 <TableCell>{employee.phone || '-'}</TableCell>

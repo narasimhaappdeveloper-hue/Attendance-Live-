@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -91,7 +90,6 @@ export default function EmployeeDashboard() {
           setIsLocating(false);
         },
         (error) => {
-          // Instead of console.error, we show a graceful UI message
           setLocationError("Location access denied or unavailable.");
           const fallbackGps = { lat: 14.159487, lng: 77.615092 };
           setGps(fallbackGps);
