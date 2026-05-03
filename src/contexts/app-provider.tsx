@@ -48,9 +48,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const storedEmployees = localStorage.getItem('employees');
       if (storedEmployees) {
         const parsedEmployees: Employee[] = JSON.parse(storedEmployees);
-        // Ensure no duplicates by ID from local storage
-        const uniqueEmployees = Array.from(new Map(parsedEmployees.map(emp => [emp.id, emp])).values());
-        setEmployees(uniqueEmployees);
+        // Ensure no duplicates by ID when loading from local storage
+        const employeeMap = new Map();
+        initialEmployees.forEach(emp => employeeMap.set(emp.id, emp));
+        parsedEmployees.forEach(emp => employeeMap.set(emp.id, emp));
+        setEmployees(Array.from(employeeMap.values()));
       }
       
       const storedHr = localStorage.getItem('hrUsers');
@@ -63,6 +65,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (storedAttendance) setAttendanceRecords(JSON.parse(storedAttendance));
     } catch (error) {
       localStorage.clear();
+      setEmployees(initialEmployees);
     }
     setIsLoaded(true);
   }, []);
