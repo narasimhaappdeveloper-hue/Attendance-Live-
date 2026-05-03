@@ -116,7 +116,7 @@ export default function EmployeeManagement() {
           </TableHeader>
           <TableBody>
             {employees.length > 0 ? employees.map((employee) => (
-              <TableRow key={`emp-${employee.id}`}>
+              <TableRow key={`emp-row-${employee.id}`}>
                 <TableCell className="font-medium">{employee.name}</TableCell>
                 <TableCell>{employee.id}</TableCell>
                 <TableCell>{employee.phone || '-'}</TableCell>

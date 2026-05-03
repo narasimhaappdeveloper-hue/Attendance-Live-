@@ -7,6 +7,7 @@ This is a NextJS Attendance management system with AI-powered intrusion detectio
 - Live Location Address Fetching
 - Manual Attendance Submission (No Auto-submit)
 - HR Dashboard for Site and Employee Management
+- HR Signup functionality
 
 ## How to share to GitHub (తెలుగులో)
 మీ ప్రాజెక్ట్‌ను GitHubలో షేర్ చేయడానికి ఈ క్రింది స్టెప్స్ పాటించండి:

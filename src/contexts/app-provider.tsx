@@ -48,8 +48,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const storedEmployees = localStorage.getItem('employees');
       if (storedEmployees) {
         const parsedEmployees: Employee[] = JSON.parse(storedEmployees);
-        // Ensure no duplicates by ID when loading from local storage
-        const employeeMap = new Map();
+        // Ensure unique keys by using a Map keyed by ID
+        const employeeMap = new Map<string, Employee>();
         initialEmployees.forEach(emp => employeeMap.set(emp.id, emp));
         parsedEmployees.forEach(emp => employeeMap.set(emp.id, emp));
         setEmployees(Array.from(employeeMap.values()));

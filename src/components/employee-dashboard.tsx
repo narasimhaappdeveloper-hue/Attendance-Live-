@@ -89,7 +89,6 @@ export default function EmployeeDashboard() {
           setIsLocating(false);
         },
         (error) => {
-          console.warn("Location error:", error);
           const fallbackGps = { lat: 14.159487, lng: 77.615092 };
           setGps(fallbackGps);
           setAddress("Duddebanda, Andhra Pradesh (Default Location)");
@@ -111,7 +110,6 @@ export default function EmployeeDashboard() {
   const handlePhotoCapture = (dataUri: string | null) => {
     setPhotoDataUri(dataUri);
     // When a photo is captured, we wait for the user to confirm it in the WebcamCapture component
-    // which eventually calls onCapture with the URI. We only consider it confirmed when it's not null.
     setIsPhotoConfirmed(!!dataUri); 
   };
 

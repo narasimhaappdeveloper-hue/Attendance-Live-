@@ -26,7 +26,6 @@ export function WebcamCapture({ onCapture }: WebcamCaptureProps) {
           videoRef.current.srcObject = stream;
         }
       } catch (err) {
-        console.error("Error accessing webcam:", err);
         setError("Webcam access denied. Please enable camera permissions in your browser settings.");
       }
     } else {
