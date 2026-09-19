@@ -60,7 +60,10 @@ const addEmployeeSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   id: z.string().min(3, { message: 'ID is required.' }),
   phone: z.string().min(10, { message: 'Phone must be at least 10 digits.' }),
+  weekOffDay: z.string().min(1, { message: 'Please select a week-off day.' }),
 });
+
+const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export default function EmployeeManagement() {
   const { employees, addEmployee, updateEmployeeStatus, deleteEmployee } = useApp();
@@ -73,11 +76,11 @@ export default function EmployeeManagement() {
       name: '',
       id: '',
       phone: '',
+      weekOffDay: 'Sunday',
     },
   });
 
   const handleAddEmployee = (values: z.infer<typeof addEmployeeSchema>) => {
-    // Case-insensitive duplicate ID check
     const isDuplicate = employees.some(emp => emp.id.toUpperCase() === values.id.toUpperCase());
     
     if (isDuplicate) {
@@ -89,7 +92,12 @@ export default function EmployeeManagement() {
         return;
     }
 
-    addEmployee({name: values.name, id: values.id.toUpperCase(), phone: values.phone});
+    addEmployee({
+      name: values.name, 
+      id: values.id.toUpperCase(), 
+      phone: values.phone,
+      weekOffDay: values.weekOffDay
+    });
     toast({ title: 'Success', description: 'కొత్త ఉద్యోగి విజయవంతంగా చేర్చబడ్డారు.' });
     form.reset();
     setIsAddDialogOpen(false);
@@ -111,8 +119,9 @@ export default function EmployeeManagement() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Employee ID</TableHead>
+              <TableHead>ID</TableHead>
               <TableHead>Phone</TableHead>
+              <TableHead>Week Off</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -123,6 +132,7 @@ export default function EmployeeManagement() {
                 <TableCell className="font-medium">{employee.name}</TableCell>
                 <TableCell>{employee.id.toUpperCase()}</TableCell>
                 <TableCell>{employee.phone || '-'}</TableCell>
+                <TableCell>{employee.weekOffDay || 'Sunday'}</TableCell>
                 <TableCell>
                   <Select
                     value={employee.status}
@@ -169,7 +179,7 @@ export default function EmployeeManagement() {
               </TableRow>
             )) : (
                 <TableRow>
-                    <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">No employees found.</TableCell>
+                    <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No employees found.</TableCell>
                 </TableRow>
             )}
           </TableBody>
@@ -221,6 +231,28 @@ export default function EmployeeManagement() {
                     <FormControl>
                       <Input placeholder="9876543210" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="weekOffDay"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Week Off Day</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a day" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {DAYS_OF_WEEK.map(day => (
+                          <SelectItem key={day} value={day}>{day}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -5,7 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import EmployeeManagement from './employee-management';
 import AttendanceLog from './attendance-log';
 import SiteManagement from './site-management';
-import { Users, ClipboardList, MapPin } from 'lucide-react';
+import MonthlyReport from './monthly-report';
+import { Users, ClipboardList, MapPin, BarChart3 } from 'lucide-react';
 
 export default function HrDashboard() {
   return (
@@ -15,7 +16,7 @@ export default function HrDashboard() {
         <p className="text-muted-foreground">Manage employees, sites, and track attendance records.</p>
       </div>
       <Tabs defaultValue="employees" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 md:w-[600px]">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 md:w-[800px] mb-4">
           <TabsTrigger value="employees">
             <Users className="mr-2 h-4 w-4" />
             Employees
@@ -23,6 +24,10 @@ export default function HrDashboard() {
           <TabsTrigger value="sites">
             <MapPin className="mr-2 h-4 w-4" />
             Work Sites
+          </TabsTrigger>
+          <TabsTrigger value="reports">
+            <BarChart3 className="mr-2 h-4 w-4" />
+            Reports
           </TabsTrigger>
           <TabsTrigger value="attendance">
             <ClipboardList className="mr-2 h-4 w-4" />
@@ -34,6 +39,9 @@ export default function HrDashboard() {
         </TabsContent>
         <TabsContent value="sites">
           <SiteManagement />
+        </TabsContent>
+        <TabsContent value="reports">
+          <MonthlyReport />
         </TabsContent>
         <TabsContent value="attendance">
           <AttendanceLog />

@@ -4,6 +4,7 @@ export type Employee = {
   name: string;
   status: 'Approved' | 'Pending';
   phone?: string;
+  weekOffDay?: string; // e.g., 'Sunday', 'Monday', etc.
 };
 
 export type Site = {

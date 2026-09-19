@@ -91,20 +91,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const login = useCallback((id: string, name: string): 'employee' | 'hr' | 'not_found' | 'pending' => {
     const uppercaseId = id.toUpperCase();
     
-    // Check HR first
     const hr = hrUsers.find(h => h.id.toUpperCase() === uppercaseId);
     if (hr) {
       setCurrentUser({ id: hr.id, name: name || hr.name, role: 'hr' });
       return 'hr';
     }
 
-    // Check Employee
     const employee = employees.find((e) => e.id.toUpperCase() === uppercaseId);
     if (employee) {
       if (employee.status === 'Pending') return 'pending';
       setCurrentUser({ 
         id: employee.id, 
-        name: name || employee.name, // Use the name provided during login for personalized session
+        name: name || employee.name, 
         role: 'employee',
         phone: employee.phone 
       });
@@ -129,7 +127,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addEmployee = useCallback((employee: Omit<Employee, 'status'>) => {
     setEmployees((prev) => {
       if (prev.some(emp => emp.id.toUpperCase() === employee.id.toUpperCase())) return prev;
-      const newEmployee: Employee = { ...employee, id: employee.id.toUpperCase(), status: 'Pending' };
+      const newEmployee: Employee = { 
+        ...employee, 
+        id: employee.id.toUpperCase(), 
+        status: 'Pending',
+        weekOffDay: employee.weekOffDay || 'Sunday'
+      };
       return [...prev, newEmployee];
     });
   }, []);
@@ -191,7 +194,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={value}>
-      {isLoaded ? children : <div className="flex h-screen items-center justify-center">Loading...</div>}
+      {isLoaded ? children : <div className="flex h-screen items-center justify-center text-primary font-bold">Initializing Attendance System...</div>}
     </AppContext.Provider>
   );
 }
