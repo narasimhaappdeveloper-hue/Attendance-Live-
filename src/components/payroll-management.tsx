@@ -7,30 +7,57 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Wallet, IndianRupee, Save } from 'lucide-react';
+import { IndianRupee, Save, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function PayrollManagement() {
   const { employees, updateEmployee } = useApp();
   const { toast } = useToast();
+  // dictionary to track pending changes per employee ID
   const [editRates, setEditRates] = useState<Record<string, { daily: number, ot: number }>>({});
 
   const handleRateChange = (id: string, field: 'daily' | 'ot', value: string) => {
-    const numValue = parseFloat(value) || 0;
-    setEditRates(prev => ({
-      ...prev,
-      [id]: {
-        ...(prev[id] || { daily: employees.find(e => e.id === id)?.dailyRate || 0, ot: employees.find(e => e.id === id)?.otRate || 0 }),
-        [field]: numValue
-      }
-    }));
+    const numValue = parseFloat(value);
+    
+    setEditRates(prev => {
+      // Find the existing employee to get the base values if not already in editRates
+      const currentEmp = employees.find(e => e.id.toUpperCase() === id.toUpperCase());
+      const base = prev[id] || { 
+        daily: currentEmp?.dailyRate ?? 0, 
+        ot: currentEmp?.otRate ?? 0 
+      };
+      
+      return {
+        ...prev,
+        [id]: {
+          ...base,
+          [field]: isNaN(numValue) ? 0 : numValue
+        }
+      };
+    });
   };
 
   const saveRate = (id: string) => {
     const rates = editRates[id];
     if (!rates) return;
-    updateEmployee(id, { dailyRate: rates.daily, otRate: rates.ot });
-    toast({ title: "Rates Updated", description: "Salary structure for this employee has been saved." });
+
+    // Trigger the update in global state
+    updateEmployee(id, { 
+      dailyRate: rates.daily, 
+      otRate: rates.ot 
+    });
+
+    // Clear the pending edits for this employee after saving to disable button
+    setEditRates(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+
+    toast({ 
+      title: "Rates Updated", 
+      description: "Salary structure for this employee has been saved successfully." 
+    });
   };
 
   return (
@@ -50,55 +77,71 @@ export default function PayrollManagement() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="border-none shadow-md overflow-hidden">
         <CardHeader>
           <CardTitle>Salary Structure</CardTitle>
+          <CardDescription>Update wage rates for your approved staff.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee Name</TableHead>
-                <TableHead>ID</TableHead>
-                <TableHead>Daily Rate (₹)</TableHead>
-                <TableHead>OT Rate (₹/Hr)</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {employees.map(emp => (
-                <TableRow key={emp.id}>
-                  <TableCell className="font-medium">{emp.name}</TableCell>
-                  <TableCell className="text-xs uppercase">{emp.id}</TableCell>
-                  <TableCell>
-                    <Input 
-                      type="number" 
-                      className="w-24 h-9" 
-                      defaultValue={emp.dailyRate} 
-                      onChange={(e) => handleRateChange(emp.id, 'daily', e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input 
-                      type="number" 
-                      className="w-24 h-9" 
-                      defaultValue={emp.otRate} 
-                      onChange={(e) => handleRateChange(emp.id, 'ot', e.target.value)}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button 
-                      size="sm" 
-                      onClick={() => saveRate(emp.id)}
-                      disabled={!editRates[emp.id]}
-                    >
-                      <Save className="h-4 w-4 mr-2" /> Save
-                    </Button>
-                  </TableCell>
+          <div className="rounded-xl border border-border/60 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead>Employee Name</TableHead>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Daily Rate (₹)</TableHead>
+                  <TableHead>OT Rate (₹/Hr)</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {employees.length > 0 ? employees.map(emp => {
+                  const isModified = !!editRates[emp.id];
+                  
+                  return (
+                    <TableRow key={emp.id} className={isModified ? "bg-primary/5" : ""}>
+                      <TableCell className="font-semibold">{emp.name}</TableCell>
+                      <TableCell className="text-xs font-mono uppercase text-muted-foreground">{emp.id}</TableCell>
+                      <TableCell>
+                        <Input 
+                          type="number" 
+                          className="w-28 h-9 rounded-lg" 
+                          defaultValue={emp.dailyRate} 
+                          onChange={(e) => handleRateChange(emp.id, 'daily', e.target.value)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input 
+                          type="number" 
+                          className="w-28 h-9 rounded-lg" 
+                          defaultValue={emp.otRate} 
+                          onChange={(e) => handleRateChange(emp.id, 'ot', e.target.value)}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          size="sm" 
+                          onClick={() => saveRate(emp.id)}
+                          disabled={!isModified}
+                          variant={isModified ? "default" : "ghost"}
+                          className={isModified ? "bg-green-600 hover:bg-green-700 text-white rounded-lg px-4" : "text-muted-foreground"}
+                        >
+                          {isModified ? <Save className="h-4 w-4 mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                          {isModified ? "Save" : "Saved"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                }) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center h-32 text-muted-foreground">
+                      No employees found to manage payroll.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>
