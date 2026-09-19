@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useApp } from '@/hooks/use-app';
@@ -8,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Clock, Save, Sun, Moon, Check, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ShiftSettings } from '@/lib/types';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 interface ClockPickerProps {
@@ -18,6 +17,7 @@ interface ClockPickerProps {
 
 function ClockPicker({ value, onChange }: ClockPickerProps) {
   const [mode, setMode] = useState<'hours' | 'minutes'>('hours');
+  const clockRef = useRef<HTMLDivElement>(null);
   
   const hourPart = Math.floor(value);
   const minutePart = Math.round((value - hourPart) * 60);
@@ -43,13 +43,39 @@ function ClockPicker({ value, onChange }: ClockPickerProps) {
     }
   };
 
+  const handleClockFaceClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!clockRef.current) return;
+    const rect = clockRef.current.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const clickX = e.clientX - rect.left - centerX;
+    const clickY = e.clientY - rect.top - centerY;
+
+    // Calculate angle in degrees (0 deg is top/12 o'clock, going clockwise)
+    let angle = Math.atan2(clickX, -clickY) * (180 / Math.PI);
+    if (angle < 0) angle += 360;
+
+    if (mode === 'hours') {
+      let hour = Math.round(angle / 30);
+      if (hour === 0) hour = 12;
+      handleHourClick(hour);
+    } else {
+      let minute = Math.round(angle / 6);
+      if (minute === 60) minute = 0;
+      // Snap to nearest 5 minutes for better user experience
+      minute = Math.round(minute / 5) * 5;
+      if (minute === 60) minute = 0;
+      handleMinuteClick(minute);
+    }
+  };
+
   const numbers = mode === 'hours' 
     ? [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     : [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
-  const radius = 80;
-  const centerX = 100;
-  const centerY = 100;
+  // Perfect center adjustments for w-56 (224px)
+  const radius = 76;
+  const clockCenter = 104; 
 
   const rotationDegrees = mode === 'hours' 
     ? (displayHour % 12) * 30 
@@ -59,19 +85,21 @@ function ClockPicker({ value, onChange }: ClockPickerProps) {
     <div className="flex flex-col items-center gap-6">
       <div className="flex gap-4 mb-2">
         <button 
+          type="button"
           onClick={() => setMode('hours')}
           className={cn(
-            "text-2xl font-black px-3 py-1 rounded-lg transition-all",
+            "text-2xl font-black px-4 py-1.5 rounded-xl transition-all",
             mode === 'hours' ? "bg-primary text-white shadow-md" : "text-slate-400 hover:bg-slate-100"
           )}
         >
           {displayHour.toString().padStart(2, '0')}
         </button>
-        <span className="text-2xl font-black text-slate-300">:</span>
+        <span className="text-2xl font-black text-slate-300 flex items-center">:</span>
         <button 
+          type="button"
           onClick={() => setMode('minutes')}
           className={cn(
-            "text-2xl font-black px-3 py-1 rounded-lg transition-all",
+            "text-2xl font-black px-4 py-1.5 rounded-xl transition-all",
             mode === 'minutes' ? "bg-primary text-white shadow-md" : "text-slate-400 hover:bg-slate-100"
           )}
         >
@@ -79,57 +107,65 @@ function ClockPicker({ value, onChange }: ClockPickerProps) {
         </button>
       </div>
 
-      <div className="relative w-56 h-56 bg-slate-50 rounded-full border-8 border-white shadow-[inset_0_2px_10px_rgba(0,0,0,0.1),0_10px_20px_rgba(0,0,0,0.05)] flex items-center justify-center">
+      <div 
+        ref={clockRef}
+        onClick={handleClockFaceClick}
+        className="relative w-56 h-56 bg-slate-50 rounded-full border-8 border-white shadow-[inset_0_2px_10px_rgba(0,0,0,0.1),0_10px_20px_rgba(0,0,0,0.05)] flex items-center justify-center cursor-pointer select-none"
+      >
         {/* Clock Marks */}
-        {Array.from({ length: 60 }).map((_, i) => (
+        {Array.from({ length: 12 }).map((_, i) => (
           <div
             key={i}
-            className={cn(
-              "absolute w-0.5 rounded-full bg-slate-200",
-              i % 5 === 0 ? "h-3" : "h-1"
-            )}
+            className="absolute w-0.5 h-3 rounded-full bg-slate-300"
             style={{
-              left: '50%',
-              top: '5px',
-              transformOrigin: '50% 103px',
-              transform: `rotate(${i * 6}deg)`
+              left: 'calc(50% - 1px)',
+              top: '6px',
+              transformOrigin: '50% 100px',
+              transform: `rotate(${i * 30}deg)`
             }}
           />
         ))}
 
-        <div className="absolute w-3 h-3 bg-primary rounded-full z-30 shadow-md" />
+        {/* Center Node */}
+        <div className="absolute w-3.5 h-3.5 bg-primary rounded-full z-30 shadow-md pointer-events-none" />
         
-        {/* Clock Hand */}
+        {/* Animated Clock Hand with precise transform origin anchor */}
         <div 
-          className="absolute w-1.5 bg-primary origin-bottom z-20 transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1)"
+          className="absolute w-1.5 bg-primary rounded-full z-20 transition-transform duration-300 ease-out"
           style={{ 
-            height: mode === 'hours' ? '65px' : '75px', 
-            bottom: '100px',
-            transform: `rotate(${rotationDegrees}deg)` 
+            height: mode === 'hours' ? '58px' : '72px', 
+            bottom: '104px', 
+            left: 'calc(50% - 3px)',
+            transformOrigin: '50% 100%',
+            transform: `rotate(${rotationDegrees}deg)`
           }}
         >
-          <div className="absolute -top-3 -left-2.5 w-6 h-6 bg-primary rounded-full border-4 border-white shadow-lg" />
+          <div className="absolute -top-2 -left-2 w-5 h-5 bg-primary rounded-full border-4 border-white shadow-md pointer-events-none" />
         </div>
 
-        {/* Numbers */}
+        {/* Numbers around the dial */}
         {numbers.map((num, i) => {
           const angle = (i * 30 * Math.PI) / 180;
-          const x = centerX + radius * Math.sin(angle);
-          const y = centerY - radius * Math.cos(angle);
+          const x = clockCenter + radius * Math.sin(angle);
+          const y = clockCenter - radius * Math.cos(angle);
           const isActive = mode === 'hours' ? displayHour === num : minutePart === num;
 
           return (
             <button
               key={num}
               type="button"
-              onClick={() => mode === 'hours' ? handleHourClick(num) : handleMinuteClick(num)}
+              onClick={(e) => {
+                e.stopPropagation(); // prevent double triggering from container click
+                if (mode === 'hours') handleHourClick(num);
+                else handleMinuteClick(num);
+              }}
               className={cn(
-                "absolute w-10 h-10 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center font-bold text-sm transition-all z-10",
+                "absolute w-9 h-9 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center font-bold text-xs transition-all z-10",
                 isActive 
-                  ? "bg-primary text-white shadow-lg scale-125" 
+                  ? "bg-primary text-white shadow-md scale-110" 
                   : "text-slate-500 hover:bg-slate-200 hover:text-slate-800"
               )}
-              style={{ left: `${x}px`, top: `${y}px` }}
+              style={{ left: `${x + 4}px`, top: `${y + 4}px` }}
             >
               {mode === 'minutes' ? num.toString().padStart(2, '0') : num}
             </button>
@@ -139,24 +175,32 @@ function ClockPicker({ value, onChange }: ClockPickerProps) {
 
       <div className="flex items-center gap-4 bg-slate-100 p-1.5 rounded-full border shadow-inner">
         <Button
+          type="button"
           variant={!isPm ? "default" : "ghost"}
           size="sm"
           onClick={() => isPm && toggleAmPm()}
-          className={cn("rounded-full px-6 transition-all font-bold", !isPm && "bg-amber-500 hover:bg-amber-600 text-white shadow-md")}
+          className={cn("rounded-full px-6 transition-all font-bold h-9", !isPm && "bg-amber-500 hover:bg-amber-600 text-white shadow-md")}
         >
           <Sun className="h-4 w-4 mr-2" /> AM
         </Button>
         <Button
+          type="button"
           variant={isPm ? "default" : "ghost"}
           size="sm"
           onClick={() => !isPm && toggleAmPm()}
-          className={cn("rounded-full px-6 transition-all font-bold", isPm && "bg-blue-600 hover:bg-blue-700 text-white shadow-md")}
+          className={cn("rounded-full px-6 transition-all font-bold h-9", isPm && "bg-blue-600 hover:bg-blue-700 text-white shadow-md")}
         >
           <Moon className="h-4 w-4 mr-2" /> PM
         </Button>
       </div>
 
-      <Button variant="ghost" size="sm" onClick={() => setMode(mode === 'hours' ? 'minutes' : 'hours')} className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest">
+      <Button 
+        type="button"
+        variant="ghost" 
+        size="sm" 
+        onClick={() => setMode(mode === 'hours' ? 'minutes' : 'hours')} 
+        className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest"
+      >
         <RotateCcw className="h-3 w-3 mr-1" /> Switch to {mode === 'hours' ? 'Minutes' : 'Hours'}
       </Button>
     </div>
@@ -276,26 +320,5 @@ export default function ShiftManagement() {
         })}
       </div>
     </div>
-  );
-}
-
-function Info(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 16v-4" />
-      <path d="M12 8h.01" />
-    </svg>
   );
 }
