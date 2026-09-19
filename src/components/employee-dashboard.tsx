@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -60,10 +61,11 @@ export default function EmployeeDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  const reverseGeocode = async (lat: number, lng: number) => {
+  const reverseGeocode = useCallback(async (lat: number, lng: number) => {
     try {
       const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
-        headers: { 'Accept-Language': 'te,en' }
+        headers: { 'Accept-Language': 'te,en' },
+        signal: AbortSignal.timeout(5000) // 5 second timeout for faster response
       });
       const data = await response.json();
       if (data && data.display_name) {
@@ -72,11 +74,12 @@ export default function EmployeeDashboard() {
         setAddress(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
       }
     } catch (error) {
-      setAddress("Duddebanda, Andhra Pradesh (Fallback Location)");
+      setAddress("Duddebanda, Andhra Pradesh (Default Location)");
     }
-  };
+  }, []);
 
   const getLocation = useCallback(() => {
+    if (isLocating) return;
     setIsLocating(true);
     setLocationError(null);
     
@@ -91,27 +94,26 @@ export default function EmployeeDashboard() {
         (error) => {
           const fallbackGps = { lat: 14.159487, lng: 77.615092 };
           setGps(fallbackGps);
-          setAddress("Duddebanda, Andhra Pradesh (Default Location)");
+          setAddress("Duddebanda, Andhra Pradesh (Location access denied)");
           setIsLocating(false);
           setLocationError("Location access denied. Using default.");
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
       );
     } else {
       setAddress("GPS Not Supported");
       setIsLocating(false);
     }
-  }, []);
+  }, [isLocating, reverseGeocode]);
 
   useEffect(() => {
     getLocation();
-  }, [getLocation]);
+  }, []); // Initial load only
 
-  const handlePhotoCapture = (dataUri: string | null) => {
+  const handlePhotoCapture = useCallback((dataUri: string | null) => {
     setPhotoDataUri(dataUri);
-    // When a photo is captured, we wait for the user to confirm it in the WebcamCapture component
     setIsPhotoConfirmed(!!dataUri); 
-  };
+  }, []);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!currentUser || !photoDataUri || !isPhotoConfirmed) {
@@ -164,6 +166,12 @@ export default function EmployeeDashboard() {
     }
   };
   
+  const siteOptions = useMemo(() => {
+    return sites.map((site) => (
+      <SelectItem key={site.id} value={site.name}>{site.name}</SelectItem>
+    ));
+  }, [sites]);
+
   if (hasSubmittedToday) {
     return (
       <Card className="border-green-100 bg-green-50/30">
@@ -309,9 +317,7 @@ export default function EmployeeDashboard() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {sites.length > 0 ? sites.map((site) => (
-                            <SelectItem key={site.id} value={site.name}>{site.name}</SelectItem>
-                          )) : (
+                          {sites.length > 0 ? siteOptions : (
                             <SelectItem value="No Sites" disabled>No sites available</SelectItem>
                           )}
                         </SelectContent>

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { createContext, useState, useEffect, useMemo, type ReactNode } from 'react';
+import { createContext, useState, useEffect, useMemo, type ReactNode, useCallback } from 'react';
 import { initialEmployees } from '@/lib/initial-data';
 import type { Employee, AttendanceRecord, CurrentUser, Site } from '@/lib/types';
 import { useRouter } from 'next/navigation';
@@ -41,6 +41,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const router = useRouter();
 
+  // Load data once on mount
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem('currentUser');
@@ -49,7 +50,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const storedEmployees = localStorage.getItem('employees');
       if (storedEmployees) {
         const parsedEmployees: Employee[] = JSON.parse(storedEmployees);
-        // Ensure unique keys and prevent duplicate IDs on load
         const employeeMap = new Map<string, Employee>();
         initialEmployees.forEach(emp => employeeMap.set(emp.id, emp));
         parsedEmployees.forEach(emp => employeeMap.set(emp.id, emp));
@@ -58,10 +58,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       
       const storedHr = localStorage.getItem('hrUsers');
       if (storedHr) setHrUsers(JSON.parse(storedHr));
-      else {
-        // Initial Admin for demo
-        setHrUsers([{ id: 'ADMIN', name: 'admin' }]);
-      }
+      else setHrUsers([{ id: 'ADMIN', name: 'admin' }]);
 
       const storedSites = localStorage.getItem('sites');
       if (storedSites) setSites(JSON.parse(storedSites));
@@ -69,21 +66,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const storedAttendance = localStorage.getItem('attendanceRecords');
       if (storedAttendance) setAttendanceRecords(JSON.parse(storedAttendance));
     } catch (error) {
-      localStorage.clear();
-      setEmployees(initialEmployees);
-      setHrUsers([{ id: 'ADMIN', name: 'admin' }]);
+      console.error("Local storage error:", error);
     }
     setIsLoaded(true);
   }, []);
 
+  // Persist data when it changes
   useEffect(() => {
-    if (isLoaded) {
+    if (!isLoaded) return;
+    const saveToStorage = () => {
       localStorage.setItem('currentUser', JSON.stringify(currentUser));
       localStorage.setItem('employees', JSON.stringify(employees));
       localStorage.setItem('hrUsers', JSON.stringify(hrUsers));
       localStorage.setItem('sites', JSON.stringify(sites));
       localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
-    }
+    };
+    
+    // Simple debounce to prevent excessive writes
+    const timeout = setTimeout(saveToStorage, 300);
+    return () => clearTimeout(timeout);
   }, [currentUser, employees, hrUsers, sites, attendanceRecords, isLoaded]);
 
   const hasSubmittedToday = useMemo(() => {
@@ -94,7 +95,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   }, [currentUser, attendanceRecords]);
 
-  const login = (id: string, name: string): 'employee' | 'hr' | 'not_found' | 'pending' => {
+  const login = useCallback((id: string, name: string): 'employee' | 'hr' | 'not_found' | 'pending' => {
     const hr = hrUsers.find(h => h.id.toUpperCase() === id.toUpperCase());
     if (hr) {
       setCurrentUser({ id: hr.id, name: hr.name, role: 'hr' });
@@ -117,49 +118,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     return 'not_found';
-  };
+  }, [employees, hrUsers]);
 
-  const signupHr = (id: string, name: string) => {
+  const signupHr = useCallback((id: string, name: string) => {
     setHrUsers(prev => {
         if (prev.some(h => h.id.toUpperCase() === id.toUpperCase())) return prev;
         return [...prev, { id: id.toUpperCase(), name }];
     });
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setCurrentUser(null);
     router.push('/');
-  };
+  }, [router]);
 
-  const addEmployee = (employee: Omit<Employee, 'status'>) => {
+  const addEmployee = useCallback((employee: Omit<Employee, 'status'>) => {
     setEmployees((prev) => {
       if (prev.some(emp => emp.id === employee.id)) return prev;
       const newEmployee: Employee = { ...employee, status: 'Pending' };
       return [...prev, newEmployee];
     });
-  };
+  }, []);
 
-  const updateEmployeeStatus = (id: string, status: 'Approved' | 'Pending') => {
+  const updateEmployeeStatus = useCallback((id: string, status: 'Approved' | 'Pending') => {
     setEmployees((prev) =>
       prev.map((emp) => (emp.id === id ? { ...emp, status } : emp))
     );
-  };
+  }, []);
 
-  const deleteEmployee = (id: string) => {
+  const deleteEmployee = useCallback((id: string) => {
     setEmployees((prev) => prev.filter((emp) => emp.id !== id));
     setAttendanceRecords((prev) => prev.filter((rec) => rec.employeeId !== id));
-  };
+  }, []);
 
-  const addSite = (name: string) => {
+  const addSite = useCallback((name: string) => {
     const newSite: Site = { id: `SITE${Date.now()}`, name };
     setSites((prev) => [...prev, newSite]);
-  };
+  }, []);
 
-  const deleteSite = (id: string) => {
+  const deleteSite = useCallback((id: string) => {
     setSites((prev) => prev.filter((site) => site.id !== id));
-  };
+  }, []);
 
-  const submitAttendance = (record: Omit<AttendanceRecord, 'id' | 'employeeName'>) => {
+  const submitAttendance = useCallback((record: Omit<AttendanceRecord, 'id' | 'employeeName'>) => {
     if (!currentUser) return;
     const newRecord: AttendanceRecord = { 
         ...record, 
@@ -167,27 +168,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
         employeeName: currentUser.name
     };
     setAttendanceRecords((prev) => [newRecord, ...prev]);
-  };
+  }, [currentUser]);
+
+  const value = useMemo(() => ({
+    currentUser,
+    employees,
+    sites,
+    attendanceRecords,
+    hasSubmittedToday,
+    login,
+    signupHr,
+    logout,
+    addEmployee,
+    updateEmployeeStatus,
+    deleteEmployee,
+    addSite,
+    deleteSite,
+    submitAttendance,
+  }), [
+    currentUser, employees, sites, attendanceRecords, hasSubmittedToday,
+    login, signupHr, logout, addEmployee, updateEmployeeStatus,
+    deleteEmployee, addSite, deleteSite, submitAttendance
+  ]);
 
   return (
-    <AppContext.Provider
-      value={{
-        currentUser,
-        employees,
-        sites,
-        attendanceRecords,
-        hasSubmittedToday,
-        login,
-        signupHr,
-        logout,
-        addEmployee,
-        updateEmployeeStatus,
-        deleteEmployee,
-        addSite,
-        deleteSite,
-        submitAttendance,
-      }}
-    >
+    <AppContext.Provider value={value}>
       {isLoaded ? children : <div className="flex h-screen items-center justify-center">Loading...</div>}
     </AppContext.Provider>
   );
