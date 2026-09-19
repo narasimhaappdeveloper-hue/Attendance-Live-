@@ -41,23 +41,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const router = useRouter();
 
-  // Load data once on mount with strict uniqueness
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem('currentUser');
       if (storedUser) setCurrentUser(JSON.parse(storedUser));
       
-      // Strict unique employee loading
       const storedEmployeesRaw = localStorage.getItem('employees');
       const storedEmployees: Employee[] = storedEmployeesRaw ? JSON.parse(storedEmployeesRaw) : [];
       
       const employeeMap = new Map<string, Employee>();
-      // Priority: Initial data, then override with stored data
       initialEmployees.forEach(emp => employeeMap.set(emp.id.toUpperCase(), emp));
       storedEmployees.forEach(emp => employeeMap.set(emp.id.toUpperCase(), emp));
       setEmployees(Array.from(employeeMap.values()));
       
-      // Strict unique HR loading
       const storedHrRaw = localStorage.getItem('hrUsers');
       const storedHr: {id: string, name: string}[] = storedHrRaw ? JSON.parse(storedHrRaw) : [{ id: 'ADMIN', name: 'admin' }];
       const hrMap = new Map<string, {id: string, name: string}>();
@@ -70,50 +66,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const storedAttendance = localStorage.getItem('attendanceRecords');
       if (storedAttendance) setAttendanceRecords(JSON.parse(storedAttendance));
     } catch (error) {
-      console.error("Local storage error:", error);
+      console.warn("Storage initialization warning");
     }
     setIsLoaded(true);
   }, []);
 
-  // Persist data when it changes
   useEffect(() => {
     if (!isLoaded) return;
-    const saveToStorage = () => {
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-      localStorage.setItem('employees', JSON.stringify(employees));
-      localStorage.setItem('hrUsers', JSON.stringify(hrUsers));
-      localStorage.setItem('sites', JSON.stringify(sites));
-      localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
-    };
-    
-    const timeout = setTimeout(saveToStorage, 300);
-    return () => clearTimeout(timeout);
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    localStorage.setItem('employees', JSON.stringify(employees));
+    localStorage.setItem('hrUsers', JSON.stringify(hrUsers));
+    localStorage.setItem('sites', JSON.stringify(sites));
+    localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
   }, [currentUser, employees, hrUsers, sites, attendanceRecords, isLoaded]);
 
   const hasSubmittedToday = useMemo(() => {
     if (!currentUser || currentUser.role !== 'employee') return false;
     return attendanceRecords.some(record => 
-      record.employeeId === currentUser.id && 
+      record.employeeId.toUpperCase() === currentUser.id.toUpperCase() && 
       isSameDay(new Date(record.dateTime), new Date())
     );
   }, [currentUser, attendanceRecords]);
 
   const login = useCallback((id: string, name: string): 'employee' | 'hr' | 'not_found' | 'pending' => {
-    const hr = hrUsers.find(h => h.id.toUpperCase() === id.toUpperCase());
+    const uppercaseId = id.toUpperCase();
+    
+    // Check HR first
+    const hr = hrUsers.find(h => h.id.toUpperCase() === uppercaseId);
     if (hr) {
-      setCurrentUser({ id: hr.id, name: hr.name, role: 'hr' });
+      setCurrentUser({ id: hr.id, name: name || hr.name, role: 'hr' });
       return 'hr';
     }
 
-    const employee = employees.find(
-      (e) => e.id.toUpperCase() === id.toUpperCase()
-    );
-
+    // Check Employee
+    const employee = employees.find((e) => e.id.toUpperCase() === uppercaseId);
     if (employee) {
       if (employee.status === 'Pending') return 'pending';
       setCurrentUser({ 
         id: employee.id, 
-        name: employee.name, 
+        name: name || employee.name, // Use the name provided during login for personalized session
         role: 'employee',
         phone: employee.phone 
       });
@@ -137,7 +128,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addEmployee = useCallback((employee: Omit<Employee, 'status'>) => {
     setEmployees((prev) => {
-      // Robust check for duplicate ID
       if (prev.some(emp => emp.id.toUpperCase() === employee.id.toUpperCase())) return prev;
       const newEmployee: Employee = { ...employee, id: employee.id.toUpperCase(), status: 'Pending' };
       return [...prev, newEmployee];
@@ -151,12 +141,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deleteEmployee = useCallback((id: string) => {
-    setEmployees((prev) => prev.filter((emp) => emp.id.toUpperCase() !== id.toUpperCase()));
-    setAttendanceRecords((prev) => prev.filter((rec) => rec.employeeId.toUpperCase() !== id.toUpperCase()));
+    const uppercaseId = id.toUpperCase();
+    setEmployees((prev) => prev.filter((emp) => emp.id.toUpperCase() !== uppercaseId));
+    setAttendanceRecords((prev) => prev.filter((rec) => rec.employeeId.toUpperCase() !== uppercaseId));
   }, []);
 
   const addSite = useCallback((name: string) => {
-    // Prevent duplicate site names
     setSites(prev => {
       if (prev.some(s => s.name.toLowerCase() === name.toLowerCase())) return prev;
       return [...prev, { id: `SITE${Date.now()}`, name }];

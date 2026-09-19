@@ -65,7 +65,7 @@ export default function EmployeeDashboard() {
     try {
       const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
         headers: { 'Accept-Language': 'te,en' },
-        signal: AbortSignal.timeout(5000)
+        signal: AbortSignal.timeout(4000)
       });
       const data = await response.json();
       if (data && data.display_name) {
@@ -74,7 +74,7 @@ export default function EmployeeDashboard() {
         setAddress(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
       }
     } catch (error) {
-      setAddress("Duddebanda, Andhra Pradesh (Location detected)");
+      setAddress("Duddebanda, Andhra Pradesh");
     }
   }, []);
 
@@ -94,9 +94,9 @@ export default function EmployeeDashboard() {
         (error) => {
           const fallbackGps = { lat: 14.159487, lng: 77.615092 };
           setGps(fallbackGps);
-          setAddress("Duddebanda, Andhra Pradesh (Default Location)");
+          setAddress("Duddebanda, Andhra Pradesh");
           setIsLocating(false);
-          setLocationError("Location access denied. Using default.");
+          setLocationError("Location access denied.");
         },
         { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
       );
@@ -108,7 +108,7 @@ export default function EmployeeDashboard() {
 
   useEffect(() => {
     getLocation();
-  }, []);
+  }, [getLocation]);
 
   const handlePhotoCapture = useCallback((dataUri: string | null) => {
     setPhotoDataUri(dataUri);
@@ -120,7 +120,7 @@ export default function EmployeeDashboard() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'దయచేసి ఫోటో తీసి కన్ఫర్మ్ (OK) చేయండి.',
+        description: 'దయచేసి ఫోటో తీసి OK నొక్కండి.',
       });
       return;
     }
@@ -128,16 +128,15 @@ export default function EmployeeDashboard() {
     setIsSubmitting(true);
     
     try {
-        toast({ title: 'విశ్లేషిస్తోంది...', description: 'ఫోటోను మరియు లొకేషన్‌ను తనిఖీ చేస్తున్నాము.'});
+        toast({ title: 'విశ్లేషిస్తోంది...', description: 'ఫోటోను తనిఖీ చేస్తున్నాము.'});
         
-        // Call the AI flow (Server Action)
         const aiResult = await detectAttendanceIntrusion({ photoDataUri });
         
         if (!aiResult.isLiveFace) {
             toast({
                 variant: 'destructive',
                 title: 'Security Alert',
-                description: 'లైవ్ ఫేస్ గుర్తించబడలేదు. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+                description: 'లైవ్ ఫేస్ గుర్తించబడలేదు.',
             });
             setIsSubmitting(false);
             return;
@@ -153,16 +152,15 @@ export default function EmployeeDashboard() {
             photoDataUri: photoDataUri,
         });
 
-        toast({ title: 'విజయం', description: 'మీ అటెండెన్స్ విజయవంతంగా సమర్పించబడింది.' });
+        toast({ title: 'విజయం', description: 'అటెండెన్స్ సమర్పించబడింది.' });
         form.reset();
         setPhotoDataUri(null);
         setIsPhotoConfirmed(false);
     } catch (error) {
-        console.error("Submission error:", error);
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'సమర్పణలో లోపం జరిగింది. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+            description: 'సమర్పణలో లోపం జరిగింది.',
         });
     } finally {
         setIsSubmitting(false);
@@ -179,12 +177,12 @@ export default function EmployeeDashboard() {
     return (
       <Card className="border-green-100 bg-green-50/30">
         <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="bg-green-100 p-4 rounded-full mb-6 shadow-sm">
+          <div className="bg-green-100 p-4 rounded-full mb-6">
             <Check className="h-16 w-16 text-green-600" />
           </div>
-          <CardTitle className="text-3xl font-headline text-green-800 mb-2">Attendance Completed!</CardTitle>
+          <CardTitle className="text-3xl text-green-800 mb-2">Attendance Completed!</CardTitle>
           <CardDescription className="text-lg text-green-700 max-w-md">
-            ఈ రోజుకు మీ అటెండెన్స్ విజయవంతంగా సమర్పించబడింది. రేపు మళ్ళీ కలవండి.
+            ఈ రోజుకు మీ అటెండెన్స్ విజయవంతంగా సమర్పించబడింది.
           </CardDescription>
         </CardContent>
       </Card>
@@ -194,7 +192,7 @@ export default function EmployeeDashboard() {
   return (
     <div className="grid lg:grid-cols-12 gap-8">
       <div className="lg:col-span-7 space-y-6">
-        <div className="overflow-hidden rounded-2xl shadow-xl">
+        <div className="overflow-hidden rounded-2xl shadow-xl bg-black">
             <WebcamCapture onCapture={handlePhotoCapture} />
         </div>
 
@@ -202,9 +200,7 @@ export default function EmployeeDashboard() {
           <Alert variant="destructive" className="rounded-xl shadow-md">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Location Access Needed</AlertTitle>
-            <AlertDescription>
-              దయచేసి బ్రౌజర్‌లో లొకేషన్ పర్మిషన్ ఇవ్వండి.
-            </AlertDescription>
+            <AlertDescription>దయచేసి లొకేషన్ పర్మిషన్ ఇవ్వండి.</AlertDescription>
           </Alert>
         )}
 
@@ -216,13 +212,13 @@ export default function EmployeeDashboard() {
                     </div>
                     <div className="flex-1">
                         <div className="flex items-center justify-between">
-                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Current Location</p>
-                            <Button variant="ghost" size="sm" onClick={getLocation} disabled={isLocating} className="h-8 text-primary font-bold">
+                            <p className="text-xs font-bold text-muted-foreground uppercase">Current Location</p>
+                            <Button variant="ghost" size="sm" onClick={getLocation} disabled={isLocating} className="h-8 text-primary">
                                 <RefreshCw className={`h-4 w-4 mr-1 ${isLocating ? 'animate-spin' : ''}`} />
                                 Refresh
                             </Button>
                         </div>
-                        <p className="text-base font-semibold leading-snug mt-1 text-slate-800">{address}</p>
+                        <p className="text-base font-semibold text-slate-800">{address}</p>
                     </div>
                 </div>
 
@@ -278,8 +274,8 @@ export default function EmployeeDashboard() {
       <div className="lg:col-span-5">
         <Card className="h-full rounded-2xl shadow-xl border-none">
           <CardHeader className="pb-4">
-            <CardTitle className="font-headline text-2xl text-slate-800">Submit Attendance</CardTitle>
-            <CardDescription className="text-slate-500 font-medium">షిఫ్ట్ మరియు సైట్ వివరాలను ఎంచుకోండి.</CardDescription>
+            <CardTitle className="text-2xl text-slate-800">Submit Attendance</CardTitle>
+            <CardDescription className="text-slate-500">షిఫ్ట్ మరియు సైట్ వివరాలను ఎంచుకోండి.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -289,10 +285,10 @@ export default function EmployeeDashboard() {
                   name="shift"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-bold text-slate-700">Select Shift</FormLabel>
+                      <FormLabel className="font-bold">Select Shift</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger className="h-14 rounded-xl border-slate-200">
+                          <SelectTrigger className="h-14 rounded-xl">
                             <SelectValue placeholder="Choose shift" />
                           </SelectTrigger>
                         </FormControl>
@@ -312,17 +308,15 @@ export default function EmployeeDashboard() {
                   name="site"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-bold text-slate-700">Work Site</FormLabel>
+                      <FormLabel className="font-bold">Work Site</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger className="h-14 rounded-xl border-slate-200">
+                          <SelectTrigger className="h-14 rounded-xl">
                             <SelectValue placeholder="Choose site" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {sites.length > 0 ? siteOptions : (
-                            <SelectItem value="No Sites" disabled>No sites available</SelectItem>
-                          )}
+                          {siteOptions}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -333,25 +327,18 @@ export default function EmployeeDashboard() {
                 <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
                   <p className="text-sm text-amber-800 leading-relaxed font-semibold flex gap-2">
                     <AlertCircle className="h-5 w-5 shrink-0" />
-                    ఫోటో తీసిన తర్వాత 'OK' నొక్కి కన్ఫర్మ్ చేయాలి. ఆ తర్వాతే సబ్మిట్ బటన్ పనిచేస్తుంది.
+                    ఫోటో తీసిన తర్వాత OK నొక్కాలి. ఆ తర్వాతే సబ్మిట్ చేయాలి.
                   </p>
                 </div>
 
                 <Button 
                   type="submit" 
                   className={`w-full text-xl py-9 rounded-2xl shadow-2xl transition-all duration-300 font-bold ${
-                    isPhotoConfirmed ? 'bg-primary scale-100' : 'bg-slate-300 scale-95 opacity-50 cursor-not-allowed'
+                    isPhotoConfirmed ? 'bg-primary' : 'bg-slate-300 opacity-50 cursor-not-allowed'
                   }`} 
                   disabled={isSubmitting || !photoDataUri || !isPhotoConfirmed}
                 >
-                  {isSubmitting ? (
-                    <>
-                      <LoaderCircle className="mr-3 h-6 w-6 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    'Submit Attendance'
-                  )}
+                  {isSubmitting ? <LoaderCircle className="h-6 w-6 animate-spin" /> : 'Submit Attendance'}
                 </Button>
               </form>
             </Form>

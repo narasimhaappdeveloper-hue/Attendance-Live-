@@ -77,32 +77,29 @@ export function LoginForm() {
               break;
           }
         setIsLoading(false);
-    }, 600); // Optimized delay for snappier feel
+    }, 600);
   };
 
   const handleHrSignup = () => {
     setIsLoading(true);
     const { name, employeeId, securityKey } = form.getValues();
     
-    // Check for Security Key
     if (securityKey !== 'HR2025') {
         toast({ 
             variant: 'destructive', 
             title: 'Unauthorized', 
-            description: 'Invalid Security Access Key. హెచ్‌ఆర్ సైన్అప్ చేయడానికి అనుమతి లేదు.' 
+            description: 'Invalid Security Access Key.' 
         });
         setIsLoading(false);
         return;
     }
 
-    // Check if ID is already taken by employee or another HR
     const isDuplicate = employees.some(e => e.id.toUpperCase() === employeeId.toUpperCase());
-    
     if (isDuplicate) {
         toast({ 
             variant: 'destructive', 
-            title: 'Duplicate Creation Blocked', 
-            description: 'ఈ ఐడి ఇప్పటికే ఎంప్లాయీ ఐడిలా ఉపయోగించబడుతోంది.' 
+            title: 'Duplicate ID', 
+            description: 'This ID is already in use.' 
         });
         setIsLoading(false);
         return;
@@ -111,7 +108,7 @@ export function LoginForm() {
     signupHr(employeeId.toUpperCase(), name);
     
     setTimeout(() => {
-        toast({ title: 'HR Signup Successful', description: 'మీ హెచ్‌ఆర్ ఖాతా సిద్ధమైంది. ఇప్పుడు లాగిన్ అవ్వండి.' });
+        toast({ title: 'HR Signup Successful', description: 'Account created. Please login.' });
         setIsLoading(false);
         setActiveTab('login');
         form.reset();
@@ -191,7 +188,7 @@ export function LoginForm() {
               <div className="p-4 bg-muted/60 rounded-lg border text-xs space-y-2">
                 <div className="flex items-center gap-1.5 font-bold text-muted-foreground mb-1">
                   <AlertCircle className="h-3.5 w-3.5" />
-                  <span>Demo Evaluation Credentials (టెస్టింగ్ కోసం):</span>
+                  <span>Demo Credentials:</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button 
@@ -207,7 +204,7 @@ export function LoginForm() {
                     type="button" 
                     variant="outline" 
                     size="sm" 
-                    className="text-[11px] h-7 bg-primary/5 border-primary/20 hover:bg-primary/10 text-primary"
+                    className="text-[11px] h-7 bg-primary/5"
                     onClick={() => fillDemo('ADMIN', 'admin')}
                   >
                     HR Demo: ADMIN
@@ -245,7 +242,7 @@ export function LoginForm() {
                     name="employeeId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Admin ID (Login ID)</FormLabel>
+                        <FormLabel>Admin ID</FormLabel>
                         <FormControl>
                           <Input placeholder="ADMIN" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())} />
                         </FormControl>
