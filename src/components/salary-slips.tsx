@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay } from 'date-fns';
-import { FileText, Printer, CheckCircle2, IndianRupee, LoaderCircle, ShieldCheck, Briefcase, Info } from 'lucide-react';
+import { FileText, Printer, CheckCircle2, IndianRupee, LoaderCircle, Briefcase, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { SalarySlip, ShiftSettings } from '@/lib/types';
 
@@ -73,9 +73,10 @@ export default function SalarySlips() {
         
         if (extra?.otHours) ot += extra.otHours;
         
-        // Late calculation using dynamic shiftSettings
         const shiftType = record?.shift || 'General';
-        const shiftStartHour = shiftSettings[shiftType as keyof ShiftSettings]?.startHour ?? 9;
+        const shiftConfig = shiftSettings[shiftType as keyof ShiftSettings];
+        const shiftStartHour = shiftConfig?.startHour ?? 9;
+        
         const actualTime = record ? new Date(record.dateTime) : null;
         let autoLateIn = 0;
         if (actualTime) {
@@ -217,14 +218,14 @@ export default function SalarySlips() {
             <CardTitle>Official Salary Slips</CardTitle>
             <CardDescription>Generate and manage professional employee payslips.</CardDescription>
           </div>
-          <div className="flex gap-4">
-            <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+            <div className="flex gap-2 w-full sm:w-auto">
               <Select value={currentYear.toString()} onValueChange={(v) => {
                 const d = new Date(selectedMonth);
                 d.setFullYear(parseInt(v));
                 setSelectedMonth(d);
               }}>
-                <SelectTrigger className="w-[100px]">
+                <SelectTrigger className="w-full sm:w-[100px]">
                   <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -239,7 +240,7 @@ export default function SalarySlips() {
                 d.setMonth(parseInt(v));
                 setSelectedMonth(d);
               }}>
-                <SelectTrigger className="w-[130px]">
+                <SelectTrigger className="w-full sm:w-[130px]">
                   <SelectValue placeholder="Month" />
                 </SelectTrigger>
                 <SelectContent>
@@ -249,44 +250,44 @@ export default function SalarySlips() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleGenerateSlips} disabled={isGenerating}>
+            <Button onClick={handleGenerateSlips} disabled={isGenerating} className="w-full sm:w-auto">
               {isGenerating ? <LoaderCircle className="animate-spin mr-2" /> : <FileText className="mr-2 h-4 w-4" />}
               Generate All Slips
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="border rounded-xl overflow-hidden">
+        <CardContent className="px-0 sm:px-6">
+          <div className="overflow-x-auto border-y sm:border rounded-none sm:rounded-xl">
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Paid Days</TableHead>
-                  <TableHead>Late (Total)</TableHead>
-                  <TableHead>LOP Amount</TableHead>
-                  <TableHead>Net Pay</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
+                  <TableHead className="whitespace-nowrap">Employee</TableHead>
+                  <TableHead className="whitespace-nowrap">Paid Days</TableHead>
+                  <TableHead className="whitespace-nowrap">Late (Total)</TableHead>
+                  <TableHead className="whitespace-nowrap">LOP Amount</TableHead>
+                  <TableHead className="whitespace-nowrap">Net Pay</TableHead>
+                  <TableHead className="whitespace-nowrap">Status</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {calculatedData.map((item, idx) => (
                   <TableRow key={idx}>
                     <TableCell>
-                      <div className="font-bold">{item.employee.name}</div>
+                      <div className="font-bold text-sm sm:text-base">{item.employee.name}</div>
                       <div className="text-[10px] text-muted-foreground">{item.employee.designation}</div>
                     </TableCell>
-                    <TableCell>{item.stats.totalPaidDays} Days</TableCell>
-                    <TableCell className="text-amber-600 font-bold">{item.stats.totalLateHoursCut.toFixed(1)} hrs</TableCell>
-                    <TableCell className="text-destructive font-semibold">₹{Math.round(item.deductions.lop).toLocaleString()}</TableCell>
-                    <TableCell className="font-bold text-primary">₹{Math.round(item.netPay).toLocaleString()}</TableCell>
+                    <TableCell className="text-sm">{item.stats.totalPaidDays} Days</TableCell>
+                    <TableCell className="text-amber-600 font-bold text-sm">{item.stats.totalLateHoursCut.toFixed(1)} hrs</TableCell>
+                    <TableCell className="text-destructive font-semibold text-sm">₹{Math.round(item.deductions.lop).toLocaleString()}</TableCell>
+                    <TableCell className="font-bold text-primary text-sm">₹{Math.round(item.netPay).toLocaleString()}</TableCell>
                     <TableCell>
                       {item.existingSlip ? (
-                        <div className="flex items-center text-green-600 text-xs font-bold">
+                        <div className="flex items-center text-green-600 text-[10px] font-bold">
                           <CheckCircle2 className="h-3 w-3 mr-1" /> Finalized
                         </div>
                       ) : (
-                        <span className="text-amber-500 text-xs font-bold italic">Draft</span>
+                        <span className="text-amber-500 text-[10px] font-bold italic">Draft</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -295,8 +296,9 @@ export default function SalarySlips() {
                         size="sm" 
                         disabled={!item.existingSlip}
                         onClick={() => setSelectedSlip(item.existingSlip || null)}
+                        className="text-xs h-8"
                       >
-                        View Slip
+                        View
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -308,76 +310,76 @@ export default function SalarySlips() {
       </Card>
 
       <Dialog open={!!selectedSlip} onOpenChange={() => setSelectedSlip(null)}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl h-[90vh] sm:h-auto overflow-y-auto">
           <DialogTitle className="sr-only">Salary Slip Preview</DialogTitle>
           <DialogDescription className="sr-only">Detailed professional salary slip with earnings and deductions breakdown.</DialogDescription>
           {selectedSlip && (
-            <div className="bg-white text-slate-900 printable-area text-[11px] sm:text-[13px] font-sans">
-              <div className="p-8 border-b-4 border-primary flex justify-between items-start">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="bg-primary text-white p-2 rounded-lg">
-                      <Briefcase className="h-6 w-6" />
+            <div className="bg-white text-slate-900 printable-area text-[11px] sm:text-[13px] font-sans min-h-full">
+              <div className="p-4 sm:p-8 border-b-4 border-primary flex flex-col sm:flex-row justify-between items-center sm:items-start gap-4">
+                <div className="space-y-2 text-center sm:text-left">
+                  <div className="flex items-center justify-center sm:justify-start gap-2">
+                    <div className="bg-primary text-white p-1.5 sm:p-2 rounded-lg">
+                      <Briefcase className="h-5 w-5 sm:h-6 sm:w-6" />
                     </div>
-                    <h1 className="text-2xl font-black text-primary tracking-tighter">PAYSLIP</h1>
+                    <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tighter">PAYSLIP</h1>
                   </div>
-                  <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">
+                  <p className="text-slate-500 font-bold uppercase tracking-widest text-[9px] sm:text-[10px]">
                     {format(new Date(selectedSlip.month + "-01"), 'MMMM yyyy')}
                   </p>
                 </div>
-                <div className="text-right">
-                  <h2 className="text-lg font-black uppercase">Attendance App Pvt Ltd</h2>
-                  <p className="text-slate-500 max-w-[200px] ml-auto">Industrial Zone, AP - 515001</p>
+                <div className="text-center sm:text-right">
+                  <h2 className="text-base sm:text-lg font-black uppercase">Attendance App Pvt Ltd</h2>
+                  <p className="text-slate-500 max-w-[200px] mx-auto sm:ml-auto">Industrial Zone, AP - 515001</p>
                 </div>
               </div>
 
-              <div className="p-8 grid grid-cols-2 gap-8 bg-slate-50/50">
-                <div className="space-y-4">
+              <div className="p-4 sm:p-8 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 bg-slate-50/50">
+                <div className="space-y-2 sm:space-y-4">
                   <div className="grid grid-cols-2">
-                    <span className="text-slate-400 font-bold uppercase text-[9px]">Employee Name</span>
+                    <span className="text-slate-400 font-bold uppercase text-[8px] sm:text-[9px]">Employee Name</span>
                     <span className="font-bold">: {selectedSlip.employeeName}</span>
                   </div>
                   <div className="grid grid-cols-2">
-                    <span className="text-slate-400 font-bold uppercase text-[9px]">Employee ID</span>
+                    <span className="text-slate-400 font-bold uppercase text-[8px] sm:text-[9px]">Employee ID</span>
                     <span className="font-bold">: {selectedSlip.employeeId}</span>
                   </div>
                   <div className="grid grid-cols-2">
-                    <span className="text-slate-400 font-bold uppercase text-[9px]">Designation</span>
+                    <span className="text-slate-400 font-bold uppercase text-[8px] sm:text-[9px]">Designation</span>
                     <span className="font-bold">: {selectedSlip.designation}</span>
                   </div>
                   <div className="grid grid-cols-2">
-                    <span className="text-slate-400 font-bold uppercase text-[9px]">Department</span>
+                    <span className="text-slate-400 font-bold uppercase text-[8px] sm:text-[9px]">Department</span>
                     <span className="font-bold">: {selectedSlip.department}</span>
                   </div>
                   <div className="grid grid-cols-2">
-                    <span className="text-slate-400 font-bold uppercase text-[9px]">PAN Number</span>
+                    <span className="text-slate-400 font-bold uppercase text-[8px] sm:text-[9px]">PAN Number</span>
                     <span className="font-bold">: {selectedSlip.pan}</span>
                   </div>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-2 sm:space-y-4">
                   <div className="grid grid-cols-2">
-                    <span className="text-slate-400 font-bold uppercase text-[9px]">Bank A/c No</span>
+                    <span className="text-slate-400 font-bold uppercase text-[8px] sm:text-[9px]">Bank A/c No</span>
                     <span className="font-bold">: {selectedSlip.bankAccount}</span>
                   </div>
                   <div className="grid grid-cols-2">
-                    <span className="text-slate-400 font-bold uppercase text-[9px]">UAN / PF No</span>
+                    <span className="text-slate-400 font-bold uppercase text-[8px] sm:text-[9px]">UAN / PF No</span>
                     <span className="font-bold">: {selectedSlip.uan}</span>
                   </div>
                   <div className="grid grid-cols-2">
-                    <span className="text-slate-400 font-bold uppercase text-[9px]">Paid Days</span>
+                    <span className="text-slate-400 font-bold uppercase text-[8px] sm:text-[9px]">Paid Days</span>
                     <span className="font-bold">: {selectedSlip.daysPaid}</span>
                   </div>
                   <div className="grid grid-cols-2">
-                    <span className="text-slate-400 font-bold uppercase text-[9px]">OT Hours</span>
+                    <span className="text-slate-400 font-bold uppercase text-[8px] sm:text-[9px]">OT Hours</span>
                     <span className="font-bold">: {selectedSlip.otHours} h</span>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 border-y">
-                <div className="border-r">
-                   <div className="bg-slate-100 p-2 font-black text-[10px] uppercase border-b">Earnings</div>
-                   <div className="p-4 space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 border-y">
+                <div className="border-r-0 sm:border-r border-b sm:border-b-0">
+                   <div className="bg-slate-100 p-2 font-black text-[9px] sm:text-[10px] uppercase border-b">Earnings</div>
+                   <div className="p-3 sm:p-4 space-y-1.5 sm:space-y-2">
                      <div className="flex justify-between"><span>Basic Earned Salary</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.basic).toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>HRA</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.hra).toLocaleString()}</span></div>
                      <div className="flex justify-between text-green-700 font-medium"><span>Food Allowance</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.food).toLocaleString()}</span></div>
@@ -386,23 +388,23 @@ export default function SalarySlips() {
                      <div className="flex justify-between"><span>Bonus / Special</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.bonus + selectedSlip.earnings.special).toLocaleString()}</span></div>
                      {selectedSlip.earnings.other > 0 && (
                         <div className="flex justify-between text-slate-500">
-                            <span>Other: {selectedSlip.earnings.otherNote}</span>
+                            <span className="text-xs truncate max-w-[150px]">Other: {selectedSlip.earnings.otherNote}</span>
                             <span className="font-bold">₹{Math.round(selectedSlip.earnings.other).toLocaleString()}</span>
                         </div>
                      )}
                    </div>
                 </div>
                 <div>
-                   <div className="bg-slate-100 p-2 font-black text-[10px] uppercase border-b">Deductions</div>
-                   <div className="p-4 space-y-2">
+                   <div className="bg-slate-100 p-2 font-black text-[9px] sm:text-[10px] uppercase border-b">Deductions</div>
+                   <div className="p-3 sm:p-4 space-y-1.5 sm:space-y-2">
                      {selectedSlip.deductions.pf > 0 && <div className="flex justify-between"><span>Employee PF (12%)</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.pf).toLocaleString()}</span></div>}
                      {selectedSlip.deductions.esi > 0 && <div className="flex justify-between"><span>ESI (0.75%)</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.esi).toLocaleString()}</span></div>}
                      {selectedSlip.deductions.pt > 0 && <div className="flex justify-between"><span>Professional Tax</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.pt).toLocaleString()}</span></div>}
-                     <div className="flex justify-between text-destructive font-black"><span>LOP Deduction (Late/Absent)</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.lop).toLocaleString()}</span></div>
+                     <div className="flex justify-between text-destructive font-black"><span>LOP (Late/Absent)</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.lop).toLocaleString()}</span></div>
                      {selectedSlip.deductions.loan > 0 && <div className="flex justify-between"><span>Loan Recovery</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.loan).toLocaleString()}</span></div>}
                      {selectedSlip.deductions.other > 0 && (
                         <div className="flex justify-between text-destructive">
-                            <span>Other: {selectedSlip.deductions.otherNote}</span>
+                            <span className="text-xs truncate max-w-[150px]">Other: {selectedSlip.deductions.otherNote}</span>
                             <span className="font-bold">₹{Math.round(selectedSlip.deductions.other).toLocaleString()}</span>
                         </div>
                      )}
@@ -410,40 +412,40 @@ export default function SalarySlips() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 bg-slate-50 font-black text-slate-800 border-b">
-                <div className="p-4 border-r flex justify-between uppercase">
+              <div className="grid grid-cols-1 sm:grid-cols-2 bg-slate-50 font-black text-slate-800 border-b">
+                <div className="p-3 sm:p-4 border-r-0 sm:border-r border-b sm:border-b-0 flex justify-between uppercase">
                   <span>Gross Earnings</span>
                   <span>₹{Math.round(selectedSlip.grossEarnings).toLocaleString()}</span>
                 </div>
-                <div className="p-4 flex justify-between uppercase">
+                <div className="p-3 sm:p-4 flex justify-between uppercase">
                   <span>Total Deductions</span>
                   <span>₹{Math.round(selectedSlip.totalDeductions).toLocaleString()}</span>
                 </div>
               </div>
 
-              <div className="p-8 flex flex-col items-center sm:flex-row sm:justify-between gap-6 bg-primary/5">
+              <div className="p-6 sm:p-8 flex flex-col items-center sm:flex-row sm:justify-between gap-4 sm:gap-6 bg-primary/5">
                 <div className="space-y-1 text-center sm:text-left">
-                  <h3 className="text-sm font-black text-primary uppercase tracking-widest">Net Salary Payable</h3>
-                  <p className="text-slate-500 font-bold italic">Take Home Amount</p>
+                  <h3 className="text-xs sm:text-sm font-black text-primary uppercase tracking-widest">Net Salary Payable</h3>
+                  <p className="text-slate-500 font-bold italic text-[10px] sm:text-[11px]">Take Home Amount</p>
                 </div>
-                <div className="flex items-center gap-3 bg-primary text-white p-6 rounded-2xl shadow-xl">
-                  <IndianRupee className="h-8 w-8" />
-                  <span className="text-4xl font-black">{Math.round(selectedSlip.totalSalary).toLocaleString()}</span>
-                </div>
-              </div>
-
-              <div className="p-10 grid grid-cols-2 gap-20">
-                <div className="text-center pt-8 border-t border-slate-200">
-                  <p className="font-bold text-slate-600">Employee Signature</p>
-                </div>
-                <div className="text-center pt-8 border-t border-slate-200">
-                  <p className="font-bold text-slate-600">Authorized Signatory</p>
+                <div className="flex items-center gap-3 bg-primary text-white p-4 sm:p-6 rounded-2xl shadow-xl">
+                  <IndianRupee className="h-6 w-6 sm:h-8 sm:w-8" />
+                  <span className="text-3xl sm:text-4xl font-black">{Math.round(selectedSlip.totalSalary).toLocaleString()}</span>
                 </div>
               </div>
 
-              <div className="p-6 border-t bg-slate-100 flex justify-end gap-3 no-print">
-                <Button variant="outline" onClick={() => setSelectedSlip(null)}>Close</Button>
-                <Button onClick={() => window.print()} className="bg-primary hover:bg-primary/90">
+              <div className="p-6 sm:p-10 grid grid-cols-2 gap-8 sm:gap-20">
+                <div className="text-center pt-4 sm:pt-8 border-t border-slate-200">
+                  <p className="font-bold text-slate-600 text-[10px] sm:text-sm">Employee Signature</p>
+                </div>
+                <div className="text-center pt-4 sm:pt-8 border-t border-slate-200">
+                  <p className="font-bold text-slate-600 text-[10px] sm:text-sm">Authorized Signatory</p>
+                </div>
+              </div>
+
+              <div className="p-4 sm:p-6 border-t bg-slate-100 flex justify-end gap-3 no-print">
+                <Button variant="outline" size="sm" onClick={() => setSelectedSlip(null)}>Close</Button>
+                <Button size="sm" onClick={() => window.print()} className="bg-primary hover:bg-primary/90">
                   <Printer className="mr-2 h-4 w-4" /> Print
                 </Button>
               </div>

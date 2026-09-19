@@ -2,10 +2,10 @@
 
 import { useApp } from '@/hooks/use-app';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Clock, Hourglass, Sun, Moon } from 'lucide-react';
+import { Clock, Sun, Moon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ShiftSettings, ShiftDetail } from '@/lib/types';
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,13 +41,23 @@ function ModernClockModal({ shiftName, initialValue, isOpen, onClose, onSave }: 
     }
   }, [isOpen, initialValue]);
 
-  const handleTimeClick = (e: React.MouseEvent) => {
+  const handleDialInteraction = (e: React.MouseEvent | React.TouchEvent) => {
     if (!faceRef.current) return;
+    
+    let clientX, clientY;
+    if ('touches' in e) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
+
     const rect = faceRef.current.getBoundingClientRect();
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-    const clickX = e.clientX - rect.left - centerX;
-    const clickY = e.clientY - rect.top - centerY;
+    const clickX = clientX - rect.left - centerX;
+    const clickY = clientY - rect.top - centerY;
 
     let angle = Math.atan2(clickX, -clickY) * (180 / Math.PI);
     if (angle < 0) angle += 360;
@@ -56,8 +66,6 @@ function ModernClockModal({ shiftName, initialValue, isOpen, onClose, onSave }: 
       let hour = Math.round(angle / 30);
       if (hour === 0) hour = 12;
       setTempHour(hour);
-      // Auto switch to minutes after selecting hour
-      setTimeout(() => setMode('minutes'), 300);
     } else {
       let minute = Math.round(angle / 6);
       if (minute === 60) minute = 0;
@@ -82,37 +90,37 @@ function ModernClockModal({ shiftName, initialValue, isOpen, onClose, onSave }: 
   const minutes = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-[300px] rounded-2xl overflow-hidden shadow-2xl border animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-[320px] rounded-3xl overflow-hidden shadow-2xl border animate-in zoom-in-95 duration-200">
         {/* Clock Header */}
-        <div className="bg-[#1976d2] text-white p-6">
-          <p className="text-[10px] uppercase font-bold tracking-widest opacity-70 mb-3 text-center">Set {shiftName} Time</p>
-          <div className="flex items-center justify-center gap-2">
-            <div className="flex items-baseline font-bold text-4xl">
+        <div className="bg-primary text-primary-foreground p-6 text-center">
+          <p className="text-[10px] uppercase font-bold tracking-widest opacity-70 mb-3">Set {shiftName} Time</p>
+          <div className="flex items-center justify-center gap-4">
+            <div className="flex items-baseline font-bold text-4xl tabular-nums">
               <button 
                 onClick={() => setMode('hours')}
-                className={cn("transition-opacity", mode === 'hours' ? "opacity-100 border-b-2 border-white" : "opacity-50")}
+                className={cn("transition-all px-2 py-1 rounded-lg", mode === 'hours' ? "bg-white/20 ring-1 ring-white/50" : "opacity-40")}
               >
                 {tempHour.toString().padStart(2, '0')}
               </button>
-              <span className="mx-1">:</span>
+              <span className="mx-1 opacity-50">:</span>
               <button 
                 onClick={() => setMode('minutes')}
-                className={cn("transition-opacity", mode === 'minutes' ? "opacity-100 border-b-2 border-white" : "opacity-50")}
+                className={cn("transition-all px-2 py-1 rounded-lg", mode === 'minutes' ? "bg-white/20 ring-1 ring-white/50" : "opacity-40")}
               >
                 {tempMinute.toString().padStart(2, '0')}
               </button>
             </div>
-            <div className="flex flex-col ml-4 gap-1">
+            <div className="flex flex-col gap-1.5">
               <button 
                 onClick={() => setIsPm(false)}
-                className={cn("text-xs font-bold px-2 py-1 rounded", !isPm ? "bg-white text-[#1976d2]" : "opacity-60")}
+                className={cn("text-[10px] font-black px-2 py-1 rounded-md transition-all", !isPm ? "bg-white text-primary" : "bg-black/10 text-white/50")}
               >
                 AM
               </button>
               <button 
                 onClick={() => setIsPm(true)}
-                className={cn("text-xs font-bold px-2 py-1 rounded", isPm ? "bg-white text-[#1976d2]" : "opacity-60")}
+                className={cn("text-[10px] font-black px-2 py-1 rounded-md transition-all", isPm ? "bg-white text-primary" : "bg-black/10 text-white/50")}
               >
                 PM
               </button>
@@ -124,58 +132,69 @@ function ModernClockModal({ shiftName, initialValue, isOpen, onClose, onSave }: 
         <div className="p-6 bg-slate-50 flex flex-col items-center gap-6">
           <div 
             ref={faceRef}
-            onClick={handleTimeClick}
-            className="w-[220px] h-[220px] bg-[#edeef0] rounded-full relative border-[3px] border-[#1976d2] cursor-pointer touch-none select-none shadow-inner"
+            onClick={handleDialInteraction}
+            onMouseDown={(e) => e.button === 0 && handleDialInteraction(e)}
+            onTouchStart={handleDialInteraction}
+            className="w-[230px] h-[230px] bg-white rounded-full relative border-[8px] border-slate-200 cursor-pointer touch-none select-none shadow-xl"
           >
             {/* Center Dot */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-[#1976d2] rounded-full z-30" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-primary rounded-full z-30 shadow-sm" />
             
             {/* Clock Hand */}
             <div 
-              className="absolute bottom-1/2 left-1/2 w-[2px] bg-[#1976d2] origin-bottom z-20 transition-transform duration-300 ease-out"
+              className="absolute bottom-1/2 left-1/2 w-[3px] bg-primary origin-bottom z-20 transition-transform duration-300 ease-out"
               style={{ 
-                height: mode === 'hours' ? '65px' : '85px',
+                height: mode === 'hours' ? '70px' : '90px',
                 transform: `translateX(-50%) rotate(${rotationDegrees}deg)` 
               }}
             >
-              <div className="w-8 h-8 bg-[#1976d2] rounded-full absolute -top-4 -left-[15px] flex items-center justify-center shadow-lg">
-                <div className="w-1 h-1 bg-white rounded-full" />
+              <div className="w-10 h-10 bg-primary rounded-full absolute -top-5 -left-[18.5px] flex items-center justify-center shadow-lg border-4 border-white">
+                <div className="w-1.5 h-1.5 bg-white rounded-full" />
               </div>
             </div>
 
             {/* Numbers */}
             {(mode === 'hours' ? hours : minutes).map((num, i) => {
               const angle = (i * 30 * Math.PI) / 180;
-              const radius = mode === 'hours' ? 75 : 85;
-              const x = 110 + radius * Math.sin(angle);
-              const y = 110 - radius * Math.cos(angle);
+              const radius = mode === 'hours' ? 82 : 92;
+              const x = 115 + radius * Math.sin(angle);
+              const y = 115 - radius * Math.cos(angle);
               const isSelected = mode === 'hours' ? tempHour === num : tempMinute === num;
 
               return (
-                <div
+                <button
                   key={num}
                   className={cn(
-                    "absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors pointer-events-none",
-                    isSelected ? "text-white" : "text-slate-600"
+                    "absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center text-xs font-black transition-all",
+                    isSelected ? "text-primary scale-125" : "text-slate-400 hover:text-primary"
                   )}
                   style={{ left: `${x}px`, top: `${y}px` }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (mode === 'hours') {
+                        setTempHour(num);
+                        setTimeout(() => setMode('minutes'), 300);
+                    } else {
+                        setTempMinute(num);
+                    }
+                  }}
                 >
                   {num}
-                </div>
+                </button>
               );
             })}
           </div>
 
           {/* Duty Hours Quick Select */}
-          <div className="w-full space-y-2">
-            <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Duty Duration (Hours)</Label>
+          <div className="w-full space-y-3">
+            <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center block">Duty Duration (Hours)</Label>
             <div className="flex gap-2">
               {[8, 10, 12].map(h => (
                 <Button 
                   key={h}
                   type="button"
                   variant={dutyHours === h ? 'default' : 'outline'}
-                  className="flex-1 h-10 rounded-xl font-bold"
+                  className="flex-1 h-12 rounded-2xl font-black text-base shadow-sm"
                   onClick={() => setDutyHours(h)}
                 >
                   {h}h
@@ -183,8 +202,8 @@ function ModernClockModal({ shiftName, initialValue, isOpen, onClose, onSave }: 
               ))}
               <Input 
                 type="number"
-                className="w-16 h-10 text-center font-bold rounded-xl"
-                value={dutyHours || ''}
+                className="w-16 h-12 text-center font-black rounded-2xl border-slate-200"
+                value={dutyHours ?? ''}
                 onChange={(e) => setDutyHours(parseInt(e.target.value) || 0)}
               />
             </div>
@@ -192,19 +211,20 @@ function ModernClockModal({ shiftName, initialValue, isOpen, onClose, onSave }: 
         </div>
 
         {/* Modal Actions */}
-        <div className="flex justify-end p-4 gap-4 border-t bg-white">
-          <button 
+        <div className="flex justify-between p-4 px-6 border-t bg-white">
+          <Button 
+            variant="ghost"
             onClick={onClose}
-            className="text-[#1976d2] font-bold text-sm uppercase px-4 py-2 hover:bg-slate-50 rounded-lg transition-colors"
+            className="text-slate-400 font-bold uppercase tracking-wider h-12 px-6"
           >
             Cancel
-          </button>
-          <button 
+          </Button>
+          <Button 
             onClick={handleOk}
-            className="text-[#1976d2] font-black text-sm uppercase px-4 py-2 hover:bg-slate-50 rounded-lg transition-colors"
+            className="bg-primary text-primary-foreground font-black uppercase tracking-wider h-12 px-8 rounded-2xl shadow-lg"
           >
-            OK
-          </button>
+            Save
+          </Button>
         </div>
       </div>
     </div>
@@ -228,7 +248,7 @@ export default function ShiftManagement() {
     updateShiftSetting(shift, config);
     toast({
       title: 'Success',
-      description: `${shift} settings have been updated.`
+      description: `${shift} settings updated.`
     });
     setOpenShift(null);
   };
@@ -241,16 +261,16 @@ export default function ShiftManagement() {
             <Clock className="h-6 w-6" /> Shift Management
           </CardTitle>
           <CardDescription className="text-slate-600 font-medium">
-            షిఫ్ట్ ప్రారంభ సమయం మరియు డ్యూటీ గంటలను ఇక్కడ సెట్ చేయండి. ఆటోమేటిక్ లేట్-ఇన్ మరియు ఓవర్ టైం దీని ఆధారంగానే లెక్కించబడతాయి.
+            షిఫ్ట్ ప్రారంభ సమయం మరియు డ్యూటీ గంటలను ఇక్కడ సెట్ చేయండి. ఆటోమేటిక్ లేట్-ఇన్ దీని ఆధారంగానే లెక్కించబడుతుంది.
           </CardDescription>
         </CardHeader>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {(Object.keys(shiftSettings) as Array<keyof ShiftSettings>).map((shift) => (
           <Card 
             key={shift} 
-            className="cursor-pointer hover:shadow-xl transition-all duration-300 border-slate-100 group relative overflow-hidden"
+            className="cursor-pointer hover:shadow-xl transition-all duration-300 border-slate-100 group relative overflow-hidden active:scale-95 sm:active:scale-100"
             onClick={() => setOpenShift(shift)}
           >
             <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -259,14 +279,14 @@ export default function ShiftManagement() {
             <CardHeader className="pb-2 bg-slate-50/50">
               <div className="flex items-center justify-between">
                 <span className="font-black text-slate-800 tracking-tight">{shift}</span>
-                <Badge className="bg-primary/10 text-primary border-none text-[10px] font-bold">
+                <span className="bg-primary/10 text-primary border-none px-2 py-0.5 rounded-full text-[10px] font-bold">
                   {shiftSettings[shift].dutyHours}h Duty
-                </Badge>
+                </span>
               </div>
             </CardHeader>
             <CardContent className="pt-6 pb-8 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mb-2">Shift Starts At</p>
-              <h3 className="text-3xl font-black text-primary tracking-tighter">
+              <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mb-2">Starts At</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-primary tracking-tighter">
                 {formatDisplayTime(shiftSettings[shift].startHour)}
               </h3>
             </CardContent>
@@ -283,13 +303,5 @@ export default function ShiftManagement() {
         onSave={(config) => openShift && handleSave(openShift, config)}
       />
     </div>
-  );
-}
-
-function Badge({ children, className }: { children: React.ReactNode, className?: string }) {
-  return (
-    <span className={cn("px-2 py-0.5 rounded-full text-xs border", className)}>
-      {children}
-    </span>
   );
 }
