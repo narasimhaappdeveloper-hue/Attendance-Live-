@@ -53,17 +53,14 @@ export default function SalarySlips() {
       const totalPaidDays = p + w + h + c;
       const lopDays = l + a;
       
-      // Calculate effective daily rate for LOP
       const effectiveDailyRate = employee.dailyRate || (employee.basicSalary ? Math.round(employee.basicSalary / totalDaysCount) : 0);
       
-      // Basic Earnings calculation logic
-      // If dailyRate is set, use (Total Month Days * Daily Rate) as base to show LOP correctly
-      // Else use fixed basicSalary
       const baseBasic = employee.dailyRate > 0 
         ? (totalDaysCount * employee.dailyRate)
         : (employee.basicSalary || 0);
 
       const lopDeduction = lopDays * effectiveDailyRate;
+      const earnedBasic = Math.max(0, baseBasic - lopDeduction);
 
       const earnings = {
         basic: baseBasic,
@@ -83,18 +80,21 @@ export default function SalarySlips() {
         return typeof val === 'number' ? acc + val : acc;
       }, 0);
 
-      const autoPF = employee.isPFEnabled ? Math.round(earnings.basic * 0.12) : 0;
-      const autoESI = (employee.isESIEnabled && grossEarnings <= 21000) ? Math.round(grossEarnings * 0.0075) : 0;
+      const currentGrossEarned = Math.max(0, grossEarnings - lopDeduction);
+
+      // CRITICAL FIX: Statutory deductions must be on EARNED amount, not MASTER rate
+      const autoPF = employee.isPFEnabled ? Math.round(earnedBasic * 0.12) : 0;
+      const autoESI = (employee.isESIEnabled && currentGrossEarned <= 21000) ? Math.round(currentGrossEarned * 0.0075) : 0;
 
       let autoPT = 0;
       if (employee.isPTEnabled) {
-        if (grossEarnings > 20000) autoPT = 200;
-        else if (grossEarnings > 15000) autoPT = 150;
+        if (currentGrossEarned > 20000) autoPT = 200;
+        else if (currentGrossEarned > 15000) autoPT = 150;
       }
 
       let autoTDS = 0;
       if (employee.isITEnabled) {
-        const annualizedGross = grossEarnings * 12;
+        const annualizedGross = currentGrossEarned * 12;
         const stdDeduction = 75000;
         const taxableIncome = Math.max(0, annualizedGross - stdDeduction);
         
@@ -188,7 +188,7 @@ export default function SalarySlips() {
          <div>
             <p className="font-bold">Salary Calculation Update:</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-               Net Pay = (Basic + Incentives + Allowances) - (PF + ESI + LOP + Other Deductions). LOP అనేది అబ్సెంట్/లీవ్ రోజులకు వర్తిస్తుంది.
+               Net Pay = (Basic + Incentives + Allowances) - (PF + ESI + LOP + Other Deductions). LOP అనేది అబ్సెంట్/లీవ్ రోజులకు వర్తిస్తుంది. PF/ESI ఇప్పుడు సంపాదించిన జీతం మీద మాత్రమే లెక్కించబడుతుంది.
             </p>
          </div>
       </div>

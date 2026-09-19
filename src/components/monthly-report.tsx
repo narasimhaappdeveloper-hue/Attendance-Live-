@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -11,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, getDay, isSunday, isSaturday } from 'date-fns';
-import { Users, CheckCircle2, Clock, Calendar, Info } from 'lucide-react';
+import { Users, CheckCircle2, Clock, Calendar, Info, Badge } from 'lucide-react';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -29,11 +28,9 @@ export default function MonthlyReport() {
   }, [selectedMonth]);
 
   const reportData = useMemo(() => {
-    // Show employees who were approved OR resigned, but ONLY if they had activity in the selected month
     return employees.filter(e => {
         if (e.status === 'Approved') return true;
         if (e.status === 'Resigned') {
-            // Check if they have any attendance records or extra statuses in this month
             const hasActivity = attendanceRecords.some(r => 
                 r.employeeId.toUpperCase() === e.id.toUpperCase() && 
                 format(new Date(r.dateTime), 'yyyy-MM') === format(selectedMonth, 'yyyy-MM')
@@ -67,11 +64,25 @@ export default function MonthlyReport() {
         return acc;
       }, { Present: 0, Absent: 0, 'Week-off': 0, Leave: 0, Holiday: 0, 'C-off': 0, totalOT: 0 });
 
-      // Paid Working Days Calculation: Only Present + Week-off + Holiday + C-off
       const paidWorkingDays = stats.Present + stats['Week-off'] + stats.Holiday + stats['C-off'];
-      
       const effectiveDailyRate = employee.dailyRate || (employee.basicSalary ? Math.round(employee.basicSalary / daysInMonth.length) : 0);
-      const salary = (paidWorkingDays * effectiveDailyRate) + (stats.totalOT * (employee.otRate || 0));
+      
+      // Calculate Gross Earned
+      const earnedGross = (paidWorkingDays * effectiveDailyRate) + (stats.totalOT * (employee.otRate || 0)) + (employee.incentive || 0) + (employee.foodAllowance || 0);
+      
+      // Calculate Statutory Deductions based on Earned Basic
+      const earnedBasic = (paidWorkingDays * effectiveDailyRate);
+      const autoPF = employee.isPFEnabled ? Math.round(earnedBasic * 0.12) : 0;
+      const autoESI = (employee.isESIEnabled && earnedGross <= 21000) ? Math.round(earnedGross * 0.0075) : 0;
+      
+      let autoPT = 0;
+      if (employee.isPTEnabled) {
+        if (earnedGross > 20000) autoPT = 200;
+        else if (earnedGross > 15000) autoPT = 150;
+      }
+
+      const totalDeductions = autoPF + autoESI + autoPT + (employee.loanRecovery || 0) + (employee.otherDeductions || 0);
+      const salary = Math.max(0, earnedGross - totalDeductions);
 
       return { ...employee, dailyStatus, stats, salary, paidWorkingDays, totalDays: daysInMonth.length };
     });
@@ -155,7 +166,7 @@ export default function MonthlyReport() {
           <div>
             <CardTitle>Master Attendance Report</CardTitle>
             <CardDescription>
-              Sundays (Red) & Saturdays (Amber) are highlighted. Leave & Absent are Unpaid (Loss of Pay).
+              Sundays (Red) & Saturdays (Amber) are highlighted. Salary shown is estimated Net Pay after deductions.
             </CardDescription>
           </div>
           <div className="flex gap-2">
@@ -224,7 +235,7 @@ export default function MonthlyReport() {
                   <TableHead className="text-center font-bold px-1 text-amber-600 bg-slate-50 border-r">W</TableHead>
                   <TableHead className="text-center font-bold px-1 bg-slate-50 border-r">OT(h)</TableHead>
                   <TableHead className="text-center font-bold px-1 bg-primary/10 text-primary border-r">Paid Work Days</TableHead>
-                  <TableHead className="sticky right-0 bg-primary/10 z-30 min-w-[90px] text-primary font-bold text-center border-l">Salary</TableHead>
+                  <TableHead className="sticky right-0 bg-primary/10 z-30 min-w-[90px] text-primary font-bold text-center border-l">Net Salary</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="text-[11px]">
@@ -233,7 +244,7 @@ export default function MonthlyReport() {
                     <TableCell className="sticky left-0 bg-white font-bold z-20 border-r shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
                       <div className="flex items-center gap-1">
                         {row.name}
-                        {row.status === 'Resigned' && <Badge variant="outline" className="text-[7px] h-3 px-1 border-amber-500 text-amber-600">Former</Badge>}
+                        {row.status === 'Resigned' && <span className="text-[7px] bg-amber-100 px-1 border border-amber-500 text-amber-600 rounded">Former</span>}
                       </div>
                       <div className="text-[9px] text-muted-foreground font-normal">{row.id}</div>
                     </TableCell>
@@ -277,7 +288,7 @@ export default function MonthlyReport() {
                     <TableCell className="text-center bg-slate-50/30 border-r">{row.stats.totalOT}</TableCell>
                     <TableCell className="text-center bg-primary/5 font-black text-primary border-r">{row.paidWorkingDays}</TableCell>
                     <TableCell className="sticky right-0 bg-primary/5 z-20 font-black text-primary text-center border-l">
-                      ₹{row.salary.toLocaleString()}
+                      ₹{Math.round(row.salary).toLocaleString()}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -298,19 +309,10 @@ export default function MonthlyReport() {
                   <TableCell className="text-center text-amber-600 font-black border-r bg-slate-100">{grandTotals.weekoff}</TableCell>
                   <TableCell className="text-center border-r bg-slate-100">{grandTotals.ot}</TableCell>
                   <TableCell className="text-center text-primary font-black border-r bg-primary/5">{grandTotals.paidWorkingDays}</TableCell>
-                  <TableCell className="sticky right-0 bg-primary/20 z-20 font-black text-primary text-center border-l">₹{grandTotals.salary.toLocaleString()}</TableCell>
+                  <TableCell className="sticky right-0 bg-primary/20 z-20 font-black text-primary text-center border-l">₹{Math.round(grandTotals.salary).toLocaleString()}</TableCell>
                 </TableRow>
               </TableFooter>
             </Table>
-          </div>
-          
-          <div className="mt-6 flex flex-wrap gap-4 text-[10px] font-bold">
-            <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-green-500"></div> Present (P)</div>
-            <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-red-100 border text-red-400 text-center text-[8px]">A</div> Absent (A - Unpaid)</div>
-            <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-blue-500"></div> Leave (L - Unpaid)</div>
-            <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-purple-500"></div> Holiday (H)</div>
-            <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-amber-400"></div> Week-off (W)</div>
-            <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-indigo-500"></div> C-off (C)</div>
           </div>
         </CardContent>
       </Card>
