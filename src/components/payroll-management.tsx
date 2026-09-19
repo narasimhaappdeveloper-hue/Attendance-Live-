@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -63,7 +62,7 @@ export default function PayrollManagement() {
 
       <div className="p-4 bg-amber-50 text-amber-800 text-xs font-semibold rounded-xl border border-amber-200 flex items-start gap-2">
          <Info className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
-         <p>గమనిక: PF (12%) మరియు ESI (0.75%) ప్రభుత్వ నిబంధనల ప్రకారం ఆటోమేటిక్‌గా లెక్కించబడతాయి. Food Allowance మరియు ఇతర అలవెన్సులను మీరు మాన్యువల్‌గా ఎంటర్ చేయవచ్చు.</p>
+         <p>గమనిక: PF (12%) మరియు ESI (0.75%) ప్రభుత్వ నిబంధనల ప్రకారం ఆటోమేటిక్‌గా లెక్కించబడతాయి. Food Allowance మరియు ఇతర అలవెన్సులను మీరు నమోదు చేయవచ్చు.</p>
       </div>
 
       <Card className="border-none shadow-md overflow-hidden">
@@ -130,10 +129,6 @@ export default function PayrollManagement() {
                              <Input type="number" className="h-7 text-xs" defaultValue={data.otRate} onChange={(e) => handleRateChange(emp.id, 'otRate', parseFloat(e.target.value) || 0)} />
                            </div>
                            <div className="space-y-1">
-                             <label className="text-[9px] text-muted-foreground">Other Earnings Note</label>
-                             <Input className="h-7 text-[10px]" placeholder="Reason (e.g. Incentive)" defaultValue={data.otherEarningsNote} onChange={(e) => handleRateChange(emp.id, 'otherEarningsNote', e.target.value)} />
-                           </div>
-                           <div className="space-y-1">
                              <label className="text-[9px] text-muted-foreground">Manual Other Earnings</label>
                              <Input type="number" className="h-7 text-xs font-bold" defaultValue={data.otherEarnings} onChange={(e) => handleRateChange(emp.id, 'otherEarnings', parseFloat(e.target.value) || 0)} />
                            </div>
@@ -158,11 +153,7 @@ export default function PayrollManagement() {
                              <label className="text-[9px] text-destructive">Income Tax (TDS)</label>
                              <Input type="number" className="h-7 text-xs" defaultValue={data.incomeTax} onChange={(e) => handleRateChange(emp.id, 'incomeTax', parseFloat(e.target.value) || 0)} />
                            </div>
-                           <div className="space-y-1">
-                             <label className="text-[9px] text-destructive">Other Deductions Note</label>
-                             <Input className="h-7 text-[10px]" placeholder="Reason (e.g. Fine)" defaultValue={data.otherDeductionsNote} onChange={(e) => handleRateChange(emp.id, 'otherDeductionsNote', e.target.value)} />
-                           </div>
-                           <div className="space-y-1">
+                           <div className="space-y-1 col-span-2">
                              <label className="text-[9px] text-destructive font-bold">Manual Other Deductions</label>
                              <Input type="number" className="h-7 text-xs font-bold" defaultValue={data.otherDeductions} onChange={(e) => handleRateChange(emp.id, 'otherDeductions', parseFloat(e.target.value) || 0)} />
                            </div>
