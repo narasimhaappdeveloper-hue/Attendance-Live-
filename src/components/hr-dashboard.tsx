@@ -6,11 +6,12 @@ import EmployeeManagement from './employee-management';
 import AttendanceLog from './attendance-log';
 import SiteManagement from './site-management';
 import MonthlyReport from './monthly-report';
-import { Users, ClipboardList, MapPin, BarChart3, ChevronRight } from 'lucide-react';
+import PayrollManagement from './payroll-management';
+import { Users, ClipboardList, MapPin, BarChart3, ChevronRight, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
-type DashboardTab = 'employees' | 'sites' | 'reports' | 'attendance';
+type DashboardTab = 'employees' | 'sites' | 'reports' | 'attendance' | 'payroll';
 
 export default function HrDashboard() {
   const [activeTab, setActiveTab] = useState<DashboardTab>('employees');
@@ -20,6 +21,7 @@ export default function HrDashboard() {
     { id: 'sites', label: 'Work Sites', icon: MapPin },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'attendance', label: 'Attendance Log', icon: ClipboardList },
+    { id: 'payroll', label: 'Payroll', icon: Wallet },
   ];
 
   const renderContent = () => {
@@ -32,6 +34,8 @@ export default function HrDashboard() {
         return <MonthlyReport />;
       case 'attendance':
         return <AttendanceLog />;
+      case 'payroll':
+        return <PayrollManagement />;
       default:
         return <EmployeeManagement />;
     }
@@ -39,7 +43,6 @@ export default function HrDashboard() {
 
   return (
     <div className="flex flex-col md:flex-row gap-6 min-h-[calc(100vh-120px)]">
-      {/* Sidebar Navigation */}
       <aside className="w-full md:w-64 shrink-0">
         <div className="sticky top-20 space-y-1">
           <div className="px-3 py-4 mb-4 bg-primary/5 rounded-2xl border border-primary/10">
@@ -71,16 +74,9 @@ export default function HrDashboard() {
               );
             })}
           </nav>
-          
-          <div className="mt-8 p-4 bg-muted/40 rounded-2xl border border-dashed text-center">
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              సిస్టమ్ ఆటోమేటిక్‌గా అటెండెన్స్ మరియు రిపోర్ట్స్ మేనేజ్ చేస్తుంది.
-            </p>
-          </div>
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <main className="flex-1 min-w-0">
         <div className="bg-card rounded-2xl shadow-sm border border-border/50 overflow-hidden">
           <div className="p-6 border-b bg-muted/20">
@@ -88,7 +84,7 @@ export default function HrDashboard() {
               {navItems.find(i => i.id === activeTab)?.label}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Manage your {activeTab} data and monitoring tools.
+              Manage your {activeTab} data and financial reports.
             </p>
           </div>
           <div className="p-6">

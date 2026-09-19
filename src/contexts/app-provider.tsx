@@ -3,25 +3,27 @@
 
 import { createContext, useState, useEffect, useMemo, type ReactNode, useCallback } from 'react';
 import { initialEmployees } from '@/lib/initial-data';
-import type { Employee, AttendanceRecord, CurrentUser, Site } from '@/lib/types';
+import type { Employee, AttendanceRecord, CurrentUser, Site, ExtraStatus } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { isSameDay } from 'date-fns';
+import { isSameDay, format } from 'date-fns';
 
 interface AppContextType {
   currentUser: CurrentUser | null;
   employees: Employee[];
   sites: Site[];
   attendanceRecords: AttendanceRecord[];
+  extraStatuses: ExtraStatus[];
   hasSubmittedToday: boolean;
   login: (id: string, name: string) => 'employee' | 'hr' | 'not_found' | 'pending';
   signupHr: (id: string, name: string) => void;
   logout: () => void;
   addEmployee: (employee: Omit<Employee, 'status'>) => void;
-  updateEmployeeStatus: (id: string, status: 'Approved' | 'Pending') => void;
+  updateEmployee: (id: string, data: Partial<Employee>) => void;
   deleteEmployee: (id: string) => void;
   addSite: (name: string) => void;
   deleteSite: (id: string) => void;
   submitAttendance: (record: Omit<AttendanceRecord, 'id' | 'employeeName'>) => void;
+  markExtraStatus: (employeeId: string, date: string, status: 'Leave' | 'C-off' | 'Holiday', otHours: number) => void;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -38,6 +40,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [hrUsers, setHrUsers] = useState<{id: string, name: string}[]>([]);
   const [sites, setSites] = useState<Site[]>(defaultSites);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [extraStatuses, setExtraStatuses] = useState<ExtraStatus[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const router = useRouter();
 
@@ -65,6 +68,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       
       const storedAttendance = localStorage.getItem('attendanceRecords');
       if (storedAttendance) setAttendanceRecords(JSON.parse(storedAttendance));
+
+      const storedExtra = localStorage.getItem('extraStatuses');
+      if (storedExtra) setExtraStatuses(JSON.parse(storedExtra));
     } catch (error) {
       console.warn("Storage initialization warning");
     }
@@ -78,7 +84,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('hrUsers', JSON.stringify(hrUsers));
     localStorage.setItem('sites', JSON.stringify(sites));
     localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
-  }, [currentUser, employees, hrUsers, sites, attendanceRecords, isLoaded]);
+    localStorage.setItem('extraStatuses', JSON.stringify(extraStatuses));
+  }, [currentUser, employees, hrUsers, sites, attendanceRecords, extraStatuses, isLoaded]);
 
   const hasSubmittedToday = useMemo(() => {
     if (!currentUser || currentUser.role !== 'employee') return false;
@@ -90,25 +97,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback((id: string, name: string): 'employee' | 'hr' | 'not_found' | 'pending' => {
     const uppercaseId = id.toUpperCase();
-    
     const hr = hrUsers.find(h => h.id.toUpperCase() === uppercaseId);
     if (hr) {
       setCurrentUser({ id: hr.id, name: name || hr.name, role: 'hr' });
       return 'hr';
     }
-
     const employee = employees.find((e) => e.id.toUpperCase() === uppercaseId);
     if (employee) {
       if (employee.status === 'Pending') return 'pending';
-      setCurrentUser({ 
-        id: employee.id, 
-        name: name || employee.name, 
-        role: 'employee',
-        phone: employee.phone 
-      });
+      setCurrentUser({ id: employee.id, name: name || employee.name, role: 'employee', phone: employee.phone });
       return 'employee';
     }
-
     return 'not_found';
   }, [employees, hrUsers]);
 
@@ -127,20 +126,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addEmployee = useCallback((employee: Omit<Employee, 'status'>) => {
     setEmployees((prev) => {
       if (prev.some(emp => emp.id.toUpperCase() === employee.id.toUpperCase())) return prev;
-      const newEmployee: Employee = { 
-        ...employee, 
-        id: employee.id.toUpperCase(), 
-        status: 'Pending',
-        weekOffDay: employee.weekOffDay || 'Sunday'
-      };
-      return [...prev, newEmployee];
+      return [...prev, { ...employee, id: employee.id.toUpperCase(), status: 'Pending' }];
     });
   }, []);
 
-  const updateEmployeeStatus = useCallback((id: string, status: 'Approved' | 'Pending') => {
-    setEmployees((prev) =>
-      prev.map((emp) => (emp.id.toUpperCase() === id.toUpperCase() ? { ...emp, status } : emp))
-    );
+  const updateEmployee = useCallback((id: string, data: Partial<Employee>) => {
+    setEmployees((prev) => prev.map((emp) => (emp.id.toUpperCase() === id.toUpperCase() ? { ...emp, ...data } : emp)));
   }, []);
 
   const deleteEmployee = useCallback((id: string) => {
@@ -162,35 +153,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const submitAttendance = useCallback((record: Omit<AttendanceRecord, 'id' | 'employeeName'>) => {
     if (!currentUser) return;
-    
-    const newRecord: AttendanceRecord = { 
-        ...record, 
-        id: `ATT${Date.now()}`,
-        employeeName: currentUser.name
-    };
-    setAttendanceRecords((prev) => [newRecord, ...prev]);
+    setAttendanceRecords((prev) => [{ ...record, id: `ATT${Date.now()}`, employeeName: currentUser.name }, ...prev]);
   }, [currentUser]);
 
+  const markExtraStatus = useCallback((employeeId: string, date: string, status: 'Leave' | 'C-off' | 'Holiday', otHours: number) => {
+    setExtraStatuses(prev => {
+      const filtered = prev.filter(e => !(e.employeeId === employeeId && e.date === date));
+      return [...filtered, { id: `EX${Date.now()}`, employeeId, date, status, otHours }];
+    });
+  }, []);
+
   const value = useMemo(() => ({
-    currentUser,
-    employees,
-    sites,
-    attendanceRecords,
-    hasSubmittedToday,
-    login,
-    signupHr,
-    logout,
-    addEmployee,
-    updateEmployeeStatus,
-    deleteEmployee,
-    addSite,
-    deleteSite,
-    submitAttendance,
-  }), [
-    currentUser, employees, sites, attendanceRecords, hasSubmittedToday,
-    login, signupHr, logout, addEmployee, updateEmployeeStatus,
-    deleteEmployee, addSite, deleteSite, submitAttendance
-  ]);
+    currentUser, employees, sites, attendanceRecords, extraStatuses, hasSubmittedToday,
+    login, signupHr, logout, addEmployee, updateEmployee, deleteEmployee, addSite, deleteSite, submitAttendance, markExtraStatus
+  }), [currentUser, employees, sites, attendanceRecords, extraStatuses, hasSubmittedToday, login, signupHr, logout, addEmployee, updateEmployee, deleteEmployee, addSite, deleteSite, submitAttendance, markExtraStatus]);
 
   return (
     <AppContext.Provider value={value}>

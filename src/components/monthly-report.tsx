@@ -6,15 +6,21 @@ import { useApp } from '@/hooks/use-app';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, getDay } from 'date-fns';
-import { Users, CheckCircle2, XCircle, Coffee } from 'lucide-react';
+import { Users, CheckCircle2, XCircle, Clock } from 'lucide-react';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export default function MonthlyReport() {
-  const { employees, attendanceRecords } = useApp();
+  const { employees, attendanceRecords, extraStatuses, markExtraStatus } = useApp();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [editingDay, setEditingDay] = useState<{ empId: string, date: string } | null>(null);
+  const [editForm, setEditForm] = useState<{ status: string, ot: string }>({ status: '', ot: '0' });
 
   const daysInMonth = useMemo(() => {
     return eachDayOfInterval({
@@ -26,75 +32,75 @@ export default function MonthlyReport() {
   const reportData = useMemo(() => {
     return employees.filter(e => e.status === 'Approved').map(employee => {
       const dailyStatus = daysInMonth.map(day => {
-        const hasAttended = attendanceRecords.some(record => 
-          record.employeeId.toUpperCase() === employee.id.toUpperCase() &&
-          isSameDay(new Date(record.dateTime), day)
+        const dateStr = format(day, 'yyyy-MM-dd');
+        const record = attendanceRecords.find(r => 
+          r.employeeId.toUpperCase() === employee.id.toUpperCase() &&
+          isSameDay(new Date(r.dateTime), day)
         );
+        const extra = extraStatuses.find(ex => ex.employeeId === employee.id && ex.date === dateStr);
 
-        const isWeekOff = employee.weekOffDay === DAYS_OF_WEEK[getDay(day)];
+        let status: 'Present' | 'Absent' | 'Week-off' | 'Leave' | 'Holiday' | 'C-off' = 'Absent';
+        if (record) status = 'Present';
+        else if (extra) status = extra.status as any;
+        else if (employee.weekOffDay === DAYS_OF_WEEK[getDay(day)]) status = 'Week-off';
 
-        let status: 'Present' | 'Absent' | 'Week-off' = 'Absent';
-        if (hasAttended) status = 'Present';
-        else if (isWeekOff) status = 'Week-off';
-
-        return { day, status };
+        return { day, dateStr, status, ot: extra?.otHours || 0 };
       });
 
       const stats = dailyStatus.reduce((acc, curr) => {
         acc[curr.status]++;
+        acc.totalOT += curr.ot;
         return acc;
-      }, { Present: 0, Absent: 0, 'Week-off': 0 });
+      }, { Present: 0, Absent: 0, 'Week-off': 0, Leave: 0, Holiday: 0, 'C-off': 0, totalOT: 0 });
 
-      return { ...employee, dailyStatus, stats };
+      // Salary Calculation
+      const paidDays = stats.Present + stats['Week-off'] + stats.Leave + stats.Holiday + stats['C-off'];
+      const salary = (paidDays * employee.dailyRate) + (stats.totalOT * employee.otRate);
+
+      return { ...employee, dailyStatus, stats, salary };
     });
-  }, [employees, attendanceRecords, daysInMonth]);
+  }, [employees, attendanceRecords, extraStatuses, daysInMonth]);
 
-  const todayStats = useMemo(() => {
-    const today = new Date();
-    const presentCount = employees.filter(e => 
-      attendanceRecords.some(r => r.employeeId.toUpperCase() === e.id.toUpperCase() && isSameDay(new Date(r.dateTime), today))
-    ).length;
+  const handleDayClick = (empId: string, dateStr: string) => {
+    const current = extraStatuses.find(e => e.employeeId === empId && e.date === dateStr);
+    setEditForm({ status: current?.status || 'None', ot: (current?.otHours || 0).toString() });
+    setEditingDay({ empId, date: dateStr });
+  };
 
-    return {
-      total: employees.length,
-      present: presentCount,
-      absent: employees.length - presentCount
-    };
-  }, [employees, attendanceRecords]);
+  const saveDayStatus = () => {
+    if (!editingDay) return;
+    const { empId, date } = editingDay;
+    markExtraStatus(empId, date, editForm.status as any, parseFloat(editForm.ot));
+    setEditingDay(null);
+  };
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-primary/5 border-primary/20">
+        <Card className="bg-primary/5">
           <CardContent className="pt-6 flex items-center gap-4">
-            <div className="bg-primary/10 p-3 rounded-full">
-              <Users className="h-6 w-6 text-primary" />
-            </div>
+            <Users className="h-6 w-6 text-primary" />
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Employees</p>
-              <h3 className="text-2xl font-bold">{todayStats.total}</h3>
+              <p className="text-sm font-medium text-muted-foreground">Total Staff</p>
+              <h3 className="text-2xl font-bold">{employees.length}</h3>
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-green-50 border-green-200">
+        <Card className="bg-green-50">
           <CardContent className="pt-6 flex items-center gap-4">
-            <div className="bg-green-100 p-3 rounded-full">
-              <CheckCircle2 className="h-6 w-6 text-green-600" />
-            </div>
+            <CheckCircle2 className="h-6 w-6 text-green-600" />
             <div>
-              <p className="text-sm font-medium text-green-800">Present Today</p>
-              <h3 className="text-2xl font-bold text-green-900">{todayStats.present}</h3>
+              <p className="text-sm font-medium">Present Today</p>
+              <h3 className="text-2xl font-bold">{attendanceRecords.filter(r => isSameDay(new Date(r.dateTime), new Date())).length}</h3>
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-red-50 border-red-200">
+        <Card className="bg-amber-50">
           <CardContent className="pt-6 flex items-center gap-4">
-            <div className="bg-red-100 p-3 rounded-full">
-              <XCircle className="h-6 w-6 text-red-600" />
-            </div>
+            <Clock className="h-6 w-6 text-amber-600" />
             <div>
-              <p className="text-sm font-medium text-red-800">Absent Today</p>
-              <h3 className="text-2xl font-bold text-red-900">{todayStats.absent}</h3>
+              <p className="text-sm font-medium">Total OT (Month)</p>
+              <h3 className="text-2xl font-bold">{reportData.reduce((acc, r) => acc + r.stats.totalOT, 0)} Hrs</h3>
             </div>
           </CardContent>
         </Card>
@@ -103,24 +109,17 @@ export default function MonthlyReport() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Monthly Attendance Report</CardTitle>
-            <CardDescription>Automatic tracking of Present, Absent, and Week-offs.</CardDescription>
+            <CardTitle>Master Attendance Report</CardTitle>
+            <CardDescription>Click a cell to mark Leave, Holiday, or OT hours.</CardDescription>
           </div>
-          <Select 
-            value={format(selectedMonth, 'yyyy-MM')} 
-            onValueChange={(val) => setSelectedMonth(new Date(val))}
-          >
+          <Select value={format(selectedMonth, 'yyyy-MM')} onValueChange={(v) => setSelectedMonth(new Date(v))}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select Month" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {Array.from({ length: 12 }).map((_, i) => {
                 const date = new Date(new Date().getFullYear(), new Date().getMonth() - i, 1);
-                return (
-                  <SelectItem key={i} value={format(date, 'yyyy-MM')}>
-                    {format(date, 'MMMM yyyy')}
-                  </SelectItem>
-                );
+                return <SelectItem key={i} value={format(date, 'yyyy-MM')}>{format(date, 'MMMM yyyy')}</SelectItem>;
               })}
             </SelectContent>
           </Select>
@@ -129,33 +128,33 @@ export default function MonthlyReport() {
           <div className="overflow-x-auto border rounded-md">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="sticky left-0 bg-muted/50 z-20">Employee Name</TableHead>
-                  <TableHead>P</TableHead>
-                  <TableHead>A</TableHead>
-                  <TableHead>W</TableHead>
+                <TableRow className="bg-muted/50 text-[11px]">
+                  <TableHead className="sticky left-0 bg-muted/50 z-20 min-w-[120px]">Employee</TableHead>
+                  <TableHead>Days</TableHead>
+                  <TableHead>OT</TableHead>
+                  <TableHead className="text-primary font-bold">Salary</TableHead>
                   {daysInMonth.map(day => (
-                    <TableHead key={day.toISOString()} className="text-center min-w-[40px]">
-                      {format(day, 'd')}
-                    </TableHead>
+                    <TableHead key={day.toISOString()} className="text-center min-w-[35px]">{format(day, 'd')}</TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody className="text-[11px]">
                 {reportData.map(row => (
                   <TableRow key={row.id}>
                     <TableCell className="sticky left-0 bg-white font-medium z-10 border-r">{row.name}</TableCell>
-                    <TableCell className="text-green-600 font-bold">{row.stats.Present}</TableCell>
-                    <TableCell className="text-red-600 font-bold">{row.stats.Absent}</TableCell>
-                    <TableCell className="text-amber-600 font-bold">{row.stats['Week-off']}</TableCell>
-                    {row.dailyStatus.map((status, i) => (
-                      <TableCell key={i} className="p-1 text-center">
-                        <div className={`h-6 w-6 rounded-full mx-auto flex items-center justify-center text-[10px] font-bold ${
-                          status.status === 'Present' ? 'bg-green-500 text-white' : 
-                          status.status === 'Week-off' ? 'bg-amber-100 text-amber-700' : 
-                          'bg-red-100 text-red-700'
+                    <TableCell>{row.stats.Present + row.stats.Holiday + row.stats.Leave}</TableCell>
+                    <TableCell>{row.stats.totalOT}h</TableCell>
+                    <TableCell className="font-bold text-primary">₹{row.salary.toLocaleString()}</TableCell>
+                    {row.dailyStatus.map((s, i) => (
+                      <TableCell key={i} className="p-1 text-center cursor-pointer hover:bg-slate-100" onClick={() => handleDayClick(row.id, s.dateStr)}>
+                        <div className={`h-6 w-6 rounded-full mx-auto flex items-center justify-center font-bold ${
+                          s.status === 'Present' ? 'bg-green-500 text-white' : 
+                          s.status === 'Holiday' ? 'bg-blue-500 text-white' :
+                          s.status === 'Leave' ? 'bg-red-400 text-white' :
+                          s.status === 'C-off' ? 'bg-purple-500 text-white' :
+                          s.status === 'Week-off' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400'
                         }`}>
-                          {status.status === 'Present' ? 'P' : status.status === 'Week-off' ? 'W' : 'A'}
+                          {s.status === 'Present' ? 'P' : s.status === 'Holiday' ? 'H' : s.status === 'Leave' ? 'L' : s.status === 'C-off' ? 'C' : s.status === 'Week-off' ? 'W' : 'A'}
                         </div>
                       </TableCell>
                     ))}
@@ -164,13 +163,40 @@ export default function MonthlyReport() {
               </TableBody>
             </Table>
           </div>
-          <div className="mt-4 flex gap-4 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1"><Badge className="bg-green-500 h-2 w-2 p-0 rounded-full" /> Present</div>
-            <div className="flex items-center gap-1"><Badge className="bg-red-100 text-red-700 h-2 w-2 p-0 rounded-full" /> Absent</div>
-            <div className="flex items-center gap-1"><Badge className="bg-amber-100 text-amber-700 h-2 w-2 p-0 rounded-full" /> Week-off</div>
-          </div>
         </CardContent>
       </Card>
+
+      <Dialog open={!!editingDay} onOpenChange={() => setEditingDay(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Update Status - {editingDay?.date}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Special Status</Label>
+              <Select value={editForm.status} onValueChange={(v) => setEditForm(p => ({ ...p, status: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="None">Reset (Default)</SelectItem>
+                  <SelectItem value="Leave">Paid Leave (L)</SelectItem>
+                  <SelectItem value="Holiday">Company Holiday (H)</SelectItem>
+                  <SelectItem value="C-off">Compensatory Off (C)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Overtime Hours</Label>
+              <Input type="number" value={editForm.ot} onChange={(e) => setEditForm(p => ({ ...p, ot: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingDay(null)}>Cancel</Button>
+            <Button onClick={saveDayStatus}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

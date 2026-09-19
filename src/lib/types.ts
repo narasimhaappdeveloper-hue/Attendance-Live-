@@ -4,13 +4,17 @@ export type Employee = {
   name: string;
   status: 'Approved' | 'Pending';
   phone?: string;
-  weekOffDay?: string; // e.g., 'Sunday', 'Monday', etc.
+  weekOffDay?: string;
+  dailyRate: number; // Base pay per day
+  otRate: number;    // Pay per hour of overtime
 };
 
 export type Site = {
   id: string;
   name: string;
 };
+
+export type DayStatus = 'Present' | 'Absent' | 'Week-off' | 'Leave' | 'Holiday' | 'C-off';
 
 export type AttendanceRecord = {
   id: string;
@@ -22,6 +26,14 @@ export type AttendanceRecord = {
   gpsCoordinates: { lat: number; lng: number };
   address: string;
   photoDataUri: string;
+};
+
+export type ExtraStatus = {
+  id: string;
+  employeeId: string;
+  date: string; // ISO date string (YYYY-MM-DD)
+  status: 'Leave' | 'C-off' | 'Holiday';
+  otHours: number;
 };
 
 export type CurrentUser = {
