@@ -74,6 +74,7 @@ export type ExtraStatus = {
   lateInHours?: number;
   earlyOutHours?: number;
   lateHours?: number; // legacy combined field
+  extraShiftBenefit?: 'OT' | 'C-off';
 };
 
 export type SalarySlip = {

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, getDay, isSunday, isSaturday } from 'date-fns';
-import { Users, CheckCircle2, Clock, Calendar, Info, Calculator, Layers } from 'lucide-react';
+import { Users, CheckCircle2, Clock, Calendar, Calculator, Layers, Award } from 'lucide-react';
 import type { ShiftSettings } from '@/lib/types';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -19,11 +19,12 @@ export default function MonthlyReport() {
   const { employees, attendanceRecords, extraStatuses, markExtraStatus, shiftSettings } = useApp();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [editingDay, setEditingDay] = useState<{ empId: string, date: string, autoLate: number } | null>(null);
-  const [editForm, setEditForm] = useState<{ status: string, ot: string, lateIn: string, earlyOut: string }>({ 
+  const [editForm, setEditForm] = useState<{ status: string, ot: string, lateIn: string, earlyOut: string, extraShiftBenefit: 'OT' | 'C-off' }>({ 
     status: 'None', 
     ot: '0', 
     lateIn: '',
-    earlyOut: '0'
+    earlyOut: '0',
+    extraShiftBenefit: 'OT'
   });
 
   const daysInMonth = useMemo(() => {
@@ -49,6 +50,7 @@ export default function MonthlyReport() {
         return false;
     }).map(employee => {
       let monthlyCustomLateHoursCut = 0;
+      let monthlyCoffsEarned = 0;
 
       const dailyStatus = daysInMonth.map(day => {
         const dateStr = format(day, 'yyyy-MM-dd');
@@ -59,7 +61,7 @@ export default function MonthlyReport() {
         const extra = extraStatuses.find(ex => ex.employeeId === employee.id && ex.date === dateStr);
 
         // Auto calculate Late-In using dynamic shiftSettings for the first record of the day
-        const primaryRecord = dayRecords.length > 0 ? dayRecords[dayRecords.length - 1] : null; // Oldest record is first punch
+        const primaryRecord = dayRecords.length > 0 ? dayRecords[dayRecords.length - 1] : null; 
         const shiftType = primaryRecord?.shift || 'General';
         const shiftStartHour = shiftSettings[shiftType as keyof ShiftSettings]?.startHour ?? 9;
         const actualTime = primaryRecord ? new Date(primaryRecord.dateTime) : null;
@@ -86,23 +88,35 @@ export default function MonthlyReport() {
         const dailyLate = effectiveLateIn + (extra?.earlyOutHours || 0);
         monthlyCustomLateHoursCut += dailyLate;
 
-        // Auto calculate OT from multiple shifts
-        // If an employee worked A+B+C, and each is 8h, total 24h.
-        // OT = (Records > 1) * dutyHours.
-        let autoOT = 0;
+        // Auto calculate extra shift hours
+        let autoExtraHours = 0;
         if (dayRecords.length > 1) {
             dayRecords.slice(0, dayRecords.length - 1).forEach(r => {
-                autoOT += shiftSettings[r.shift as keyof ShiftSettings]?.dutyHours || 8;
+                autoExtraHours += shiftSettings[r.shift as keyof ShiftSettings]?.dutyHours || 8;
             });
         }
 
-        const finalOT = extra?.otHours || autoOT;
+        const assignedBenefit = extra?.extraShiftBenefit || 'OT';
+        let finalOT = 0;
+        let cOffCredit = 0;
+
+        const rawExtraHours = extra?.otHours || autoExtraHours;
+
+        if (assignedBenefit === 'C-off') {
+          // Convert extra shift hours to C-off days credit (assuming 8h = 1 day C-off credit)
+          cOffCredit = rawExtraHours > 0 ? Number((rawExtraHours / 8).toFixed(2)) : 0;
+          monthlyCoffsEarned += cOffCredit;
+        } else {
+          finalOT = rawExtraHours;
+        }
 
         return { 
           day, 
           dateStr, 
           status, 
           ot: finalOT, 
+          cOffCredit,
+          extraShiftBenefit: assignedBenefit,
           late: dailyLate,
           lateIn: effectiveLateIn,
           earlyOut: extra?.earlyOutHours || 0,
@@ -133,16 +147,7 @@ export default function MonthlyReport() {
       const hourlyRate = effectiveDailyRate / 8;
       const lateHoursDeduction = monthlyCustomLateHoursCut * hourlyRate;
 
-      const autoPF = employee.isPFEnabled ? Math.round(earnedBasicAmount * 0.12) : 0;
-      const autoESI = (employee.isESIEnabled && grossEarned <= 21000) ? Math.round(grossEarned * 0.0075) : 0;
-      
-      let autoPT = 0;
-      if (employee.isPTEnabled) {
-        if (grossEarned > 20000) autoPT = 200;
-        else if (grossEarned > 15000) autoPT = 150;
-      }
-
-      const finalNetSalary = Math.max(0, grossEarned - (autoPF + autoESI + autoPT + (employee.loanRecovery || 0) + (employee.otherDeductions || 0) + lateHoursDeduction));
+      const finalNetSalary = Math.max(0, grossEarned - (employee.loanRecovery || 0) + (employee.otherEarnings || 0) - lateHoursDeduction);
 
       return { 
         ...employee, 
@@ -151,7 +156,8 @@ export default function MonthlyReport() {
         salary: finalNetSalary, 
         paidWorkingDays: totalEffectivePaidDays, 
         totalDays: daysInMonth.length,
-        totalLateHoursCut: monthlyCustomLateHoursCut
+        totalLateHoursCut: monthlyCustomLateHoursCut,
+        totalCoffsEarned: monthlyCoffsEarned
       };
     });
   }, [employees, attendanceRecords, extraStatuses, daysInMonth, selectedMonth, shiftSettings]);
@@ -167,10 +173,11 @@ export default function MonthlyReport() {
       acc.halfday += (curr.stats['Half-Day'] || 0);
       acc.weekoff += (curr.stats['Week-off'] || 0);
       acc.ot += curr.stats.totalOT;
+      acc.coffsEarned += curr.totalCoffsEarned;
       acc.paidWorkingDays += curr.paidWorkingDays;
       acc.salary += curr.salary;
       return acc;
-    }, { totalDays: 0, present: 0, absent: 0, leave: 0, holiday: 0, coff: 0, halfday: 0, weekoff: 0, ot: 0, paidWorkingDays: 0, salary: 0 });
+    }, { totalDays: 0, present: 0, absent: 0, leave: 0, holiday: 0, coff: 0, halfday: 0, weekoff: 0, ot: 0, coffsEarned: 0, paidWorkingDays: 0, salary: 0 });
   }, [reportData]);
 
   const handleDayClick = (empId: string, dateStr: string) => {
@@ -183,7 +190,8 @@ export default function MonthlyReport() {
       status: current?.status || 'None', 
       ot: (current?.otHours || 0).toString(),
       lateIn: current?.lateInHours !== undefined ? current.lateInHours.toString() : '',
-      earlyOut: (current?.earlyOutHours || 0).toString()
+      earlyOut: (current?.earlyOutHours || 0).toString(),
+      extraShiftBenefit: current?.extraShiftBenefit || 'OT'
     });
     setEditingDay({ empId, date: dateStr, autoLate });
   };
@@ -197,7 +205,8 @@ export default function MonthlyReport() {
       editForm.status as any, 
       parseFloat(editForm.ot) || 0, 
       editForm.lateIn === '' ? 0 : parseFloat(editForm.lateIn),
-      parseFloat(editForm.earlyOut) || 0
+      parseFloat(editForm.earlyOut) || 0,
+      editForm.extraShiftBenefit
     );
     setEditingDay(null);
   };
@@ -237,10 +246,10 @@ export default function MonthlyReport() {
         </Card>
         <Card className="bg-blue-50">
           <CardContent className="pt-6 flex items-center gap-4">
-            <Calendar className="h-6 w-6 text-blue-600" />
+            <Award className="h-6 w-6 text-teal-600" />
             <div>
-              <p className="text-sm font-medium">Month Days</p>
-              <h3 className="text-2xl font-bold">{daysInMonth.length}</h3>
+              <p className="text-sm font-medium">Total C-offs Earned</p>
+              <h3 className="text-2xl font-bold">{grandTotals.coffsEarned.toFixed(1)} Days</h3>
             </div>
           </CardContent>
         </Card>
@@ -251,7 +260,7 @@ export default function MonthlyReport() {
           <div>
             <CardTitle>Master Attendance Report</CardTitle>
             <CardDescription>
-                Sundays (Red) & Saturdays (Amber) are highlighted. ఒక రోజుకు ఒకటి కంటే ఎక్కువ షిఫ్టులు చేస్తే అవి ఆటోమేటిక్‌గా OT లో కలుస్తాయి.
+                ఒక రోజుపై క్లిక్ చేసి Late-In/Early Permission గంటలను లేదా అదనపు షిఫ్ట్ ప్రయోజనాన్ని (OT లేదా C-off) మార్చుకోవచ్చు.
             </CardDescription>
           </div>
           <div className="flex gap-2">
@@ -319,6 +328,7 @@ export default function MonthlyReport() {
                   <TableHead className="text-center font-bold px-1 text-purple-600 bg-slate-50 border-r">H</TableHead>
                   <TableHead className="text-center font-bold px-1 text-indigo-600 bg-slate-50 border-r">C</TableHead>
                   <TableHead className="text-center font-bold px-1 text-amber-600 bg-slate-50 border-r">W</TableHead>
+                  <TableHead className="text-center font-bold px-1 text-teal-600 bg-slate-50 border-r">Earned C-off</TableHead>
                   <TableHead className="text-center font-bold px-1 text-red-500 bg-slate-50 border-r">Late(h)</TableHead>
                   <TableHead className="text-center font-bold px-1 bg-primary/10 text-primary border-r">Paid Days</TableHead>
                   <TableHead className="sticky right-0 bg-primary/10 z-30 min-w-[90px] text-primary font-bold text-center border-l">Net Salary</TableHead>
@@ -369,6 +379,7 @@ export default function MonthlyReport() {
                              )}
                           </div>
                           {s.ot > 0 && <div className="text-[7px] text-green-600 font-black mt-0.5">+{s.ot}h OT</div>}
+                          {s.cOffCredit > 0 && <div className="text-[7px] text-teal-600 font-black mt-0.5">+{s.cOffCredit} C-off</div>}
                           {s.late > 0 && <div className="text-[7px] text-destructive font-black mt-0.5">-{s.late.toFixed(1)}h L</div>}
                         </TableCell>
                       );
@@ -381,6 +392,7 @@ export default function MonthlyReport() {
                     <TableCell className="text-center bg-slate-50/30 font-bold text-purple-600 border-r">{row.stats.Holiday || 0}</TableCell>
                     <TableCell className="text-center bg-slate-50/30 font-bold text-indigo-600 border-r">{row.stats['C-off'] || 0}</TableCell>
                     <TableCell className="text-center bg-slate-50/30 font-bold text-amber-600 border-r">{row.stats['Week-off'] || 0}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 text-teal-600 font-bold border-r">{row.totalCoffsEarned.toFixed(1)} d</TableCell>
                     <TableCell className="text-center bg-slate-50/30 border-r text-red-500 font-bold">{row.totalLateHoursCut.toFixed(1)}h</TableCell>
                     <TableCell className="text-center bg-primary/5 font-black text-primary border-r">{row.paidWorkingDays}</TableCell>
                     <TableCell className="sticky right-0 bg-primary/5 z-20 font-black text-primary text-center border-l">
@@ -404,6 +416,7 @@ export default function MonthlyReport() {
                   <TableCell className="text-center text-purple-600 font-black border-r bg-slate-100">{grandTotals.holiday}</TableCell>
                   <TableCell className="text-center text-indigo-600 font-black border-r bg-slate-100">{grandTotals.coff}</TableCell>
                   <TableCell className="text-center text-amber-600 font-black border-r bg-slate-100">{grandTotals.weekoff}</TableCell>
+                  <TableCell className="text-center text-teal-600 font-black border-r bg-slate-100">{grandTotals.coffsEarned.toFixed(1)} d</TableCell>
                   <TableCell className="text-center border-r bg-slate-100 text-red-500">{reportData.reduce((acc, r) => acc + r.totalLateHoursCut, 0).toFixed(1)}h</TableCell>
                   <TableCell className="text-center text-primary font-black border-r bg-primary/5">{grandTotals.paidWorkingDays}</TableCell>
                   <TableCell className="sticky right-0 bg-primary/20 z-20 font-black text-primary text-center border-l">₹{Math.round(grandTotals.salary).toLocaleString()}</TableCell>
@@ -442,9 +455,25 @@ export default function MonthlyReport() {
               <Calculator className="h-4 w-4 shrink-0 mt-0.5 text-blue-600" />
               <div>
                 <p className="font-bold">Auto Calculation Note:</p>
-                <p>ఎక్కువ షిఫ్టులు (Double Shift) చేస్తే ఆ గంటలు ఆటోమేటిక్‌గా OT లోకి వస్తాయి.</p>
+                <p>ఎక్కువ షిఫ్టులు (Double Shift) చేసినప్పుడు వచ్చే అదనపు డ్యూటీ గంటలను కింద ఉన్న బెనిఫిట్ ఆప్షన్ ద్వారా నియంత్రించవచ్చు.</p>
                 <p className="mt-1 opacity-80">లేట్-ఇన్: <b>{editingDay?.autoLate.toFixed(2)} Hrs</b></p>
               </div>
+            </div>
+
+            <div className="grid gap-2 border p-3 rounded-xl bg-slate-50/50">
+              <Label className="text-xs font-bold text-primary">అదనపు షిఫ్ట్ ప్రయోజనం (Extra Shift Benefit)</Label>
+              <Select 
+                value={editForm.extraShiftBenefit} 
+                onValueChange={(v: 'OT' | 'C-off') => setEditForm(p => ({ ...p, extraShiftBenefit: v }))}
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="OT">Overtime Pay (OT నగదు రూపంలో)</SelectItem>
+                  <SelectItem value="C-off">C-off Credit (సెలవు/Comp Off రూపంలో)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
