@@ -75,35 +75,22 @@ export default function MonthlyReport() {
         return acc;
       }, { Present: 0, Absent: 0, 'Week-off': 0, Leave: 0, Holiday: 0, 'C-off': 0, 'Half-Day': 0, totalOT: 0 });
 
-      // Calculate paid fractional days (Half-Day counts as 0.5 paid day)
-      const halfDaysCount = stats['Half-Day'] || 0;
       const presentsCount = stats.Present || 0;
       const weekOffCount = stats['Week-off'] || 0;
       const holidayCount = stats.Holiday || 0;
       const coffCount = stats['C-off'] || 0;
+      const halfDaysCount = stats['Half-Day'] || 0;
 
       const totalEffectivePaidDays = presentsCount + weekOffCount + holidayCount + coffCount + (halfDaysCount * 0.5);
       const effectiveDailyRate = employee.dailyRate || 0;
       
-      // Calculate Gross Earnings purely based on Daily Rate
-      const regularAttendanceEarnings = totalEffectivePaidDays * effectiveDailyRate;
+      const earnedBasicAmount = totalEffectivePaidDays * effectiveDailyRate;
       const otEarnings = stats.totalOT * (employee.otRate || 0);
-      const grossEarned = regularAttendanceEarnings + otEarnings + (employee.incentive || 0) + (employee.foodAllowance || 0) + (employee.otherEarnings || 0);
+      const grossEarned = earnedBasicAmount + otEarnings + (employee.incentive || 0) + (employee.foodAllowance || 0) + (employee.otherEarnings || 0);
 
-      // Hourly wage deduction for late/permission cuts (Assuming standard 8 hour workday)
       const hourlyRate = effectiveDailyRate / 8;
       const lateHoursDeduction = monthlyCustomLateHoursCut * hourlyRate;
 
-      // Unpaid days calculation for explicit LOP itemization display
-      const totalMonthDays = daysInMonth.length;
-      const unpaidDaysCount = totalMonthDays - totalEffectivePaidDays;
-      const regularLopDeduction = unpaidDaysCount * effectiveDailyRate;
-      
-      // Combined Total LOP includes completely missing days + specific hourly permission cuts
-      const totalLopCombined = regularLopDeduction + lateHoursDeduction;
-
-      // Statutory Calculations based on actual Earned Basic Rate
-      const earnedBasicAmount = totalEffectivePaidDays * effectiveDailyRate;
       const autoPF = employee.isPFEnabled ? Math.round(earnedBasicAmount * 0.12) : 0;
       const autoESI = (employee.isESIEnabled && grossEarned <= 21000) ? Math.round(grossEarned * 0.0075) : 0;
       
@@ -114,7 +101,7 @@ export default function MonthlyReport() {
       }
 
       const totalDeductions = autoPF + autoESI + autoPT + (employee.loanRecovery || 0) + (employee.otherDeductions || 0) + lateHoursDeduction;
-      const finalNetSalary = Math.max(0, (totalEffectivePaidDays * effectiveDailyRate) + otEarnings + (employee.incentive || 0) + (employee.foodAllowance || 0) + (employee.otherEarnings || 0) - (autoPF + autoESI + autoPT + (employee.loanRecovery || 0) + (employee.otherDeductions || 0)));
+      const finalNetSalary = Math.max(0, grossEarned - (autoPF + autoESI + autoPT + (employee.loanRecovery || 0) + (employee.otherDeductions || 0) + lateHoursDeduction));
 
       return { 
         ...employee, 
@@ -122,7 +109,7 @@ export default function MonthlyReport() {
         stats, 
         salary: finalNetSalary, 
         paidWorkingDays: totalEffectivePaidDays, 
-        totalDays: totalMonthDays,
+        totalDays: daysInMonth.length,
         totalLateHoursCut: monthlyCustomLateHoursCut
       };
     });
@@ -218,7 +205,7 @@ export default function MonthlyReport() {
             <CardTitle>Master Attendance Report</CardTitle>
             <CardDescription>
               Sundays (Red) & Saturdays (Amber) are highlighted. ఒక రోజుపై క్లిక్ చేసి Late/Early Permission గంటలను లేదా Half-Day ని మార్చవచ్చు.
-            </CardTitle>
+            </CardDescription>
           </div>
           <div className="flex gap-2">
             <Select value={currentYear.toString()} onValueChange={(v) => {
