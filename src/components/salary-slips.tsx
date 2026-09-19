@@ -74,14 +74,39 @@ export default function SalarySlips() {
 
       const grossEarnings = Object.values(earnings).reduce((a, b) => typeof b === 'number' ? a + b : a, 0);
 
+      // --- AUTO STATUTORY DEDUCTIONS (GOVT RULES) ---
+      
+      // 1. PF: 12% of Basic
       const autoPF = Math.round(earnings.basic * 0.12);
+      
+      // 2. ESI: 0.75% of Gross (only if Gross <= 21,000)
       const autoESI = grossEarnings <= 21000 ? Math.round(grossEarnings * 0.0075) : 0;
+
+      // 3. Professional Tax (PT): Standard Slab (AP/TS/KA)
+      let autoPT = 0;
+      if (grossEarnings > 20000) autoPT = 200;
+      else if (grossEarnings > 15000) autoPT = 150;
+
+      // 4. Income Tax (TDS): New Regime 2024-25 Simplified
+      let autoTDS = 0;
+      const annualizedGross = grossEarnings * 12;
+      const stdDeduction = 75000;
+      const taxableIncome = Math.max(0, annualizedGross - stdDeduction);
+      
+      if (taxableIncome > 700000) {
+        // Slab estimation: 3-7L (5% = 20k), 7-10L (10%), 10-12L (15%)
+        let annualTax = 20000; // Tax for 3-7L
+        if (taxableIncome > 700000) {
+          annualTax += (taxableIncome - 700000) * 0.1;
+        }
+        autoTDS = Math.round(annualTax / 12);
+      }
 
       const deductions = {
         pf: autoPF,
         esi: autoESI,
-        pt: employee.professionalTax || 0,
-        it: employee.incomeTax || 0,
+        pt: autoPT,
+        it: autoTDS,
         loan: employee.loanRecovery || 0,
         advance: employee.advanceRecovery || 0,
         lop: lopDeduction,
@@ -150,9 +175,9 @@ export default function SalarySlips() {
       <div className="p-4 bg-primary/5 border rounded-2xl flex items-start gap-3 text-sm text-primary">
          <Info className="h-5 w-5 shrink-0 mt-0.5" />
          <div>
-            <p className="font-bold">Govt Rules & Unpaid Leave Update:</p>
+            <p className="font-bold">Govt Statutory Rules (Automatic):</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-               లీవ్ (Leave) మరియు అబ్సెంట్ (Absent) రోజులు శాలరీ లెక్కింపులో ఆటోమేటిక్‌గా **Loss of Pay (LOP)** కింద జీతం కట్ చేయబడతాయి.
+               PF (12%), ESI (0.75%), Professional Tax (Slabs), మరియు TDS (New Regime) ప్రభుత్వ నిబంధనల ప్రకారం ఆటోమేటిక్‌గా లెక్కించబడతాయి.
             </p>
          </div>
       </div>
@@ -329,7 +354,7 @@ export default function SalarySlips() {
                    <div className="p-4 space-y-2">
                      <div className="flex justify-between text-slate-800 font-medium"><span>Employee PF (12%)</span><span className="font-bold">₹{selectedSlip.deductions.pf.toLocaleString()}</span></div>
                      <div className="flex justify-between text-slate-800 font-medium"><span>ESI (0.75%)</span><span className="font-bold">₹{selectedSlip.deductions.esi.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span>Professional Tax</span><span className="font-bold">₹{selectedSlip.deductions.pt.toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span>Professional Tax (Auto)</span><span className="font-bold">₹{selectedSlip.deductions.pt.toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Income Tax (TDS)</span><span className="font-bold">₹{selectedSlip.deductions.it.toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Loan / Advance</span><span className="font-bold">₹{(selectedSlip.deductions.loan + selectedSlip.deductions.advance).toLocaleString()}</span></div>
                      <div className="flex justify-between text-destructive font-semibold"><span>LOP Deduction (Leaves/Absent)</span><span className="font-bold">₹{selectedSlip.deductions.lop.toLocaleString()}</span></div>

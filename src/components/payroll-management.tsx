@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -62,7 +63,7 @@ export default function PayrollManagement() {
 
       <div className="p-4 bg-amber-50 text-amber-800 text-xs font-semibold rounded-xl border border-amber-200 flex items-start gap-2">
          <Info className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
-         <p>గమనిక: PF (12%) మరియు ESI (0.75%) ప్రభుత్వ నిబంధనల ప్రకారం ఆటోమేటిక్‌గా లెక్కించబడతాయి. అదనపు ఆదాయం లేదా కటింగ్‌లకు కారణం (Reason) కూడా రాయండి.</p>
+         <p>గమనిక: PF (12%), ESI (0.75%), PT (Slabs), మరియు TDS ప్రభుత్వ నిబంధనల ప్రకారం ఆటోమేటిక్‌గా లెక్కించబడతాయి. ఇతర అలవెన్సులకు కారణం (Reason) కూడా నమోదు చేయండి.</p>
       </div>
 
       <Card className="border-none shadow-md overflow-hidden">
@@ -74,7 +75,8 @@ export default function PayrollManagement() {
                   <TableHead className="min-w-[150px] sticky left-0 bg-muted/50 z-20">Employee</TableHead>
                   <TableHead>Basic Details</TableHead>
                   <TableHead>Earnings (Monthly)</TableHead>
-                  <TableHead>Deductions (Monthly)</TableHead>
+                  <TableHead>Statutory (Auto)</TableHead>
+                  <TableHead>Manual Deductions</TableHead>
                   <TableHead className="text-right sticky right-0 bg-muted/50 z-20">Action</TableHead>
                 </TableRow>
               </TableHeader>
@@ -139,24 +141,33 @@ export default function PayrollManagement() {
                       </TableCell>
 
                       <TableCell>
-                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 py-2 w-[450px]">
-                           <div className="space-y-1 opacity-70">
-                             <label className="text-[9px] text-blue-600 font-bold">PF (Auto 12%)</label>
-                             <div className="h-7 text-xs border rounded bg-slate-50 flex items-center px-2 font-mono font-bold text-slate-500">₹{Math.round((data.basicSalary || 0) * 0.12)}</div>
+                         <div className="grid grid-cols-1 gap-2 py-2 w-[180px]">
+                           <div className="flex justify-between items-center text-[10px] bg-slate-50 p-1 rounded border">
+                              <span className="text-muted-foreground">PF (12%):</span>
+                              <span className="font-bold">Auto</span>
                            </div>
-                           <div className="space-y-1 opacity-70">
-                             <label className="text-[9px] text-blue-600 font-bold">ESI (Auto 0.75%)</label>
-                             <div className="h-7 text-xs border rounded bg-slate-50 flex items-center px-2 font-mono font-bold text-slate-500">Auto Govt Rule</div>
+                           <div className="flex justify-between items-center text-[10px] bg-slate-50 p-1 rounded border">
+                              <span className="text-muted-foreground">ESI (0.75%):</span>
+                              <span className="font-bold">Auto</span>
+                           </div>
+                           <div className="flex justify-between items-center text-[10px] bg-slate-50 p-1 rounded border">
+                              <span className="text-muted-foreground">PT (Slabs):</span>
+                              <span className="font-bold">Auto</span>
+                           </div>
+                           <div className="flex justify-between items-center text-[10px] bg-slate-50 p-1 rounded border">
+                              <span className="text-muted-foreground">Income Tax:</span>
+                              <span className="font-bold">Auto</span>
+                           </div>
+                         </div>
+                      </TableCell>
+
+                      <TableCell>
+                         <div className="grid gap-2 py-2 w-[250px]">
+                           <div className="space-y-1">
+                             <label className="text-[9px] text-destructive">Loan Recovery</label>
+                             <Input type="number" className="h-7 text-xs" defaultValue={data.loanRecovery} onChange={(e) => handleRateChange(emp.id, 'loanRecovery', parseFloat(e.target.value) || 0)} />
                            </div>
                            <div className="space-y-1">
-                             <label className="text-[9px] text-destructive">Professional Tax</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.professionalTax} onChange={(e) => handleRateChange(emp.id, 'professionalTax', parseFloat(e.target.value) || 0)} />
-                           </div>
-                           <div className="space-y-1">
-                             <label className="text-[9px] text-destructive">Income Tax (TDS)</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.incomeTax} onChange={(e) => handleRateChange(emp.id, 'incomeTax', parseFloat(e.target.value) || 0)} />
-                           </div>
-                           <div className="space-y-1 col-span-2">
                              <label className="text-[9px] text-destructive font-bold">Manual Other Deductions (Amt & Reason)</label>
                              <div className="flex gap-1">
                                <Input type="number" className="h-7 text-xs w-20" placeholder="Amt" defaultValue={data.otherDeductions} onChange={(e) => handleRateChange(emp.id, 'otherDeductions', parseFloat(e.target.value) || 0)} />
@@ -181,7 +192,7 @@ export default function PayrollManagement() {
                   );
                 }) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center h-32">
+                    <TableCell colSpan={6} className="text-center h-32">
                       No employees to configure.
                     </TableCell>
                   </TableRow>
