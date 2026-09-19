@@ -18,7 +18,7 @@ import { useApp } from '@/hooks/use-app';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { LoaderCircle, UserPlus, LogIn } from 'lucide-react';
+import { LoaderCircle, UserPlus, LogIn, AlertCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const formSchema = z.object({
@@ -67,7 +67,7 @@ export function LoginForm() {
               toast({
                 variant: 'destructive',
                 title: 'Login Failed',
-                description: 'Invalid credentials. HR users must sign up first.',
+                description: 'Invalid credentials. HR users must sign up first or use default ADMIN.',
               });
               break;
           }
@@ -86,6 +86,11 @@ export function LoginForm() {
     }, 800);
   };
 
+  const fillDemo = (id: string, name: string) => {
+    form.setValue('employeeId', id);
+    form.setValue('name', name);
+  };
+
   return (
     <div className="space-y-4">
       <Tabs defaultValue="login" className="w-full">
@@ -100,7 +105,7 @@ export function LoginForm() {
         
         <TabsContent value="login">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-6 space-y-6">
               <Form {...form}>
                 <form className="space-y-6">
                   <FormField
@@ -150,6 +155,42 @@ export function LoginForm() {
                   </div>
                 </form>
               </Form>
+
+              <div className="p-4 bg-muted/60 rounded-lg border text-xs space-y-2">
+                <div className="flex items-center gap-1.5 font-bold text-muted-foreground mb-1">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  <span>Demo Evaluation Credentials (టెస్టింగ్ కోసం):</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-[11px] h-7"
+                    onClick={() => fillDemo('EMP001', 'Alice Johnson')}
+                  >
+                    Employee: EMP001 (Alice)
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-[11px] h-7"
+                    onClick={() => fillDemo('EMP004', 'Diana Miller')}
+                  >
+                    Employee: EMP004 (Diana)
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-[11px] h-7 bg-primary/5 border-primary/20 hover:bg-primary/10 text-primary"
+                    onClick={() => fillDemo('ADMIN', 'admin')}
+                  >
+                    HR Admin: ADMIN
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
