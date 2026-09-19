@@ -34,6 +34,7 @@ export function LoginForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('login');
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -99,6 +100,8 @@ export function LoginForm() {
     setTimeout(() => {
         toast({ title: 'HR Signup Successful', description: 'You can now login as HR.' });
         setIsLoading(false);
+        setActiveTab('login'); // Automatically switch back to login tab
+        form.reset(); // Reset form for fresh login
     }, 800);
   };
 
@@ -109,7 +112,7 @@ export function LoginForm() {
 
   return (
     <div className="space-y-4">
-      <Tabs defaultValue="login" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-4">
           <TabsTrigger value="login">
             <LogIn className="mr-2 h-4 w-4" /> Login
