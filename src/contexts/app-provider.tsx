@@ -34,31 +34,35 @@ const defaultSites: Site[] = [
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [hrUsers, setHrUsers] = useState<{id: string, name: string}[]>([]);
   const [sites, setSites] = useState<Site[]>(defaultSites);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const router = useRouter();
 
-  // Load data once on mount
+  // Load data once on mount with strict uniqueness
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem('currentUser');
       if (storedUser) setCurrentUser(JSON.parse(storedUser));
       
-      const storedEmployees = localStorage.getItem('employees');
-      if (storedEmployees) {
-        const parsedEmployees: Employee[] = JSON.parse(storedEmployees);
-        const employeeMap = new Map<string, Employee>();
-        initialEmployees.forEach(emp => employeeMap.set(emp.id, emp));
-        parsedEmployees.forEach(emp => employeeMap.set(emp.id, emp));
-        setEmployees(Array.from(employeeMap.values()));
-      }
+      // Strict unique employee loading
+      const storedEmployeesRaw = localStorage.getItem('employees');
+      const storedEmployees: Employee[] = storedEmployeesRaw ? JSON.parse(storedEmployeesRaw) : [];
       
-      const storedHr = localStorage.getItem('hrUsers');
-      if (storedHr) setHrUsers(JSON.parse(storedHr));
-      else setHrUsers([{ id: 'ADMIN', name: 'admin' }]);
+      const employeeMap = new Map<string, Employee>();
+      // Priority: Initial data, then override with stored data
+      initialEmployees.forEach(emp => employeeMap.set(emp.id.toUpperCase(), emp));
+      storedEmployees.forEach(emp => employeeMap.set(emp.id.toUpperCase(), emp));
+      setEmployees(Array.from(employeeMap.values()));
+      
+      // Strict unique HR loading
+      const storedHrRaw = localStorage.getItem('hrUsers');
+      const storedHr: {id: string, name: string}[] = storedHrRaw ? JSON.parse(storedHrRaw) : [{ id: 'ADMIN', name: 'admin' }];
+      const hrMap = new Map<string, {id: string, name: string}>();
+      storedHr.forEach(h => hrMap.set(h.id.toUpperCase(), h));
+      setHrUsers(Array.from(hrMap.values()));
 
       const storedSites = localStorage.getItem('sites');
       if (storedSites) setSites(JSON.parse(storedSites));
@@ -82,7 +86,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
     };
     
-    // Simple debounce to prevent excessive writes
     const timeout = setTimeout(saveToStorage, 300);
     return () => clearTimeout(timeout);
   }, [currentUser, employees, hrUsers, sites, attendanceRecords, isLoaded]);
@@ -134,26 +137,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addEmployee = useCallback((employee: Omit<Employee, 'status'>) => {
     setEmployees((prev) => {
-      if (prev.some(emp => emp.id === employee.id)) return prev;
-      const newEmployee: Employee = { ...employee, status: 'Pending' };
+      // Robust check for duplicate ID
+      if (prev.some(emp => emp.id.toUpperCase() === employee.id.toUpperCase())) return prev;
+      const newEmployee: Employee = { ...employee, id: employee.id.toUpperCase(), status: 'Pending' };
       return [...prev, newEmployee];
     });
   }, []);
 
   const updateEmployeeStatus = useCallback((id: string, status: 'Approved' | 'Pending') => {
     setEmployees((prev) =>
-      prev.map((emp) => (emp.id === id ? { ...emp, status } : emp))
+      prev.map((emp) => (emp.id.toUpperCase() === id.toUpperCase() ? { ...emp, status } : emp))
     );
   }, []);
 
   const deleteEmployee = useCallback((id: string) => {
-    setEmployees((prev) => prev.filter((emp) => emp.id !== id));
-    setAttendanceRecords((prev) => prev.filter((rec) => rec.employeeId !== id));
+    setEmployees((prev) => prev.filter((emp) => emp.id.toUpperCase() !== id.toUpperCase()));
+    setAttendanceRecords((prev) => prev.filter((rec) => rec.employeeId.toUpperCase() !== id.toUpperCase()));
   }, []);
 
   const addSite = useCallback((name: string) => {
-    const newSite: Site = { id: `SITE${Date.now()}`, name };
-    setSites((prev) => [...prev, newSite]);
+    // Prevent duplicate site names
+    setSites(prev => {
+      if (prev.some(s => s.name.toLowerCase() === name.toLowerCase())) return prev;
+      return [...prev, { id: `SITE${Date.now()}`, name }];
+    });
   }, []);
 
   const deleteSite = useCallback((id: string) => {
@@ -162,6 +169,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const submitAttendance = useCallback((record: Omit<AttendanceRecord, 'id' | 'employeeName'>) => {
     if (!currentUser) return;
+    
     const newRecord: AttendanceRecord = { 
         ...record, 
         id: `ATT${Date.now()}`,

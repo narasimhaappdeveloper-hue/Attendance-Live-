@@ -30,7 +30,7 @@ const formSchema = z.object({
 });
 
 export function LoginForm() {
-  const { login, signupHr } = useApp();
+  const { login, signupHr, employees } = useApp();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -77,14 +77,14 @@ export function LoginForm() {
               break;
           }
         setIsLoading(false);
-    }, 800);
+    }, 600); // Optimized delay for snappier feel
   };
 
   const handleHrSignup = () => {
     setIsLoading(true);
     const { name, employeeId, securityKey } = form.getValues();
     
-    // Check for Security Key (Hardcoded for prototype security)
+    // Check for Security Key
     if (securityKey !== 'HR2025') {
         toast({ 
             variant: 'destructive', 
@@ -95,14 +95,27 @@ export function LoginForm() {
         return;
     }
 
-    signupHr(employeeId, name);
+    // Check if ID is already taken by employee or another HR
+    const isDuplicate = employees.some(e => e.id.toUpperCase() === employeeId.toUpperCase());
+    
+    if (isDuplicate) {
+        toast({ 
+            variant: 'destructive', 
+            title: 'Duplicate Creation Blocked', 
+            description: 'ఈ ఐడి ఇప్పటికే ఎంప్లాయీ ఐడిలా ఉపయోగించబడుతోంది.' 
+        });
+        setIsLoading(false);
+        return;
+    }
+
+    signupHr(employeeId.toUpperCase(), name);
     
     setTimeout(() => {
-        toast({ title: 'HR Signup Successful', description: 'You can now login as HR.' });
+        toast({ title: 'HR Signup Successful', description: 'మీ హెచ్‌ఆర్ ఖాతా సిద్ధమైంది. ఇప్పుడు లాగిన్ అవ్వండి.' });
         setIsLoading(false);
-        setActiveTab('login'); // Automatically switch back to login tab
-        form.reset(); // Reset form for fresh login
-    }, 800);
+        setActiveTab('login');
+        form.reset();
+    }, 600);
   };
 
   const fillDemo = (id: string, name: string) => {

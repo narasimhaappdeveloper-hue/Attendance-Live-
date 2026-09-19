@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -76,18 +77,20 @@ export default function EmployeeManagement() {
   });
 
   const handleAddEmployee = (values: z.infer<typeof addEmployeeSchema>) => {
-    // Check for duplicate ID before adding
-    if (employees.some(emp => emp.id.toUpperCase() === values.id.toUpperCase())) {
+    // Case-insensitive duplicate ID check
+    const isDuplicate = employees.some(emp => emp.id.toUpperCase() === values.id.toUpperCase());
+    
+    if (isDuplicate) {
         toast({ 
             variant: 'destructive', 
-            title: 'Duplicate ID', 
-            description: 'Employee ID already exists.' 
+            title: 'Duplicate Creation Blocked', 
+            description: 'ఈ ఎంప్లాయీ ఐడి ఇప్పటికే ఉంది. దయచేసి వేరే ఐడిని ఇవ్వండి.' 
         });
         return;
     }
 
     addEmployee({name: values.name, id: values.id.toUpperCase(), phone: values.phone});
-    toast({ title: 'Success', description: 'New employee has been added.' });
+    toast({ title: 'Success', description: 'కొత్త ఉద్యోగి విజయవంతంగా చేర్చబడ్డారు.' });
     form.reset();
     setIsAddDialogOpen(false);
   };
@@ -116,9 +119,9 @@ export default function EmployeeManagement() {
           </TableHeader>
           <TableBody>
             {employees.length > 0 ? employees.map((employee) => (
-              <TableRow key={`emp-row-${employee.id}`}>
+              <TableRow key={`emp-row-${employee.id.toUpperCase()}`}>
                 <TableCell className="font-medium">{employee.name}</TableCell>
-                <TableCell>{employee.id}</TableCell>
+                <TableCell>{employee.id.toUpperCase()}</TableCell>
                 <TableCell>{employee.phone || '-'}</TableCell>
                 <TableCell>
                   <Select
@@ -132,7 +135,7 @@ export default function EmployeeManagement() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Approved">
-                        <Badge className="bg-green-500 hover:bg-green-600">Approved</Badge>
+                        <Badge className="bg-green-500 hover:bg-green-600 border-none">Approved</Badge>
                       </SelectItem>
                       <SelectItem value="Pending">
                         <Badge variant="secondary">Pending</Badge>
@@ -166,7 +169,7 @@ export default function EmployeeManagement() {
               </TableRow>
             )) : (
                 <TableRow>
-                    <TableCell colSpan={5} className="text-center h-24">No employees found.</TableCell>
+                    <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">No employees found.</TableCell>
                 </TableRow>
             )}
           </TableBody>
