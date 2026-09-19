@@ -14,6 +14,15 @@ import type { SalarySlip } from '@/lib/types';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+const getShiftStartHour = (shift: string) => {
+  switch (shift) {
+    case 'Shift A': return 6;
+    case 'Shift B': return 14;
+    case 'Shift C': return 22;
+    default: return 9;
+  }
+};
+
 export default function SalarySlips() {
   const { employees, attendanceRecords, extraStatuses, salarySlips, saveSalarySlip } = useApp();
   const { toast } = useToast();
@@ -73,7 +82,20 @@ export default function SalarySlips() {
         
         if (extra?.otHours) ot += extra.otHours;
         
-        const dailyLate = (extra?.lateInHours || 0) + (extra?.earlyOutHours || 0) + (extra?.lateHours || 0);
+        // Late calculation (Sync with MonthlyReport logic)
+        const shiftStartHour = getShiftStartHour(record?.shift || 'General');
+        const actualTime = record ? new Date(record.dateTime) : null;
+        let autoLateIn = 0;
+        if (actualTime) {
+          const actualHours = actualTime.getHours() + actualTime.getMinutes() / 60;
+          autoLateIn = Math.max(0, actualHours - shiftStartHour);
+        }
+
+        const effectiveLateIn = (extra && extra.lateInHours !== undefined && extra.lateInHours !== 0) 
+          ? extra.lateInHours 
+          : (activeStatus === 'Absent' || activeStatus === 'Leave' ? 0 : autoLateIn);
+          
+        const dailyLate = effectiveLateIn + (extra?.earlyOutHours || 0);
         totalLateHoursCut += dailyLate;
       });
 
@@ -124,7 +146,7 @@ export default function SalarySlips() {
         advance: employee.advanceRecovery || 0,
         lop: totalLopDeduction,
         other: employee.otherDeductions || 0,
-        otherNote: employee.otherDeductionsNote ? `${employee.otherDeductionsNote}${totalLateHoursCut > 0 ? ` (Incl. ${totalLateHoursCut}h Late/Permission)` : ''}` : (totalLateHoursCut > 0 ? `${totalLateHoursCut}h Late/Permission cut` : undefined),
+        otherNote: employee.otherDeductionsNote ? `${employee.otherDeductionsNote}${totalLateHoursCut > 0 ? ` (Incl. ${totalLateHoursCut.toFixed(1)}h Late/Permission)` : ''}` : (totalLateHoursCut > 0 ? `${totalLateHoursCut.toFixed(1)}h Late/Permission cut` : undefined),
       };
 
       const netPay = Math.max(0, grossEarnings - (autoPF + autoESI + autoPT + deductions.it + deductions.loan + deductions.advance + deductions.other + totalLopDeduction));
@@ -190,9 +212,9 @@ export default function SalarySlips() {
       <div className="p-4 bg-primary/5 border rounded-2xl flex items-start gap-3 text-sm text-primary">
          <Info className="h-5 w-5 shrink-0 mt-0.5" />
          <div>
-            <p className="font-bold">Late Attendance & Fractional LOP Deduction Added:</p>
+            <p className="font-bold">Automated Late-In Detection Active:</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-               లేట్-ఇన్ మరియు ఎర్లీ పర్మిషన్ గంటల మొత్తం కటింగ్ ఆటోమేటిక్‌గా **LOP Deduction** లో యాడ్ చేయబడుతుంది.
+               ఎంప్లాయ్ అటెండెన్స్ టైమింగ్ బట్టి Late-In ఆటోమేటిక్‌గా లెక్కించబడుతుంది. Early Permission ని మీరు మాన్యువల్‌గా ఎంటర్ చేయవచ్చు. ఇవన్నీ <b>LOP Deduction</b> లో కలుస్తాయి.
             </p>
          </div>
       </div>
@@ -263,7 +285,7 @@ export default function SalarySlips() {
                       <div className="text-[10px] text-muted-foreground">{item.employee.designation}</div>
                     </TableCell>
                     <TableCell>{item.stats.totalPaidDays} Days</TableCell>
-                    <TableCell className="text-amber-600 font-bold">{item.stats.totalLateHoursCut} hrs</TableCell>
+                    <TableCell className="text-amber-600 font-bold">{item.stats.totalLateHoursCut.toFixed(1)} hrs</TableCell>
                     <TableCell className="text-destructive font-semibold">₹{Math.round(item.deductions.lop).toLocaleString()}</TableCell>
                     <TableCell className="font-bold text-primary">₹{Math.round(item.netPay).toLocaleString()}</TableCell>
                     <TableCell>
@@ -437,23 +459,6 @@ export default function SalarySlips() {
           )}
         </DialogContent>
       </Dialog>
-
-      <style jsx global>{`
-        @media print {
-          body * { visibility: hidden; }
-          .printable-area, .printable-area * { visibility: visible; }
-          .printable-area {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            padding: 0;
-            background: white !important;
-          }
-          .no-print { display: none !important; }
-        }
-      `}</style>
     </div>
   );
 }

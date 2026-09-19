@@ -10,18 +10,28 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, getDay, isSunday, isSaturday } from 'date-fns';
-import { Users, CheckCircle2, Clock, Calendar, Info } from 'lucide-react';
+import { Users, CheckCircle2, Clock, Calendar, Info, Calculator } from 'lucide-react';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+// Shift Start Times configuration
+const getShiftStartHour = (shift: string) => {
+  switch (shift) {
+    case 'Shift A': return 6; // 6 AM
+    case 'Shift B': return 14; // 2 PM
+    case 'Shift C': return 22; // 10 PM
+    default: return 9; // General 9 AM
+  }
+};
 
 export default function MonthlyReport() {
   const { employees, attendanceRecords, extraStatuses, markExtraStatus } = useApp();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
-  const [editingDay, setEditingDay] = useState<{ empId: string, date: string } | null>(null);
+  const [editingDay, setEditingDay] = useState<{ empId: string, date: string, autoLate: number } | null>(null);
   const [editForm, setEditForm] = useState<{ status: string, ot: string, lateIn: string, earlyOut: string }>({ 
     status: 'None', 
     ot: '0', 
-    lateIn: '0',
+    lateIn: '',
     earlyOut: '0'
   });
 
@@ -57,6 +67,15 @@ export default function MonthlyReport() {
         );
         const extra = extraStatuses.find(ex => ex.employeeId === employee.id && ex.date === dateStr);
 
+        // Auto calculate Late-In
+        const shiftStartHour = getShiftStartHour(record?.shift || 'General');
+        const actualTime = record ? new Date(record.dateTime) : null;
+        let autoLateIn = 0;
+        if (actualTime) {
+          const actualHours = actualTime.getHours() + actualTime.getMinutes() / 60;
+          autoLateIn = Math.max(0, actualHours - shiftStartHour);
+        }
+
         let status: 'Present' | 'Absent' | 'Week-off' | 'Leave' | 'Holiday' | 'C-off' | 'Half-Day' = 'Absent';
         
         if (extra && extra.status !== 'None') {
@@ -67,7 +86,12 @@ export default function MonthlyReport() {
           status = 'Week-off';
         }
 
-        const dailyLate = (extra?.lateInHours || 0) + (extra?.earlyOutHours || 0);
+        // Use manual LateIn if it exists in ExtraStatus, otherwise use Auto
+        const effectiveLateIn = (extra && extra.lateInHours !== undefined && extra.lateInHours !== 0) 
+          ? extra.lateInHours 
+          : (extra?.status === 'Absent' || extra?.status === 'Leave' ? 0 : autoLateIn);
+          
+        const dailyLate = effectiveLateIn + (extra?.earlyOutHours || 0);
         monthlyCustomLateHoursCut += dailyLate;
 
         return { 
@@ -76,8 +100,9 @@ export default function MonthlyReport() {
           status, 
           ot: extra?.otHours || 0, 
           late: dailyLate,
-          lateIn: extra?.lateInHours || 0,
-          earlyOut: extra?.earlyOutHours || 0
+          lateIn: effectiveLateIn,
+          earlyOut: extra?.earlyOutHours || 0,
+          autoLateIn
         };
       });
 
@@ -145,13 +170,19 @@ export default function MonthlyReport() {
 
   const handleDayClick = (empId: string, dateStr: string) => {
     const current = extraStatuses.find(e => e.employeeId === empId && e.date === dateStr);
+    
+    // Find auto late-in for this specific day from report data
+    const empData = reportData.find(d => d.id === empId);
+    const dayData = empData?.dailyStatus.find(s => s.dateStr === dateStr);
+    const autoLate = dayData?.autoLateIn || 0;
+
     setEditForm({ 
       status: current?.status || 'None', 
       ot: (current?.otHours || 0).toString(),
-      lateIn: (current?.lateInHours || 0).toString(),
+      lateIn: current?.lateInHours !== undefined ? current.lateInHours.toString() : '',
       earlyOut: (current?.earlyOutHours || 0).toString()
     });
-    setEditingDay({ empId, date: dateStr });
+    setEditingDay({ empId, date: dateStr, autoLate });
   };
 
   const saveDayStatus = () => {
@@ -162,7 +193,7 @@ export default function MonthlyReport() {
       date, 
       editForm.status as any, 
       parseFloat(editForm.ot) || 0, 
-      parseFloat(editForm.lateIn) || 0,
+      editForm.lateIn === '' ? 0 : parseFloat(editForm.lateIn),
       parseFloat(editForm.earlyOut) || 0
     );
     setEditingDay(null);
@@ -217,7 +248,7 @@ export default function MonthlyReport() {
           <div>
             <CardTitle>Master Attendance Report</CardTitle>
             <CardDescription>
-              Sundays (Red) & Saturdays (Amber) are highlighted. ఒక రోజుపై క్లిక్ చేసి Late-In/Early-Out గంటలను మార్చవచ్చు.
+              Sundays (Red) & Saturdays (Amber) are highlighted. ఒక రోజుపై క్లిక్ చేసి Late/Early Permission గంటలను మార్చవచ్చు.
             </CardDescription>
           </div>
           <div className="flex gap-2">
@@ -329,7 +360,7 @@ export default function MonthlyReport() {
                              s.status === 'Week-off' ? 'W' : 'A'}
                           </div>
                           {s.ot > 0 && <div className="text-[7px] text-green-600 font-black mt-0.5">+{s.ot}h OT</div>}
-                          {s.late > 0 && <div className="text-[7px] text-destructive font-black mt-0.5">-{s.late}h L</div>}
+                          {s.late > 0 && <div className="text-[7px] text-destructive font-black mt-0.5">-{s.late.toFixed(1)}h L</div>}
                         </TableCell>
                       );
                     })}
@@ -341,7 +372,7 @@ export default function MonthlyReport() {
                     <TableCell className="text-center bg-slate-50/30 font-bold text-purple-600 border-r">{row.stats.Holiday || 0}</TableCell>
                     <TableCell className="text-center bg-slate-50/30 font-bold text-indigo-600 border-r">{row.stats['C-off'] || 0}</TableCell>
                     <TableCell className="text-center bg-slate-50/30 font-bold text-amber-600 border-r">{row.stats['Week-off'] || 0}</TableCell>
-                    <TableCell className="text-center bg-slate-50/30 border-r text-red-500 font-bold">{row.totalLateHoursCut || 0}h</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 border-r text-red-500 font-bold">{row.totalLateHoursCut.toFixed(1)}h</TableCell>
                     <TableCell className="text-center bg-primary/5 font-black text-primary border-r">{row.paidWorkingDays}</TableCell>
                     <TableCell className="sticky right-0 bg-primary/5 z-20 font-black text-primary text-center border-l">
                       ₹{Math.round(row.salary).toLocaleString()}
@@ -364,7 +395,7 @@ export default function MonthlyReport() {
                   <TableCell className="text-center text-purple-600 font-black border-r bg-slate-100">{grandTotals.holiday}</TableCell>
                   <TableCell className="text-center text-indigo-600 font-black border-r bg-slate-100">{grandTotals.coff}</TableCell>
                   <TableCell className="text-center text-amber-600 font-black border-r bg-slate-100">{grandTotals.weekoff}</TableCell>
-                  <TableCell className="text-center border-r bg-slate-100 text-red-500">{reportData.reduce((acc, r) => acc + r.totalLateHoursCut, 0)}h</TableCell>
+                  <TableCell className="text-center border-r bg-slate-100 text-red-500">{reportData.reduce((acc, r) => acc + r.totalLateHoursCut, 0).toFixed(1)}h</TableCell>
                   <TableCell className="text-center text-primary font-black border-r bg-primary/5">{grandTotals.paidWorkingDays}</TableCell>
                   <TableCell className="sticky right-0 bg-primary/20 z-20 font-black text-primary text-center border-l">₹{Math.round(grandTotals.salary).toLocaleString()}</TableCell>
                 </TableRow>
@@ -377,7 +408,7 @@ export default function MonthlyReport() {
       <Dialog open={!!editingDay} onOpenChange={() => setEditingDay(null)}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Update Attendance & Permission - {editingDay?.date}</DialogTitle>
+            <DialogTitle>Update Attendance - {editingDay?.date}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -387,35 +418,51 @@ export default function MonthlyReport() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="None">Reset (Default / Auto Preset)</SelectItem>
-                  <SelectItem value="Present">Present (పూర్తి హాజరు)</SelectItem>
-                  <SelectItem value="Half-Day">Half-Day (అర రోజు జీతం)</SelectItem>
-                  <SelectItem value="Leave">Leave (L - Unpaid సెలవు)</SelectItem>
-                  <SelectItem value="Holiday">Company Holiday (H - Paid)</SelectItem>
-                  <SelectItem value="C-off">Compensatory Off (C - Paid)</SelectItem>
-                  <SelectItem value="Absent">Absent (గైరుహాజరు)</SelectItem>
+                  <SelectItem value="None">Reset (Auto Mode)</SelectItem>
+                  <SelectItem value="Present">Present</SelectItem>
+                  <SelectItem value="Half-Day">Half-Day</SelectItem>
+                  <SelectItem value="Leave">Leave (Unpaid)</SelectItem>
+                  <SelectItem value="Holiday">Company Holiday</SelectItem>
+                  <SelectItem value="C-off">C-off</SelectItem>
+                  <SelectItem value="Absent">Absent</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
-            <div className="p-3 bg-amber-50 text-amber-900 border border-amber-200 text-xs rounded-lg space-y-1">
-              <p className="font-bold">⏱️ లేట్ హాజరు / పర్మిషన్ మేనేజ్‌మెంట్:</p>
-              <p>ఎంప్లాయ్ లేట్ గా వచ్చినా లేదా పర్మిషన్ తీసుకుని ముందే వెళ్ళినా ఆ గంటలను విడివిడిగా నమోదు చేయండి.</p>
+            <div className="p-3 bg-blue-50 text-blue-900 border border-blue-200 text-xs rounded-lg flex items-start gap-2">
+              <Calculator className="h-4 w-4 shrink-0 mt-0.5 text-blue-600" />
+              <div>
+                <p className="font-bold">Auto Late-In Calculation:</p>
+                <p>ఈ రోజు ఎంప్లాయ్ సబ్మిట్ చేసిన టైమింగ్ ప్రకారం ఆటోమేటిక్ లీట్-ఇన్: <b>{editingDay?.autoLate.toFixed(2)} Hrs</b></p>
+                <p className="mt-1 opacity-80">మీరు మాన్యువల్‌గా కింద బాక్స్‌లో ఎంటర్ చేస్తే, ఆటోమేటిక్ లెక్కింపు ఆగిపోయి మీరు ఇచ్చిందే తీసుకుంటుంది.</p>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label className="text-xs">Late-In (Hours)</Label>
-                <Input type="number" step="0.5" min="0" max="8" placeholder="0" value={editForm.lateIn} onChange={(e) => setEditForm(p => ({ ...p, lateIn: e.target.value }))} />
+                <Label className="text-xs">Manual Late-In (Hrs)</Label>
+                <Input 
+                  type="number" 
+                  step="0.1" 
+                  placeholder={editingDay?.autoLate.toFixed(2) || "0"} 
+                  value={editForm.lateIn} 
+                  onChange={(e) => setEditForm(p => ({ ...p, lateIn: e.target.value }))} 
+                />
               </div>
               <div className="grid gap-2">
-                <Label className="text-xs">Early-Out (Hours)</Label>
-                <Input type="number" step="0.5" min="0" max="8" placeholder="0" value={editForm.earlyOut} onChange={(e) => setEditForm(p => ({ ...p, earlyOut: e.target.value }))} />
+                <Label className="text-xs">Early Permission (Hrs)</Label>
+                <Input 
+                  type="number" 
+                  step="0.1" 
+                  placeholder="0" 
+                  value={editForm.earlyOut} 
+                  onChange={(e) => setEditForm(p => ({ ...p, earlyOut: e.target.value }))} 
+                />
               </div>
             </div>
 
             <div className="grid gap-2">
-              <Label>Overtime Hours (ఓవర్‌టైమ్ గంటలు)</Label>
+              <Label>Overtime Hours</Label>
               <Input type="number" step="0.5" value={editForm.ot} onChange={(e) => setEditForm(p => ({ ...p, ot: e.target.value }))} />
             </div>
           </div>
