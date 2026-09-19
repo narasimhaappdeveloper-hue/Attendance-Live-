@@ -18,6 +18,12 @@ export type Employee = {
   dailyRate: number; 
   otRate: number;
 
+  // Statutory Calculation Toggles
+  isPFEnabled?: boolean;
+  isESIEnabled?: boolean;
+  isPTEnabled?: boolean;
+  isITEnabled?: boolean;
+
   // Earnings Components (Monthly)
   basicSalary: number;
   hra: number;

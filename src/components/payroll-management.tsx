@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { IndianRupee, Save, CheckCircle2, Info } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { IndianRupee, Save, CheckCircle2, Info, Settings2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
@@ -16,7 +17,7 @@ export default function PayrollManagement() {
   const { toast } = useToast();
   const [editRates, setEditRates] = useState<Record<string, any>>({});
 
-  const handleRateChange = (id: string, field: string, value: string | number) => {
+  const handleRateChange = (id: string, field: string, value: any) => {
     setEditRates(prev => {
       const currentEmp = employees.find(e => e.id.toUpperCase() === id.toUpperCase());
       const base = prev[id] || { ...currentEmp };
@@ -63,7 +64,7 @@ export default function PayrollManagement() {
 
       <div className="p-4 bg-amber-50 text-amber-800 text-xs font-semibold rounded-xl border border-amber-200 flex items-start gap-2">
          <Info className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
-         <p>గమనిక: PF (12%), ESI (0.75%), PT (Slabs), మరియు TDS ప్రభుత్వ నిబంధనల ప్రకారం ఆటోమేటిక్‌గా లెక్కించబడతాయి. ఇతర అలవెన్సులకు కారణం (Reason) కూడా నమోదు చేయండి.</p>
+         <p>గమనిక: PF (12%), ESI (0.75%), PT, మరియు IT/TDS లను ఆన్ చేసినప్పుడు మాత్రమే ప్రభుత్వ నిబంధనల ప్రకారం ఆటోమేటిక్‌గా లెక్కించబడతాయి.</p>
       </div>
 
       <Card className="border-none shadow-md overflow-hidden">
@@ -73,9 +74,8 @@ export default function PayrollManagement() {
               <TableHeader>
                 <TableRow className="bg-muted/50 text-[10px] uppercase tracking-wider">
                   <TableHead className="min-w-[150px] sticky left-0 bg-muted/50 z-20">Employee</TableHead>
-                  <TableHead>Basic Details</TableHead>
                   <TableHead>Earnings (Monthly)</TableHead>
-                  <TableHead>Statutory (Auto)</TableHead>
+                  <TableHead>Statutory (Toggle On/Off)</TableHead>
                   <TableHead>Manual Deductions</TableHead>
                   <TableHead className="text-right sticky right-0 bg-muted/50 z-20">Action</TableHead>
                 </TableRow>
@@ -91,14 +91,6 @@ export default function PayrollManagement() {
                         <div className="font-semibold text-sm">{emp.name}</div>
                         <div className="text-[10px] uppercase text-muted-foreground">{emp.id}</div>
                       </TableCell>
-                      
-                      <TableCell>
-                        <div className="space-y-2 py-2">
-                          <Input className="w-32 h-7 text-[10px]" placeholder="Designation" defaultValue={data.designation} onChange={(e) => handleRateChange(emp.id, 'designation', e.target.value)} />
-                          <Input className="w-32 h-7 text-[10px]" placeholder="PAN" defaultValue={data.panNumber} onChange={(e) => handleRateChange(emp.id, 'panNumber', e.target.value)} />
-                          <Input className="w-32 h-7 text-[10px]" placeholder="UAN/PF" defaultValue={data.uanNumber} onChange={(e) => handleRateChange(emp.id, 'uanNumber', e.target.value)} />
-                        </div>
-                      </TableCell>
 
                       <TableCell>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 py-2 w-[550px]">
@@ -111,52 +103,52 @@ export default function PayrollManagement() {
                              <Input type="number" className="h-7 text-xs" defaultValue={data.hra} onChange={(e) => handleRateChange(emp.id, 'hra', parseFloat(e.target.value) || 0)} />
                            </div>
                            <div className="space-y-1">
-                             <label className="text-[9px] text-muted-foreground">DA</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.da} onChange={(e) => handleRateChange(emp.id, 'da', parseFloat(e.target.value) || 0)} />
-                           </div>
-                           <div className="space-y-1">
-                             <label className="text-[9px] text-muted-foreground">Conveyance</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.conveyance} onChange={(e) => handleRateChange(emp.id, 'conveyance', parseFloat(e.target.value) || 0)} />
-                           </div>
-                           <div className="space-y-1">
-                             <label className="text-[9px] text-green-600 font-bold">Food Allowance</label>
+                             <label className="text-[9px] text-muted-foreground">Food Allowance</label>
                              <Input type="number" className="h-7 text-xs" defaultValue={data.foodAllowance} onChange={(e) => handleRateChange(emp.id, 'foodAllowance', parseFloat(e.target.value) || 0)} />
-                           </div>
-                           <div className="space-y-1">
-                             <label className="text-[9px] text-green-600 font-bold">Bonus/Others</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.attendanceBonus} onChange={(e) => handleRateChange(emp.id, 'attendanceBonus', parseFloat(e.target.value) || 0)} />
                            </div>
                            <div className="space-y-1">
                              <label className="text-[9px] text-muted-foreground">OT Rate (h)</label>
                              <Input type="number" className="h-7 text-xs" defaultValue={data.otRate} onChange={(e) => handleRateChange(emp.id, 'otRate', parseFloat(e.target.value) || 0)} />
                            </div>
-                           <div className="space-y-1">
+                           <div className="space-y-1 col-span-2">
                              <label className="text-[9px] text-primary font-bold">Manual Other Earnings (Amt & Reason)</label>
                              <div className="flex gap-1">
                                <Input type="number" className="h-7 text-xs w-20" placeholder="Amt" defaultValue={data.otherEarnings} onChange={(e) => handleRateChange(emp.id, 'otherEarnings', parseFloat(e.target.value) || 0)} />
-                               <Input className="h-7 text-[10px] flex-1" placeholder="Reason (e.g. Incentive)" defaultValue={data.otherEarningsNote} onChange={(e) => handleRateChange(emp.id, 'otherEarningsNote', e.target.value)} />
+                               <Input className="h-7 text-[10px] flex-1" placeholder="Reason" defaultValue={data.otherEarningsNote} onChange={(e) => handleRateChange(emp.id, 'otherEarningsNote', e.target.value)} />
                              </div>
                            </div>
                         </div>
                       </TableCell>
 
                       <TableCell>
-                         <div className="grid grid-cols-1 gap-2 py-2 w-[180px]">
-                           <div className="flex justify-between items-center text-[10px] bg-slate-50 p-1 rounded border">
-                              <span className="text-muted-foreground">PF (12%):</span>
-                              <span className="font-bold">Auto</span>
+                         <div className="grid grid-cols-1 gap-3 py-2 w-[220px]">
+                           <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+                              <span className="text-[10px] font-bold">EPF (12%)</span>
+                              <Switch 
+                                checked={data.isPFEnabled} 
+                                onCheckedChange={(checked) => handleRateChange(emp.id, 'isPFEnabled', checked)} 
+                              />
                            </div>
-                           <div className="flex justify-between items-center text-[10px] bg-slate-50 p-1 rounded border">
-                              <span className="text-muted-foreground">ESI (0.75%):</span>
-                              <span className="font-bold">Auto</span>
+                           <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+                              <span className="text-[10px] font-bold">ESI (0.75%)</span>
+                              <Switch 
+                                checked={data.isESIEnabled} 
+                                onCheckedChange={(checked) => handleRateChange(emp.id, 'isESIEnabled', checked)} 
+                              />
                            </div>
-                           <div className="flex justify-between items-center text-[10px] bg-slate-50 p-1 rounded border">
-                              <span className="text-muted-foreground">PT (Slabs):</span>
-                              <span className="font-bold">Auto</span>
+                           <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+                              <span className="text-[10px] font-bold">Prof. Tax (PT)</span>
+                              <Switch 
+                                checked={data.isPTEnabled} 
+                                onCheckedChange={(checked) => handleRateChange(emp.id, 'isPTEnabled', checked)} 
+                              />
                            </div>
-                           <div className="flex justify-between items-center text-[10px] bg-slate-50 p-1 rounded border">
-                              <span className="text-muted-foreground">Income Tax:</span>
-                              <span className="font-bold">Auto</span>
+                           <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+                              <span className="text-[10px] font-bold">IT / TDS</span>
+                              <Switch 
+                                checked={data.isITEnabled} 
+                                onCheckedChange={(checked) => handleRateChange(emp.id, 'isITEnabled', checked)} 
+                              />
                            </div>
                          </div>
                       </TableCell>
@@ -171,7 +163,7 @@ export default function PayrollManagement() {
                              <label className="text-[9px] text-destructive font-bold">Manual Other Deductions (Amt & Reason)</label>
                              <div className="flex gap-1">
                                <Input type="number" className="h-7 text-xs w-20" placeholder="Amt" defaultValue={data.otherDeductions} onChange={(e) => handleRateChange(emp.id, 'otherDeductions', parseFloat(e.target.value) || 0)} />
-                               <Input className="h-7 text-[10px] flex-1" placeholder="Reason (e.g. Fine)" defaultValue={data.otherDeductionsNote} onChange={(e) => handleRateChange(emp.id, 'otherDeductionsNote', e.target.value)} />
+                               <Input className="h-7 text-[10px] flex-1" placeholder="Reason" defaultValue={data.otherDeductionsNote} onChange={(e) => handleRateChange(emp.id, 'otherDeductionsNote', e.target.value)} />
                              </div>
                            </div>
                          </div>
@@ -192,7 +184,7 @@ export default function PayrollManagement() {
                   );
                 }) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center h-32">
+                    <TableCell colSpan={5} className="text-center h-32">
                       No employees to configure.
                     </TableCell>
                   </TableRow>

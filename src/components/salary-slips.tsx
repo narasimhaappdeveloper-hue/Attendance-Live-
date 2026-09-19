@@ -74,32 +74,35 @@ export default function SalarySlips() {
 
       const grossEarnings = Object.values(earnings).reduce((a, b) => typeof b === 'number' ? a + b : a, 0);
 
-      // --- AUTO STATUTORY DEDUCTIONS (GOVT RULES) ---
+      // --- STATUTORY DEDUCTIONS (ONLY IF ENABLED) ---
       
       // 1. PF: 12% of Basic
-      const autoPF = Math.round(earnings.basic * 0.12);
+      const autoPF = employee.isPFEnabled ? Math.round(earnings.basic * 0.12) : 0;
       
       // 2. ESI: 0.75% of Gross (only if Gross <= 21,000)
-      const autoESI = grossEarnings <= 21000 ? Math.round(grossEarnings * 0.0075) : 0;
+      const autoESI = (employee.isESIEnabled && grossEarnings <= 21000) ? Math.round(grossEarnings * 0.0075) : 0;
 
-      // 3. Professional Tax (PT): Standard Slab (AP/TS/KA)
+      // 3. Professional Tax (PT): Standard Slab
       let autoPT = 0;
-      if (grossEarnings > 20000) autoPT = 200;
-      else if (grossEarnings > 15000) autoPT = 150;
+      if (employee.isPTEnabled) {
+        if (grossEarnings > 20000) autoPT = 200;
+        else if (grossEarnings > 15000) autoPT = 150;
+      }
 
       // 4. Income Tax (TDS): New Regime 2024-25 Simplified
       let autoTDS = 0;
-      const annualizedGross = grossEarnings * 12;
-      const stdDeduction = 75000;
-      const taxableIncome = Math.max(0, annualizedGross - stdDeduction);
-      
-      if (taxableIncome > 700000) {
-        // Slab estimation: 3-7L (5% = 20k), 7-10L (10%), 10-12L (15%)
-        let annualTax = 20000; // Tax for 3-7L
+      if (employee.isITEnabled) {
+        const annualizedGross = grossEarnings * 12;
+        const stdDeduction = 75000;
+        const taxableIncome = Math.max(0, annualizedGross - stdDeduction);
+        
         if (taxableIncome > 700000) {
-          annualTax += (taxableIncome - 700000) * 0.1;
+          let annualTax = 20000; 
+          if (taxableIncome > 700000) {
+            annualTax += (taxableIncome - 700000) * 0.1;
+          }
+          autoTDS = Math.round(annualTax / 12);
         }
-        autoTDS = Math.round(annualTax / 12);
       }
 
       const deductions = {
@@ -175,9 +178,9 @@ export default function SalarySlips() {
       <div className="p-4 bg-primary/5 border rounded-2xl flex items-start gap-3 text-sm text-primary">
          <Info className="h-5 w-5 shrink-0 mt-0.5" />
          <div>
-            <p className="font-bold">Govt Statutory Rules (Automatic):</p>
+            <p className="font-bold">Govt Statutory Rules Control:</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-               PF (12%), ESI (0.75%), Professional Tax (Slabs), మరియు TDS (New Regime) ప్రభుత్వ నిబంధనల ప్రకారం ఆటోమేటిక్‌గా లెక్కించబడతాయి.
+               PF, ESI, PT, మరియు TDS లెక్కింపులను పేరోల్ మేనేజ్‌మెంట్‌లో ఆన్/ఆఫ్ చేసుకోవచ్చు.
             </p>
          </div>
       </div>
@@ -335,33 +338,34 @@ export default function SalarySlips() {
                    <div className="p-4 space-y-2">
                      <div className="flex justify-between"><span>Basic Salary</span><span className="font-bold">₹{selectedSlip.earnings.basic.toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>HRA</span><span className="font-bold">₹{selectedSlip.earnings.hra.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span>DA</span><span className="font-bold">₹{selectedSlip.earnings.da.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span>Conveyance</span><span className="font-bold">₹{selectedSlip.earnings.conveyance.toLocaleString()}</span></div>
                      <div className="flex justify-between text-green-700 font-medium"><span>Food Allowance</span><span className="font-bold">₹{selectedSlip.earnings.food.toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Overtime Pay</span><span className="font-bold">₹{selectedSlip.earnings.otPay.toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Bonus / Incentive</span><span className="font-bold">₹{(selectedSlip.earnings.bonus + selectedSlip.earnings.special + selectedSlip.earnings.incentive).toLocaleString()}</span></div>
-                     <div className="flex justify-between text-slate-500">
-                        <span>Other Earnings {selectedSlip.earnings.otherNote ? `(${selectedSlip.earnings.otherNote})` : ''}</span>
-                        <span className="font-bold">₹{selectedSlip.earnings.other.toLocaleString()}</span>
-                     </div>
+                     {selectedSlip.earnings.other > 0 && (
+                        <div className="flex justify-between text-slate-500">
+                            <span>Other Earnings {selectedSlip.earnings.otherNote ? `(${selectedSlip.earnings.otherNote})` : ''}</span>
+                            <span className="font-bold">₹{selectedSlip.earnings.other.toLocaleString()}</span>
+                        </div>
+                     )}
                    </div>
                 </div>
                 <div>
                    <div className="bg-slate-100 p-2 font-black text-[10px] uppercase border-b flex justify-between items-center">
                      <span>Deductions</span>
-                     <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold">Statutory Rules</span>
                    </div>
                    <div className="p-4 space-y-2">
-                     <div className="flex justify-between text-slate-800 font-medium"><span>Employee PF (12%)</span><span className="font-bold">₹{selectedSlip.deductions.pf.toLocaleString()}</span></div>
-                     <div className="flex justify-between text-slate-800 font-medium"><span>ESI (0.75%)</span><span className="font-bold">₹{selectedSlip.deductions.esi.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span>Professional Tax (Auto)</span><span className="font-bold">₹{selectedSlip.deductions.pt.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span>Income Tax (TDS)</span><span className="font-bold">₹{selectedSlip.deductions.it.toLocaleString()}</span></div>
+                     {selectedSlip.deductions.pf > 0 && <div className="flex justify-between text-slate-800 font-medium"><span>Employee PF (12%)</span><span className="font-bold">₹{selectedSlip.deductions.pf.toLocaleString()}</span></div>}
+                     {selectedSlip.deductions.esi > 0 && <div className="flex justify-between text-slate-800 font-medium"><span>ESI (0.75%)</span><span className="font-bold">₹{selectedSlip.deductions.esi.toLocaleString()}</span></div>}
+                     {selectedSlip.deductions.pt > 0 && <div className="flex justify-between"><span>Professional Tax</span><span className="font-bold">₹{selectedSlip.deductions.pt.toLocaleString()}</span></div>}
+                     {selectedSlip.deductions.it > 0 && <div className="flex justify-between"><span>Income Tax (TDS)</span><span className="font-bold">₹{selectedSlip.deductions.it.toLocaleString()}</span></div>}
                      <div className="flex justify-between"><span>Loan / Advance</span><span className="font-bold">₹{(selectedSlip.deductions.loan + selectedSlip.deductions.advance).toLocaleString()}</span></div>
-                     <div className="flex justify-between text-destructive font-semibold"><span>LOP Deduction (Leaves/Absent)</span><span className="font-bold">₹{selectedSlip.deductions.lop.toLocaleString()}</span></div>
-                     <div className="flex justify-between text-destructive">
-                        <span>Other Deductions {selectedSlip.deductions.otherNote ? `(${selectedSlip.deductions.otherNote})` : ''}</span>
-                        <span className="font-bold">₹{selectedSlip.deductions.other.toLocaleString()}</span>
-                     </div>
+                     <div className="flex justify-between text-destructive font-semibold"><span>LOP Deduction</span><span className="font-bold">₹{selectedSlip.deductions.lop.toLocaleString()}</span></div>
+                     {selectedSlip.deductions.other > 0 && (
+                        <div className="flex justify-between text-destructive">
+                            <span>Other Deductions {selectedSlip.deductions.otherNote ? `(${selectedSlip.deductions.otherNote})` : ''}</span>
+                            <span className="font-bold">₹{selectedSlip.deductions.other.toLocaleString()}</span>
+                        </div>
+                     )}
                    </div>
                 </div>
               </div>
