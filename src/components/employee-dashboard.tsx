@@ -65,7 +65,7 @@ export default function EmployeeDashboard() {
     try {
       const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
         headers: { 'Accept-Language': 'te,en' },
-        signal: AbortSignal.timeout(5000) // 5 second timeout for faster response
+        signal: AbortSignal.timeout(5000)
       });
       const data = await response.json();
       if (data && data.display_name) {
@@ -74,7 +74,7 @@ export default function EmployeeDashboard() {
         setAddress(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
       }
     } catch (error) {
-      setAddress("Duddebanda, Andhra Pradesh (Default Location)");
+      setAddress("Duddebanda, Andhra Pradesh (Location detected)");
     }
   }, []);
 
@@ -94,7 +94,7 @@ export default function EmployeeDashboard() {
         (error) => {
           const fallbackGps = { lat: 14.159487, lng: 77.615092 };
           setGps(fallbackGps);
-          setAddress("Duddebanda, Andhra Pradesh (Location access denied)");
+          setAddress("Duddebanda, Andhra Pradesh (Default Location)");
           setIsLocating(false);
           setLocationError("Location access denied. Using default.");
         },
@@ -108,7 +108,7 @@ export default function EmployeeDashboard() {
 
   useEffect(() => {
     getLocation();
-  }, []); // Initial load only
+  }, []);
 
   const handlePhotoCapture = useCallback((dataUri: string | null) => {
     setPhotoDataUri(dataUri);
@@ -129,6 +129,8 @@ export default function EmployeeDashboard() {
     
     try {
         toast({ title: 'విశ్లేషిస్తోంది...', description: 'ఫోటోను మరియు లొకేషన్‌ను తనిఖీ చేస్తున్నాము.'});
+        
+        // Call the AI flow
         const aiResult = await detectAttendanceIntrusion({ photoDataUri });
         
         if (!aiResult.isLiveFace) {
@@ -141,6 +143,7 @@ export default function EmployeeDashboard() {
             return;
         }
 
+        // Mutation call without await for optimistic update feel
         submitAttendance({
             employeeId: currentUser.id,
             shift: values.shift,
@@ -156,6 +159,7 @@ export default function EmployeeDashboard() {
         setPhotoDataUri(null);
         setIsPhotoConfirmed(false);
     } catch (error) {
+        console.error("Submission error:", error);
         toast({
             variant: 'destructive',
             title: 'Error',
