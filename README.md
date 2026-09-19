@@ -2,6 +2,19 @@
 
 This is a NextJS Attendance management system with AI-powered intrusion detection and location tracking.
 
+## How to find your App URL?
+
+### 1. Local URL (Development)
+When you run the app locally using `npm run dev`, it will be available at:
+**[http://localhost:9002](http://localhost:9002)**
+
+### 2. Live URL (Deployment)
+Once you deploy your code (e.g., using Firebase App Hosting), the platform will provide a public URL. 
+- If using **Firebase**, look for the Hosting URL in your Firebase Console under the "App Hosting" or "Hosting" tab.
+- It usually looks like: `https://your-project-id.web.app` or `https://your-project-id.firebaseapp.com`
+
+---
+
 ## Features
 - AI Facial Liveness Detection
 - Live Location Address Fetching
@@ -44,7 +57,7 @@ This is a NextJS Attendance management system with AI-powered intrusion detectio
 
 ## Mobile App Installation
 దీన్ని మీ మొబైల్‌లో యాప్‌లాగా ఉపయోగించడానికి:
-1. మీ మొబైల్ బ్రౌజర్‌లో సైట్ లింక్ ఓపెన్ చేయండి.
+1. మీ మొబైల్ బ్రౌజర్ (Chrome/Safari) లో మీ సైట్ లింక్ ఓపెన్ చేయండి.
 2. బ్రౌజర్ మెనూలో **"Add to Home Screen"** ఆప్షన్‌ను ఎంచుకోండి.
 
 ## Local Development
