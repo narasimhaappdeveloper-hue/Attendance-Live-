@@ -24,7 +24,7 @@ interface AppContextType {
   addSite: (name: string) => void;
   deleteSite: (id: string) => void;
   submitAttendance: (record: Omit<AttendanceRecord, 'id' | 'employeeName'>) => void;
-  markExtraStatus: (employeeId: string, date: string, status: 'Leave' | 'C-off' | 'Holiday' | 'Half-Day' | 'Present' | 'Absent', otHours: number, lateHours?: number) => void;
+  markExtraStatus: (employeeId: string, date: string, status: 'Leave' | 'C-off' | 'Holiday' | 'Half-Day' | 'Present' | 'Absent', otHours: number, lateInHours?: number, earlyOutHours?: number) => void;
   saveSalarySlip: (slip: SalarySlip) => void;
 }
 
@@ -168,10 +168,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAttendanceRecords((prev) => [{ ...record, id: `ATT${Date.now()}`, employeeName: currentUser.name }, ...prev]);
   }, [currentUser]);
 
-  const markExtraStatus = useCallback((employeeId: string, date: string, status: 'Leave' | 'C-off' | 'Holiday' | 'Half-Day' | 'Present' | 'Absent', otHours: number, lateHours?: number) => {
+  const markExtraStatus = useCallback((employeeId: string, date: string, status: 'Leave' | 'C-off' | 'Holiday' | 'Half-Day' | 'Present' | 'Absent', otHours: number, lateInHours?: number, earlyOutHours?: number) => {
     setExtraStatuses(prev => {
       const filtered = prev.filter(e => !(e.employeeId === employeeId && e.date === date));
-      return [...filtered, { id: `EX${Date.now()}`, employeeId, date, status, otHours, lateHours: lateHours || 0 }];
+      return [...filtered, { 
+        id: `EX${Date.now()}`, 
+        employeeId, 
+        date, 
+        status, 
+        otHours, 
+        lateInHours: lateInHours || 0,
+        earlyOutHours: earlyOutHours || 0,
+        lateHours: (lateInHours || 0) + (earlyOutHours || 0)
+      }];
     });
   }, []);
 

@@ -71,7 +71,9 @@ export type ExtraStatus = {
   date: string; // ISO date string (YYYY-MM-DD)
   status: 'Leave' | 'C-off' | 'Holiday' | 'Half-Day' | 'Present' | 'Absent';
   otHours: number;
-  lateHours?: number; // Tracks custom late or early-out permission hours
+  lateInHours?: number;
+  earlyOutHours?: number;
+  lateHours?: number; // legacy combined field
 };
 
 export type SalarySlip = {

@@ -29,7 +29,20 @@ export default function SalarySlips() {
     const daysInMonth = eachDayOfInterval({ start, end });
     const totalDaysCount = daysInMonth.length;
 
-    return employees.filter(e => e.status === 'Approved').map(employee => {
+    return employees.filter(e => {
+        if (e.status === 'Approved') return true;
+        if (e.status === 'Resigned') {
+            const hasActivity = attendanceRecords.some(r => 
+                r.employeeId.toUpperCase() === e.id.toUpperCase() && 
+                format(new Date(r.dateTime), 'yyyy-MM') === format(selectedMonth, 'yyyy-MM')
+            ) || extraStatuses.some(ex => 
+                ex.employeeId.toUpperCase() === e.id.toUpperCase() &&
+                ex.date.startsWith(format(selectedMonth, 'yyyy-MM'))
+            );
+            return hasActivity;
+        }
+        return false;
+    }).map(employee => {
       let p = 0, l = 0, h = 0, c = 0, w = 0, ot = 0, a = 0, hd = 0;
       let totalLateHoursCut = 0;
 
@@ -59,10 +72,11 @@ export default function SalarySlips() {
         else a++;
         
         if (extra?.otHours) ot += extra.otHours;
-        if (extra?.lateHours) totalLateHoursCut += extra.lateHours;
+        
+        const dailyLate = (extra?.lateInHours || 0) + (extra?.earlyOutHours || 0) + (extra?.lateHours || 0);
+        totalLateHoursCut += dailyLate;
       });
 
-      // Half day counts as 0.5 paid day
       const totalPaidDays = p + w + h + c + (hd * 0.5);
       const lopDays = totalDaysCount - totalPaidDays;
       
@@ -110,22 +124,21 @@ export default function SalarySlips() {
         advance: employee.advanceRecovery || 0,
         lop: totalLopDeduction,
         other: employee.otherDeductions || 0,
-        otherNote: employee.otherDeductionsNote ? `${employee.otherDeductionsNote}${totalLateHoursCut > 0 ? ` (Incl. ${totalLateHoursCut}h Late cut)` : ''}` : (totalLateHoursCut > 0 ? `${totalLateHoursCut}h Late/Permission cut` : undefined),
+        otherNote: employee.otherDeductionsNote ? `${employee.otherDeductionsNote}${totalLateHoursCut > 0 ? ` (Incl. ${totalLateHoursCut}h Late/Permission)` : ''}` : (totalLateHoursCut > 0 ? `${totalLateHoursCut}h Late/Permission cut` : undefined),
       };
 
-      const totalDeductions = autoPF + autoESI + autoPT + deductions.it + deductions.loan + deductions.advance + totalLopDeduction + deductions.other;
-      const netPay = Math.max(0, grossEarnings - totalDeductions + totalLopDeduction); // Adjusting because lop is counted inside deductions
+      const netPay = Math.max(0, grossEarnings - (autoPF + autoESI + autoPT + deductions.it + deductions.loan + deductions.advance + deductions.other + totalLopDeduction));
 
       const existingSlip = salarySlips.find(s => s.employeeId === employee.id && s.month === monthStr);
 
       return {
         employee,
-        stats: { p, l, h, c, w, ot, a: a + l, hd, totalPaidDays, lopDays, totalLateHoursCut },
+        stats: { p, l, h, c, w, ot, a, hd, totalPaidDays, lopDays, totalLateHoursCut },
         earnings,
-        deductions: { ...deductions, lop: totalLopDeduction },
+        deductions,
         grossEarnings,
-        totalDeductions: totalDeductions - totalLopDeduction + totalLopDeduction,
-        netPay: Math.max(0, grossEarnings - (totalDeductions - totalLopDeduction) - totalLopDeduction),
+        totalDeductions: autoPF + autoESI + autoPT + deductions.it + deductions.loan + deductions.advance + deductions.other + totalLopDeduction,
+        netPay,
         existingSlip
       };
     });
@@ -159,7 +172,7 @@ export default function SalarySlips() {
           earnings: item.earnings,
           deductions: item.deductions,
           grossEarnings: item.grossEarnings,
-          totalDeductions: item.deductions.pf + item.deductions.esi + item.deductions.pt + item.deductions.it + item.deductions.loan + item.deductions.advance + item.deductions.lop + item.deductions.other,
+          totalDeductions: item.totalDeductions,
           totalSalary: item.netPay
         };
         saveSalarySlip(slip);
@@ -179,7 +192,7 @@ export default function SalarySlips() {
          <div>
             <p className="font-bold">Late Attendance & Fractional LOP Deduction Added:</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-               ఉద్యోగులు లేట్ పర్మిషన్ అవర్స్ తీసుకున్నప్పుడు లేదా Half-Day నమోదు చేసినప్పుడు వాటికి సమానమైన గంటల కటింగ్ ఆటోమేటిక్‌గా **LOP Deduction** లో యాడ్ చేయబడుతుంది.
+               లేట్-ఇన్ మరియు ఎర్లీ పర్మిషన్ గంటల మొత్తం కటింగ్ ఆటోమేటిక్‌గా **LOP Deduction** లో యాడ్ చేయబడుతుంది.
             </p>
          </div>
       </div>
@@ -235,7 +248,7 @@ export default function SalarySlips() {
                 <TableRow>
                   <TableHead>Employee</TableHead>
                   <TableHead>Paid Days</TableHead>
-                  <TableHead>Late Hours</TableHead>
+                  <TableHead>Late (Total)</TableHead>
                   <TableHead>LOP Amount</TableHead>
                   <TableHead>Net Pay</TableHead>
                   <TableHead>Status</TableHead>
@@ -353,35 +366,29 @@ export default function SalarySlips() {
                    <div className="p-4 space-y-2">
                      <div className="flex justify-between"><span>Basic Earned Salary</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.basic).toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>HRA</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.hra).toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span>Dearness Allowance (DA)</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.da).toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span>Conveyance/Transport</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.conveyance).toLocaleString()}</span></div>
                      <div className="flex justify-between text-green-700 font-medium"><span>Food Allowance</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.food).toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Overtime Pay</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.otPay).toLocaleString()}</span></div>
                      <div className="flex justify-between text-primary font-medium"><span>Incentive</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.incentive).toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Bonus / Special</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.bonus + selectedSlip.earnings.special).toLocaleString()}</span></div>
                      {selectedSlip.earnings.other > 0 && (
                         <div className="flex justify-between text-slate-500">
-                            <span>Other Allowance {selectedSlip.earnings.otherNote ? `(${selectedSlip.earnings.otherNote})` : ''}</span>
+                            <span>Other: {selectedSlip.earnings.otherNote}</span>
                             <span className="font-bold">₹{Math.round(selectedSlip.earnings.other).toLocaleString()}</span>
                         </div>
                      )}
                    </div>
                 </div>
                 <div>
-                   <div className="bg-slate-100 p-2 font-black text-[10px] uppercase border-b flex justify-between items-center">
-                     <span>Deductions</span>
-                   </div>
+                   <div className="bg-slate-100 p-2 font-black text-[10px] uppercase border-b">Deductions</div>
                    <div className="p-4 space-y-2">
-                     {selectedSlip.deductions.pf > 0 && <div className="flex justify-between text-slate-800 font-medium"><span>Employee PF / EPF (12%)</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.pf).toLocaleString()}</span></div>}
-                     {selectedSlip.deductions.esi > 0 && <div className="flex justify-between text-slate-800 font-medium"><span>ESI (0.75%)</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.esi).toLocaleString()}</span></div>}
-                     {selectedSlip.deductions.pt > 0 && <div className="flex justify-between"><span>Professional Tax (PT)</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.pt).toLocaleString()}</span></div>}
-                     {selectedSlip.deductions.it > 0 && <div className="flex justify-between"><span>TDS / Income Tax</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.it).toLocaleString()}</span></div>}
-                     <div className="flex justify-between"><span>Loan Recovery</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.loan).toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span>Salary Advance Recovery</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.advance).toLocaleString()}</span></div>
-                     <div className="flex justify-between text-destructive font-black"><span>Total LOP Deduction (Absent/Late)</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.lop).toLocaleString()}</span></div>
+                     {selectedSlip.deductions.pf > 0 && <div className="flex justify-between"><span>Employee PF (12%)</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.pf).toLocaleString()}</span></div>}
+                     {selectedSlip.deductions.esi > 0 && <div className="flex justify-between"><span>ESI (0.75%)</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.esi).toLocaleString()}</span></div>}
+                     {selectedSlip.deductions.pt > 0 && <div className="flex justify-between"><span>Professional Tax</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.pt).toLocaleString()}</span></div>}
+                     <div className="flex justify-between text-destructive font-black"><span>LOP Deduction (Late/Absent)</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.lop).toLocaleString()}</span></div>
+                     {selectedSlip.deductions.loan > 0 && <div className="flex justify-between"><span>Loan Recovery</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.loan).toLocaleString()}</span></div>}
                      {selectedSlip.deductions.other > 0 && (
                         <div className="flex justify-between text-destructive">
-                            <span>Other Deductions {selectedSlip.deductions.otherNote ? `(${selectedSlip.deductions.otherNote})` : ''}</span>
+                            <span>Other: {selectedSlip.deductions.otherNote}</span>
                             <span className="font-bold">₹{Math.round(selectedSlip.deductions.other).toLocaleString()}</span>
                         </div>
                      )}
@@ -396,14 +403,14 @@ export default function SalarySlips() {
                 </div>
                 <div className="p-4 flex justify-between uppercase">
                   <span>Total Deductions</span>
-                  <span>₹{Math.round(selectedSlip.grossEarnings - selectedSlip.totalSalary).toLocaleString()}</span>
+                  <span>₹{Math.round(selectedSlip.totalDeductions).toLocaleString()}</span>
                 </div>
               </div>
 
               <div className="p-8 flex flex-col items-center sm:flex-row sm:justify-between gap-6 bg-primary/5">
-                <div className="space-y-1">
-                  <h3 className="text-sm font-black text-primary uppercase tracking-widest">Net Salary Payable (Take Home)</h3>
-                  <p className="text-slate-500 font-bold italic">Total Payable Amount</p>
+                <div className="space-y-1 text-center sm:text-left">
+                  <h3 className="text-sm font-black text-primary uppercase tracking-widest">Net Salary Payable</h3>
+                  <p className="text-slate-500 font-bold italic">Take Home Amount</p>
                 </div>
                 <div className="flex items-center gap-3 bg-primary text-white p-6 rounded-2xl shadow-xl">
                   <IndianRupee className="h-8 w-8" />
@@ -416,17 +423,14 @@ export default function SalarySlips() {
                   <p className="font-bold text-slate-600">Employee Signature</p>
                 </div>
                 <div className="text-center pt-8 border-t border-slate-200">
-                  <p className="font-bold text-slate-600">Authorized HR Signatory</p>
-                  <div className="flex justify-center mt-2 text-primary opacity-30">
-                     <ShieldCheck className="h-10 w-10" />
-                  </div>
+                  <p className="font-bold text-slate-600">Authorized Signatory</p>
                 </div>
               </div>
 
               <div className="p-6 border-t bg-slate-100 flex justify-end gap-3 no-print">
                 <Button variant="outline" onClick={() => setSelectedSlip(null)}>Close</Button>
                 <Button onClick={() => window.print()} className="bg-primary hover:bg-primary/90">
-                  <Printer className="mr-2 h-4 w-4" /> Print Payslip
+                  <Printer className="mr-2 h-4 w-4" /> Print
                 </Button>
               </div>
             </div>

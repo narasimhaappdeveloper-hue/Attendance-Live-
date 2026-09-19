@@ -18,7 +18,12 @@ export default function MonthlyReport() {
   const { employees, attendanceRecords, extraStatuses, markExtraStatus } = useApp();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [editingDay, setEditingDay] = useState<{ empId: string, date: string } | null>(null);
-  const [editForm, setEditForm] = useState<{ status: string, ot: string, late: string }>({ status: 'None', ot: '0', late: '0' });
+  const [editForm, setEditForm] = useState<{ status: string, ot: string, lateIn: string, earlyOut: string }>({ 
+    status: 'None', 
+    ot: '0', 
+    lateIn: '0',
+    earlyOut: '0'
+  });
 
   const daysInMonth = useMemo(() => {
     return eachDayOfInterval({
@@ -62,11 +67,18 @@ export default function MonthlyReport() {
           status = 'Week-off';
         }
 
-        if (extra?.lateHours) {
-          monthlyCustomLateHoursCut += extra.lateHours;
-        }
+        const dailyLate = (extra?.lateInHours || 0) + (extra?.earlyOutHours || 0);
+        monthlyCustomLateHoursCut += dailyLate;
 
-        return { day, dateStr, status, ot: extra?.otHours || 0, late: extra?.lateHours || 0 };
+        return { 
+          day, 
+          dateStr, 
+          status, 
+          ot: extra?.otHours || 0, 
+          late: dailyLate,
+          lateIn: extra?.lateInHours || 0,
+          earlyOut: extra?.earlyOutHours || 0
+        };
       });
 
       const stats = dailyStatus.reduce((acc, curr) => {
@@ -100,7 +112,6 @@ export default function MonthlyReport() {
         else if (grossEarned > 15000) autoPT = 150;
       }
 
-      const totalDeductions = autoPF + autoESI + autoPT + (employee.loanRecovery || 0) + (employee.otherDeductions || 0) + lateHoursDeduction;
       const finalNetSalary = Math.max(0, grossEarned - (autoPF + autoESI + autoPT + (employee.loanRecovery || 0) + (employee.otherDeductions || 0) + lateHoursDeduction));
 
       return { 
@@ -137,7 +148,8 @@ export default function MonthlyReport() {
     setEditForm({ 
       status: current?.status || 'None', 
       ot: (current?.otHours || 0).toString(),
-      late: (current?.lateHours || 0).toString()
+      lateIn: (current?.lateInHours || 0).toString(),
+      earlyOut: (current?.earlyOutHours || 0).toString()
     });
     setEditingDay({ empId, date: dateStr });
   };
@@ -150,7 +162,8 @@ export default function MonthlyReport() {
       date, 
       editForm.status as any, 
       parseFloat(editForm.ot) || 0, 
-      parseFloat(editForm.late) || 0
+      parseFloat(editForm.lateIn) || 0,
+      parseFloat(editForm.earlyOut) || 0
     );
     setEditingDay(null);
   };
@@ -204,7 +217,7 @@ export default function MonthlyReport() {
           <div>
             <CardTitle>Master Attendance Report</CardTitle>
             <CardDescription>
-              Sundays (Red) & Saturdays (Amber) are highlighted. ఒక రోజుపై క్లిక్ చేసి Late/Early Permission గంటలను లేదా Half-Day ని మార్చవచ్చు.
+              Sundays (Red) & Saturdays (Amber) are highlighted. ఒక రోజుపై క్లిక్ చేసి Late-In/Early-Out గంటలను మార్చవచ్చు.
             </CardDescription>
           </div>
           <div className="flex gap-2">
@@ -387,12 +400,18 @@ export default function MonthlyReport() {
             
             <div className="p-3 bg-amber-50 text-amber-900 border border-amber-200 text-xs rounded-lg space-y-1">
               <p className="font-bold">⏱️ లేట్ హాజరు / పర్మిషన్ మేనేజ్‌మెంట్:</p>
-              <p>ఎంప్లాయ్ పర్మిషన్ తీసుకుని ముందే వెళ్ళినా లేదా లేట్ గా వచ్చినా కింద ఆ గంటలను (Hours) ఎంటర్ చేయండి. సిస్టమ్ ఆటోమేటిక్‌గా గంటల ప్రకారం శాలరీ కట్ (LOP) చేస్తుంది.</p>
+              <p>ఎంప్లాయ్ లేట్ గా వచ్చినా లేదా పర్మిషన్ తీసుకుని ముందే వెళ్ళినా ఆ గంటలను విడివిడిగా నమోదు చేయండి.</p>
             </div>
 
-            <div className="grid gap-2">
-              <Label>Late-In / Early Permission (గంటలు - Hours)</Label>
-              <Input type="number" step="0.5" min="0" max="8" placeholder="e.g. 1.5, 2" value={editForm.late} onChange={(e) => setEditForm(p => ({ ...p, late: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label className="text-xs">Late-In (Hours)</Label>
+                <Input type="number" step="0.5" min="0" max="8" placeholder="0" value={editForm.lateIn} onChange={(e) => setEditForm(p => ({ ...p, lateIn: e.target.value }))} />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-xs">Early-Out (Hours)</Label>
+                <Input type="number" step="0.5" min="0" max="8" placeholder="0" value={editForm.earlyOut} onChange={(e) => setEditForm(p => ({ ...p, earlyOut: e.target.value }))} />
+              </div>
             </div>
 
             <div className="grid gap-2">
