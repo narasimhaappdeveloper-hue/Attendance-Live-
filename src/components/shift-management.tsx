@@ -21,14 +21,14 @@ interface ClockModalProps {
 
 function ModernClockModal({ shiftName, initialValue, isOpen, onClose, onSave }: ClockModalProps) {
   const [mode, setMode] = useState<'hours' | 'minutes'>('hours');
-  const [tempHour, setTempHour] = useState(initialValue.startHour);
-  const [dutyHours, setDutyHours] = useState(initialValue.dutyHours);
+  const [tempHour, setTempHour] = useState(initialValue?.startHour ?? 9);
+  const [dutyHours, setDutyHours] = useState(initialValue?.dutyHours ?? 8);
   const faceRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
-      setTempHour(initialValue.startHour);
-      setDutyHours(initialValue.dutyHours);
+      setTempHour(initialValue?.startHour ?? 9);
+      setDutyHours(initialValue?.dutyHours ?? 8);
       setMode('hours');
     }
   }, [isOpen, initialValue]);
@@ -73,7 +73,7 @@ function ModernClockModal({ shiftName, initialValue, isOpen, onClose, onSave }: 
 
   if (!isOpen) return null;
 
-  const hours = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  const hoursList = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
   const rotationDegrees = (displayHour % 12) * 30;
 
   return (
@@ -102,7 +102,7 @@ function ModernClockModal({ shiftName, initialValue, isOpen, onClose, onSave }: 
             onClick={calculateHourFromAngle}
             className="w-[200px] h-[200px] bg-[#edeef0] rounded-full relative border-[3px] border-[hsl(var(--primary))] cursor-pointer touch-none select-none shadow-inner"
           >
-            {hours.map((num, i) => {
+            {hoursList.map((num, i) => {
               const angle = (i * 30 * Math.PI) / 180;
               const radius = 78;
               const x = 100 + radius * Math.sin(angle);
@@ -154,7 +154,7 @@ function ModernClockModal({ shiftName, initialValue, isOpen, onClose, onSave }: 
                 <div className="flex-1">
                     <Input 
                         type="number" 
-                        value={dutyHours} 
+                        value={dutyHours ?? ''} 
                         onChange={(e) => setDutyHours(parseInt(e.target.value) || 0)}
                         placeholder="Other"
                         className="h-12 text-center font-bold rounded-xl"
@@ -191,7 +191,7 @@ export default function ShiftManagement() {
   const formatTime = (value: number) => {
     const displayHour = value % 12 === 0 ? 12 : value % 12;
     const ampm = value >= 12 ? 'PM' : 'AM';
-    return `${displayHour}:00 ${ampm}`;
+    return `${displayHour.toString().padStart(2, '0')}:00 ${ampm}`;
   };
 
   return (
@@ -232,7 +232,7 @@ export default function ShiftManagement() {
       <ModernClockModal
         isOpen={!!openShift}
         shiftName={openShift || ''}
-        initialValue={openShift ? shiftSettings[openShift] : { startHour: 0, dutyHours: 8 }}
+        initialValue={openShift ? shiftSettings[openShift] : { startHour: 9, dutyHours: 8 }}
         onClose={() => setOpenShift(null)}
         onSave={(config) => openShift && handleSave(openShift, config)}
       />
