@@ -1,4 +1,3 @@
-
 export type Employee = {
   id: string;
   name: string;
@@ -52,7 +51,7 @@ export type Site = {
   name: string;
 };
 
-export type DayStatus = 'Present' | 'Absent' | 'Week-off' | 'Leave' | 'Holiday' | 'C-off';
+export type DayStatus = 'Present' | 'Absent' | 'Week-off' | 'Leave' | 'Holiday' | 'C-off' | 'Half-Day';
 
 export type AttendanceRecord = {
   id: string;
@@ -70,8 +69,9 @@ export type ExtraStatus = {
   id: string;
   employeeId: string;
   date: string; // ISO date string (YYYY-MM-DD)
-  status: 'Leave' | 'C-off' | 'Holiday';
+  status: 'Leave' | 'C-off' | 'Holiday' | 'Half-Day' | 'Present' | 'Absent';
   otHours: number;
+  lateHours?: number; // Tracks custom late or early-out permission hours
 };
 
 export type SalarySlip = {

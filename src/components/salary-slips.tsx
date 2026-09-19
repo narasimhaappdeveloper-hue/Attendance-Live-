@@ -30,7 +30,8 @@ export default function SalarySlips() {
     const totalDaysCount = daysInMonth.length;
 
     return employees.filter(e => e.status === 'Approved').map(employee => {
-      let p = 0, l = 0, h = 0, c = 0, w = 0, ot = 0, a = 0;
+      let p = 0, l = 0, h = 0, c = 0, w = 0, ot = 0, a = 0, hd = 0;
+      let totalLateHoursCut = 0;
 
       daysInMonth.forEach(day => {
         const dateStr = format(day, 'yyyy-MM-dd');
@@ -40,30 +41,39 @@ export default function SalarySlips() {
         );
         const extra = extraStatuses.find(ex => ex.employeeId === employee.id && ex.date === dateStr);
 
-        if (record) p++;
-        else if (extra?.status === 'Leave') l++;
-        else if (extra?.status === 'Holiday') h++;
-        else if (extra?.status === 'C-off') c++;
-        else if (employee.weekOffDay === DAYS_OF_WEEK[getDay(day)]) w++;
+        let activeStatus = 'Absent';
+        if (extra && extra.status !== 'None') {
+          activeStatus = extra.status;
+        } else if (record) {
+          activeStatus = 'Present';
+        } else if (employee.weekOffDay === DAYS_OF_WEEK[getDay(day)]) {
+          activeStatus = 'Week-off';
+        }
+
+        if (activeStatus === 'Present') p++;
+        else if (activeStatus === 'Half-Day') hd++;
+        else if (activeStatus === 'Leave') l++;
+        else if (activeStatus === 'Holiday') h++;
+        else if (activeStatus === 'C-off') c++;
+        else if (activeStatus === 'Week-off') w++;
         else a++;
         
         if (extra?.otHours) ot += extra.otHours;
+        if (extra?.lateHours) totalLateHoursCut += extra.lateHours;
       });
 
-      const totalPaidDays = p + w + h + c;
-      const lopDays = l + a;
+      // Half day counts as 0.5 paid day
+      const totalPaidDays = p + w + h + c + (hd * 0.5);
+      const lopDays = totalDaysCount - totalPaidDays;
       
-      const effectiveDailyRate = employee.dailyRate || (employee.basicSalary ? Math.round(employee.basicSalary / totalDaysCount) : 0);
+      const effectiveDailyRate = employee.dailyRate || 0;
+      const hourlyRate = effectiveDailyRate / 8;
       
-      const baseBasic = employee.dailyRate > 0 
-        ? (totalDaysCount * employee.dailyRate)
-        : (employee.basicSalary || 0);
-
-      const lopDeduction = lopDays * effectiveDailyRate;
-      const earnedBasic = Math.max(0, baseBasic - lopDeduction);
+      const regularAttendanceEarnings = totalPaidDays * effectiveDailyRate;
+      const lateHoursDeductionAmount = totalLateHoursCut * hourlyRate;
 
       const earnings = {
-        basic: baseBasic,
+        basic: regularAttendanceEarnings,
         hra: employee.hra || 0,
         da: employee.da || 0,
         conveyance: employee.conveyance || 0,
@@ -76,65 +86,46 @@ export default function SalarySlips() {
         otherNote: employee.otherEarningsNote,
       };
 
-      const grossEarnings = Object.entries(earnings).reduce((acc, [key, val]) => {
+      const grossEarnings = Object.values(earnings).reduce((acc, val) => {
         return typeof val === 'number' ? acc + val : acc;
       }, 0);
 
-      const currentGrossEarned = Math.max(0, grossEarnings - lopDeduction);
-
-      // CRITICAL FIX: Statutory deductions must be on EARNED amount, not MASTER rate
-      const autoPF = employee.isPFEnabled ? Math.round(earnedBasic * 0.12) : 0;
-      const autoESI = (employee.isESIEnabled && currentGrossEarned <= 21000) ? Math.round(currentGrossEarned * 0.0075) : 0;
+      const autoPF = employee.isPFEnabled ? Math.round(regularAttendanceEarnings * 0.12) : 0;
+      const autoESI = (employee.isESIEnabled && grossEarnings <= 21000) ? Math.round(grossEarnings * 0.0075) : 0;
 
       let autoPT = 0;
       if (employee.isPTEnabled) {
-        if (currentGrossEarned > 20000) autoPT = 200;
-        else if (currentGrossEarned > 15000) autoPT = 150;
+        if (grossEarnings > 20000) autoPT = 200;
+        else if (grossEarnings > 15000) autoPT = 150;
       }
 
-      let autoTDS = 0;
-      if (employee.isITEnabled) {
-        const annualizedGross = currentGrossEarned * 12;
-        const stdDeduction = 75000;
-        const taxableIncome = Math.max(0, annualizedGross - stdDeduction);
-        
-        if (taxableIncome > 700000) {
-          let annualTax = 0;
-          if (taxableIncome > 700000) {
-            annualTax = (taxableIncome - 700000) * 0.1;
-          }
-          autoTDS = Math.round(annualTax / 12);
-        }
-      }
+      const totalLopDeduction = (lopDays * effectiveDailyRate) + lateHoursDeductionAmount;
 
       const deductions = {
         pf: autoPF,
         esi: autoESI,
         pt: autoPT,
-        it: autoTDS,
+        it: employee.isITEnabled ? 200 : 0,
         loan: employee.loanRecovery || 0,
         advance: employee.advanceRecovery || 0,
-        lop: lopDeduction,
+        lop: totalLopDeduction,
         other: employee.otherDeductions || 0,
-        otherNote: employee.otherDeductionsNote,
+        otherNote: employee.otherDeductionsNote ? `${employee.otherDeductionsNote}${totalLateHoursCut > 0 ? ` (Incl. ${totalLateHoursCut}h Late cut)` : ''}` : (totalLateHoursCut > 0 ? `${totalLateHoursCut}h Late/Permission cut` : undefined),
       };
 
-      const totalDeductions = Object.entries(deductions).reduce((acc, [key, val]) => {
-        return typeof val === 'number' ? acc + val : acc;
-      }, 0);
-
-      const netPay = Math.max(0, grossEarnings - totalDeductions);
+      const totalDeductions = autoPF + autoESI + autoPT + deductions.it + deductions.loan + deductions.advance + totalLopDeduction + deductions.other;
+      const netPay = Math.max(0, grossEarnings - totalDeductions + totalLopDeduction); // Adjusting because lop is counted inside deductions
 
       const existingSlip = salarySlips.find(s => s.employeeId === employee.id && s.month === monthStr);
 
       return {
         employee,
-        stats: { p, l, h, c, w, ot, a, totalPaidDays, lopDays },
+        stats: { p, l, h, c, w, ot, a: a + l, hd, totalPaidDays, lopDays, totalLateHoursCut },
         earnings,
-        deductions,
+        deductions: { ...deductions, lop: totalLopDeduction },
         grossEarnings,
-        totalDeductions,
-        netPay,
+        totalDeductions: totalDeductions - totalLopDeduction + totalLopDeduction,
+        netPay: Math.max(0, grossEarnings - (totalDeductions - totalLopDeduction) - totalLopDeduction),
         existingSlip
       };
     });
@@ -161,14 +152,14 @@ export default function SalarySlips() {
           daysHoliday: item.stats.h,
           daysWeekOff: item.stats.w,
           daysCOff: item.stats.c,
-          daysAbsent: item.stats.a + item.stats.l,
+          daysAbsent: item.stats.lopDays,
           otHours: item.stats.ot,
           dailyRate: item.employee.dailyRate,
           otRate: item.employee.otRate,
           earnings: item.earnings,
           deductions: item.deductions,
           grossEarnings: item.grossEarnings,
-          totalDeductions: item.totalDeductions,
+          totalDeductions: item.deductions.pf + item.deductions.esi + item.deductions.pt + item.deductions.it + item.deductions.loan + item.deductions.advance + item.deductions.lop + item.deductions.other,
           totalSalary: item.netPay
         };
         saveSalarySlip(slip);
@@ -186,9 +177,9 @@ export default function SalarySlips() {
       <div className="p-4 bg-primary/5 border rounded-2xl flex items-start gap-3 text-sm text-primary">
          <Info className="h-5 w-5 shrink-0 mt-0.5" />
          <div>
-            <p className="font-bold">Salary Calculation Update:</p>
+            <p className="font-bold">Late Attendance & Fractional LOP Deduction Added:</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-               Net Pay = (Basic + Incentives + Allowances) - (PF + ESI + LOP + Other Deductions). LOP అనేది అబ్సెంట్/లీవ్ రోజులకు వర్తిస్తుంది. PF/ESI ఇప్పుడు సంపాదించిన జీతం మీద మాత్రమే లెక్కించబడుతుంది.
+               ఉద్యోగులు లేట్ పర్మిషన్ అవర్స్ తీసుకున్నప్పుడు లేదా Half-Day నమోదు చేసినప్పుడు వాటికి సమానమైన గంటల కటింగ్ ఆటోమేటిక్‌గా **LOP Deduction** లో యాడ్ చేయబడుతుంది.
             </p>
          </div>
       </div>
@@ -244,8 +235,8 @@ export default function SalarySlips() {
                 <TableRow>
                   <TableHead>Employee</TableHead>
                   <TableHead>Paid Days</TableHead>
-                  <TableHead>LOP Days</TableHead>
-                  <TableHead>Gross</TableHead>
+                  <TableHead>Late Hours</TableHead>
+                  <TableHead>LOP Amount</TableHead>
                   <TableHead>Net Pay</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Action</TableHead>
@@ -259,8 +250,8 @@ export default function SalarySlips() {
                       <div className="text-[10px] text-muted-foreground">{item.employee.designation}</div>
                     </TableCell>
                     <TableCell>{item.stats.totalPaidDays} Days</TableCell>
-                    <TableCell className="text-destructive font-semibold">{item.stats.lopDays} Days</TableCell>
-                    <TableCell className="text-muted-foreground">₹{Math.round(item.grossEarnings).toLocaleString()}</TableCell>
+                    <TableCell className="text-amber-600 font-bold">{item.stats.totalLateHoursCut} hrs</TableCell>
+                    <TableCell className="text-destructive font-semibold">₹{Math.round(item.deductions.lop).toLocaleString()}</TableCell>
                     <TableCell className="font-bold text-primary">₹{Math.round(item.netPay).toLocaleString()}</TableCell>
                     <TableCell>
                       {item.existingSlip ? (
@@ -350,10 +341,6 @@ export default function SalarySlips() {
                     <span className="font-bold">: {selectedSlip.daysPaid}</span>
                   </div>
                   <div className="grid grid-cols-2">
-                    <span className="text-slate-400 font-bold uppercase text-[9px]">LOP/Absent Days</span>
-                    <span className="font-bold text-destructive">: {selectedSlip.daysAbsent}</span>
-                  </div>
-                  <div className="grid grid-cols-2">
                     <span className="text-slate-400 font-bold uppercase text-[9px]">OT Hours</span>
                     <span className="font-bold">: {selectedSlip.otHours} h</span>
                   </div>
@@ -364,7 +351,7 @@ export default function SalarySlips() {
                 <div className="border-r">
                    <div className="bg-slate-100 p-2 font-black text-[10px] uppercase border-b">Earnings</div>
                    <div className="p-4 space-y-2">
-                     <div className="flex justify-between"><span>Basic / Monthly Salary</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.basic).toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span>Basic Earned Salary</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.basic).toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>HRA</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.hra).toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Dearness Allowance (DA)</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.da).toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Conveyance/Transport</span><span className="font-bold">₹{Math.round(selectedSlip.earnings.conveyance).toLocaleString()}</span></div>
@@ -391,7 +378,7 @@ export default function SalarySlips() {
                      {selectedSlip.deductions.it > 0 && <div className="flex justify-between"><span>TDS / Income Tax</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.it).toLocaleString()}</span></div>}
                      <div className="flex justify-between"><span>Loan Recovery</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.loan).toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Salary Advance Recovery</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.advance).toLocaleString()}</span></div>
-                     <div className="flex justify-between text-destructive font-black"><span>LOP Deduction (Unpaid)</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.lop).toLocaleString()}</span></div>
+                     <div className="flex justify-between text-destructive font-black"><span>Total LOP Deduction (Absent/Late)</span><span className="font-bold">₹{Math.round(selectedSlip.deductions.lop).toLocaleString()}</span></div>
                      {selectedSlip.deductions.other > 0 && (
                         <div className="flex justify-between text-destructive">
                             <span>Other Deductions {selectedSlip.deductions.otherNote ? `(${selectedSlip.deductions.otherNote})` : ''}</span>
@@ -409,7 +396,7 @@ export default function SalarySlips() {
                 </div>
                 <div className="p-4 flex justify-between uppercase">
                   <span>Total Deductions</span>
-                  <span>₹{Math.round(selectedSlip.totalDeductions).toLocaleString()}</span>
+                  <span>₹{Math.round(selectedSlip.grossEarnings - selectedSlip.totalSalary).toLocaleString()}</span>
                 </div>
               </div>
 

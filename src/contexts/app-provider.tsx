@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useState, useEffect, useMemo, type ReactNode, useCallback } from 'react';
@@ -25,7 +24,7 @@ interface AppContextType {
   addSite: (name: string) => void;
   deleteSite: (id: string) => void;
   submitAttendance: (record: Omit<AttendanceRecord, 'id' | 'employeeName'>) => void;
-  markExtraStatus: (employeeId: string, date: string, status: 'Leave' | 'C-off' | 'Holiday', otHours: number) => void;
+  markExtraStatus: (employeeId: string, date: string, status: 'Leave' | 'C-off' | 'Holiday' | 'Half-Day' | 'Present' | 'Absent', otHours: number, lateHours?: number) => void;
   saveSalarySlip: (slip: SalarySlip) => void;
 }
 
@@ -149,7 +148,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteEmployee = useCallback((id: string) => {
     const uppercaseId = id.toUpperCase();
-    // Warning: Hard delete removes history. 
     setEmployees((prev) => prev.filter((emp) => emp.id.toUpperCase() !== uppercaseId));
     setAttendanceRecords((prev) => prev.filter((rec) => rec.employeeId.toUpperCase() !== uppercaseId));
   }, []);
@@ -170,10 +168,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAttendanceRecords((prev) => [{ ...record, id: `ATT${Date.now()}`, employeeName: currentUser.name }, ...prev]);
   }, [currentUser]);
 
-  const markExtraStatus = useCallback((employeeId: string, date: string, status: 'Leave' | 'C-off' | 'Holiday', otHours: number) => {
+  const markExtraStatus = useCallback((employeeId: string, date: string, status: 'Leave' | 'C-off' | 'Holiday' | 'Half-Day' | 'Present' | 'Absent', otHours: number, lateHours?: number) => {
     setExtraStatuses(prev => {
       const filtered = prev.filter(e => !(e.employeeId === employeeId && e.date === date));
-      return [...filtered, { id: `EX${Date.now()}`, employeeId, date, status, otHours }];
+      return [...filtered, { id: `EX${Date.now()}`, employeeId, date, status, otHours, lateHours: lateHours || 0 }];
     });
   }, []);
 

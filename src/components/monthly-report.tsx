@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, getDay, isSunday, isSaturday } from 'date-fns';
-import { Users, CheckCircle2, Clock, Calendar, Info, Badge } from 'lucide-react';
+import { Users, CheckCircle2, Clock, Calendar, Info } from 'lucide-react';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -18,7 +18,7 @@ export default function MonthlyReport() {
   const { employees, attendanceRecords, extraStatuses, markExtraStatus } = useApp();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [editingDay, setEditingDay] = useState<{ empId: string, date: string } | null>(null);
-  const [editForm, setEditForm] = useState<{ status: string, ot: string }>({ status: '', ot: '0' });
+  const [editForm, setEditForm] = useState<{ status: string, ot: string, late: string }>({ status: 'None', ot: '0', late: '0' });
 
   const daysInMonth = useMemo(() => {
     return eachDayOfInterval({
@@ -42,6 +42,8 @@ export default function MonthlyReport() {
         }
         return false;
     }).map(employee => {
+      let monthlyCustomLateHoursCut = 0;
+
       const dailyStatus = daysInMonth.map(day => {
         const dateStr = format(day, 'yyyy-MM-dd');
         const record = attendanceRecords.find(r => 
@@ -50,70 +52,119 @@ export default function MonthlyReport() {
         );
         const extra = extraStatuses.find(ex => ex.employeeId === employee.id && ex.date === dateStr);
 
-        let status: 'Present' | 'Absent' | 'Week-off' | 'Leave' | 'Holiday' | 'C-off' = 'Absent';
-        if (record) status = 'Present';
-        else if (extra) status = extra.status as any;
-        else if (employee.weekOffDay === DAYS_OF_WEEK[getDay(day)]) status = 'Week-off';
+        let status: 'Present' | 'Absent' | 'Week-off' | 'Leave' | 'Holiday' | 'C-off' | 'Half-Day' = 'Absent';
+        
+        if (extra && extra.status !== 'None') {
+          status = extra.status as any;
+        } else if (record) {
+          status = 'Present';
+        } else if (employee.weekOffDay === DAYS_OF_WEEK[getDay(day)]) {
+          status = 'Week-off';
+        }
 
-        return { day, dateStr, status, ot: extra?.otHours || 0 };
+        if (extra?.lateHours) {
+          monthlyCustomLateHoursCut += extra.lateHours;
+        }
+
+        return { day, dateStr, status, ot: extra?.otHours || 0, late: extra?.lateHours || 0 };
       });
 
       const stats = dailyStatus.reduce((acc, curr) => {
-        acc[curr.status]++;
+        acc[curr.status] = (acc[curr.status] || 0) + 1;
         acc.totalOT += curr.ot;
         return acc;
-      }, { Present: 0, Absent: 0, 'Week-off': 0, Leave: 0, Holiday: 0, 'C-off': 0, totalOT: 0 });
+      }, { Present: 0, Absent: 0, 'Week-off': 0, Leave: 0, Holiday: 0, 'C-off': 0, 'Half-Day': 0, totalOT: 0 });
 
-      const paidWorkingDays = stats.Present + stats['Week-off'] + stats.Holiday + stats['C-off'];
-      const effectiveDailyRate = employee.dailyRate || (employee.basicSalary ? Math.round(employee.basicSalary / daysInMonth.length) : 0);
+      // Calculate paid fractional days (Half-Day counts as 0.5 paid day)
+      const halfDaysCount = stats['Half-Day'] || 0;
+      const presentsCount = stats.Present || 0;
+      const weekOffCount = stats['Week-off'] || 0;
+      const holidayCount = stats.Holiday || 0;
+      const coffCount = stats['C-off'] || 0;
+
+      const totalEffectivePaidDays = presentsCount + weekOffCount + holidayCount + coffCount + (halfDaysCount * 0.5);
+      const effectiveDailyRate = employee.dailyRate || 0;
       
-      // Calculate Gross Earned
-      const earnedGross = (paidWorkingDays * effectiveDailyRate) + (stats.totalOT * (employee.otRate || 0)) + (employee.incentive || 0) + (employee.foodAllowance || 0);
+      // Calculate Gross Earnings purely based on Daily Rate
+      const regularAttendanceEarnings = totalEffectivePaidDays * effectiveDailyRate;
+      const otEarnings = stats.totalOT * (employee.otRate || 0);
+      const grossEarned = regularAttendanceEarnings + otEarnings + (employee.incentive || 0) + (employee.foodAllowance || 0) + (employee.otherEarnings || 0);
+
+      // Hourly wage deduction for late/permission cuts (Assuming standard 8 hour workday)
+      const hourlyRate = effectiveDailyRate / 8;
+      const lateHoursDeduction = monthlyCustomLateHoursCut * hourlyRate;
+
+      // Unpaid days calculation for explicit LOP itemization display
+      const totalMonthDays = daysInMonth.length;
+      const unpaidDaysCount = totalMonthDays - totalEffectivePaidDays;
+      const regularLopDeduction = unpaidDaysCount * effectiveDailyRate;
       
-      // Calculate Statutory Deductions based on Earned Basic
-      const earnedBasic = (paidWorkingDays * effectiveDailyRate);
-      const autoPF = employee.isPFEnabled ? Math.round(earnedBasic * 0.12) : 0;
-      const autoESI = (employee.isESIEnabled && earnedGross <= 21000) ? Math.round(earnedGross * 0.0075) : 0;
+      // Combined Total LOP includes completely missing days + specific hourly permission cuts
+      const totalLopCombined = regularLopDeduction + lateHoursDeduction;
+
+      // Statutory Calculations based on actual Earned Basic Rate
+      const earnedBasicAmount = totalEffectivePaidDays * effectiveDailyRate;
+      const autoPF = employee.isPFEnabled ? Math.round(earnedBasicAmount * 0.12) : 0;
+      const autoESI = (employee.isESIEnabled && grossEarned <= 21000) ? Math.round(grossEarned * 0.0075) : 0;
       
       let autoPT = 0;
       if (employee.isPTEnabled) {
-        if (earnedGross > 20000) autoPT = 200;
-        else if (earnedGross > 15000) autoPT = 150;
+        if (grossEarned > 20000) autoPT = 200;
+        else if (grossEarned > 15000) autoPT = 150;
       }
 
-      const totalDeductions = autoPF + autoESI + autoPT + (employee.loanRecovery || 0) + (employee.otherDeductions || 0);
-      const salary = Math.max(0, earnedGross - totalDeductions);
+      const totalDeductions = autoPF + autoESI + autoPT + (employee.loanRecovery || 0) + (employee.otherDeductions || 0) + lateHoursDeduction;
+      const finalNetSalary = Math.max(0, (totalEffectivePaidDays * effectiveDailyRate) + otEarnings + (employee.incentive || 0) + (employee.foodAllowance || 0) + (employee.otherEarnings || 0) - (autoPF + autoESI + autoPT + (employee.loanRecovery || 0) + (employee.otherDeductions || 0)));
 
-      return { ...employee, dailyStatus, stats, salary, paidWorkingDays, totalDays: daysInMonth.length };
+      return { 
+        ...employee, 
+        dailyStatus, 
+        stats, 
+        salary: finalNetSalary, 
+        paidWorkingDays: totalEffectivePaidDays, 
+        totalDays: totalMonthDays,
+        totalLateHoursCut: monthlyCustomLateHoursCut
+      };
     });
   }, [employees, attendanceRecords, extraStatuses, daysInMonth, selectedMonth]);
 
   const grandTotals = useMemo(() => {
     return reportData.reduce((acc, curr) => {
       acc.totalDays += curr.totalDays;
-      acc.present += curr.stats.Present;
-      acc.absent += curr.stats.Absent;
-      acc.leave += curr.stats.Leave;
-      acc.holiday += curr.stats.Holiday;
-      acc.coff += curr.stats['C-off'];
-      acc.weekoff += curr.stats['Week-off'];
+      acc.present += (curr.stats.Present || 0);
+      acc.absent += (curr.stats.Absent || 0);
+      acc.leave += (curr.stats.Leave || 0);
+      acc.holiday += (curr.stats.Holiday || 0);
+      acc.coff += (curr.stats['C-off'] || 0);
+      acc.halfday += (curr.stats['Half-Day'] || 0);
+      acc.weekoff += (curr.stats['Week-off'] || 0);
       acc.ot += curr.stats.totalOT;
       acc.paidWorkingDays += curr.paidWorkingDays;
       acc.salary += curr.salary;
       return acc;
-    }, { totalDays: 0, present: 0, absent: 0, leave: 0, holiday: 0, coff: 0, weekoff: 0, ot: 0, paidWorkingDays: 0, salary: 0 });
+    }, { totalDays: 0, present: 0, absent: 0, leave: 0, holiday: 0, coff: 0, halfday: 0, weekoff: 0, ot: 0, paidWorkingDays: 0, salary: 0 });
   }, [reportData]);
 
   const handleDayClick = (empId: string, dateStr: string) => {
     const current = extraStatuses.find(e => e.employeeId === empId && e.date === dateStr);
-    setEditForm({ status: current?.status || 'None', ot: (current?.otHours || 0).toString() });
+    setEditForm({ 
+      status: current?.status || 'None', 
+      ot: (current?.otHours || 0).toString(),
+      late: (current?.lateHours || 0).toString()
+    });
     setEditingDay({ empId, date: dateStr });
   };
 
   const saveDayStatus = () => {
     if (!editingDay) return;
     const { empId, date } = editingDay;
-    markExtraStatus(empId, date, editForm.status as any, parseFloat(editForm.ot));
+    markExtraStatus(
+      empId, 
+      date, 
+      editForm.status as any, 
+      parseFloat(editForm.ot) || 0, 
+      parseFloat(editForm.late) || 0
+    );
     setEditingDay(null);
   };
 
@@ -166,8 +217,8 @@ export default function MonthlyReport() {
           <div>
             <CardTitle>Master Attendance Report</CardTitle>
             <CardDescription>
-              Sundays (Red) & Saturdays (Amber) are highlighted. Salary shown is estimated Net Pay after deductions.
-            </CardDescription>
+              Sundays (Red) & Saturdays (Amber) are highlighted. ఒక రోజుపై క్లిక్ చేసి Late/Early Permission గంటలను లేదా Half-Day ని మార్చవచ్చు.
+            </CardTitle>
           </div>
           <div className="flex gap-2">
             <Select value={currentYear.toString()} onValueChange={(v) => {
@@ -228,13 +279,14 @@ export default function MonthlyReport() {
                   })}
 
                   <TableHead className="text-center font-bold px-1 text-green-600 bg-slate-50 border-l border-r">P</TableHead>
+                  <TableHead className="text-center font-bold px-1 text-orange-600 bg-slate-50 border-r">HD</TableHead>
                   <TableHead className="text-center font-bold px-1 text-red-600 bg-slate-50 border-r">A</TableHead>
                   <TableHead className="text-center font-bold px-1 text-blue-600 bg-slate-50 border-r">L</TableHead>
                   <TableHead className="text-center font-bold px-1 text-purple-600 bg-slate-50 border-r">H</TableHead>
                   <TableHead className="text-center font-bold px-1 text-indigo-600 bg-slate-50 border-r">C</TableHead>
                   <TableHead className="text-center font-bold px-1 text-amber-600 bg-slate-50 border-r">W</TableHead>
-                  <TableHead className="text-center font-bold px-1 bg-slate-50 border-r">OT(h)</TableHead>
-                  <TableHead className="text-center font-bold px-1 bg-primary/10 text-primary border-r">Paid Work Days</TableHead>
+                  <TableHead className="text-center font-bold px-1 text-red-500 bg-slate-50 border-r">Late(h)</TableHead>
+                  <TableHead className="text-center font-bold px-1 bg-primary/10 text-primary border-r">Paid Days</TableHead>
                   <TableHead className="sticky right-0 bg-primary/10 z-30 min-w-[90px] text-primary font-bold text-center border-l">Net Salary</TableHead>
                 </TableRow>
               </TableHeader>
@@ -262,6 +314,7 @@ export default function MonthlyReport() {
                         >
                           <div className={`h-6 w-6 rounded-md mx-auto flex items-center justify-center font-bold text-[10px] shadow-sm ${
                             s.status === 'Present' ? 'bg-green-500 text-white' : 
+                            s.status === 'Half-Day' ? 'bg-orange-400 text-white' : 
                             s.status === 'Holiday' ? 'bg-purple-500 text-white' :
                             s.status === 'Leave' ? 'bg-blue-500 text-white' :
                             s.status === 'C-off' ? 'bg-indigo-500 text-white' :
@@ -269,23 +322,26 @@ export default function MonthlyReport() {
                             s.status === 'Absent' ? 'bg-red-100 text-red-400' : 'bg-slate-100 text-slate-400'
                           }`}>
                             {s.status === 'Present' ? 'P' : 
+                             s.status === 'Half-Day' ? 'HD' : 
                              s.status === 'Holiday' ? 'H' : 
                              s.status === 'Leave' ? 'L' : 
                              s.status === 'C-off' ? 'C' : 
                              s.status === 'Week-off' ? 'W' : 'A'}
                           </div>
-                          {s.ot > 0 && <div className="text-[7px] text-amber-600 font-black mt-0.5">+{s.ot}h</div>}
+                          {s.ot > 0 && <div className="text-[7px] text-green-600 font-black mt-0.5">+{s.ot}h OT</div>}
+                          {s.late > 0 && <div className="text-[7px] text-destructive font-black mt-0.5">-{s.late}h L</div>}
                         </TableCell>
                       );
                     })}
 
-                    <TableCell className="text-center bg-slate-50/30 font-bold text-green-600 border-l border-r">{row.stats.Present}</TableCell>
-                    <TableCell className="text-center bg-slate-50/30 font-bold text-red-600 border-r">{row.stats.Absent}</TableCell>
-                    <TableCell className="text-center bg-slate-50/30 font-bold text-blue-600 border-r">{row.stats.Leave}</TableCell>
-                    <TableCell className="text-center bg-slate-50/30 font-bold text-purple-600 border-r">{row.stats.Holiday}</TableCell>
-                    <TableCell className="text-center bg-slate-50/30 font-bold text-indigo-600 border-r">{row.stats['C-off']}</TableCell>
-                    <TableCell className="text-center bg-slate-50/30 font-bold text-amber-600 border-r">{row.stats['Week-off']}</TableCell>
-                    <TableCell className="text-center bg-slate-50/30 border-r">{row.stats.totalOT}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 font-bold text-green-600 border-l border-r">{row.stats.Present || 0}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 font-bold text-orange-500 border-r">{row.stats['Half-Day'] || 0}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 font-bold text-red-600 border-r">{row.stats.Absent || 0}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 font-bold text-blue-600 border-r">{row.stats.Leave || 0}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 font-bold text-purple-600 border-r">{row.stats.Holiday || 0}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 font-bold text-indigo-600 border-r">{row.stats['C-off'] || 0}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 font-bold text-amber-600 border-r">{row.stats['Week-off'] || 0}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 border-r text-red-500 font-bold">{row.totalLateHoursCut || 0}h</TableCell>
                     <TableCell className="text-center bg-primary/5 font-black text-primary border-r">{row.paidWorkingDays}</TableCell>
                     <TableCell className="sticky right-0 bg-primary/5 z-20 font-black text-primary text-center border-l">
                       ₹{Math.round(row.salary).toLocaleString()}
@@ -302,12 +358,13 @@ export default function MonthlyReport() {
                   ))}
 
                   <TableCell className="text-center text-green-700 font-black border-l border-r bg-slate-100">{grandTotals.present}</TableCell>
+                  <TableCell className="text-center text-orange-600 font-black border-r bg-slate-100">{grandTotals.halfday || 0}</TableCell>
                   <TableCell className="text-center text-red-600 font-black border-r bg-slate-100">{grandTotals.absent}</TableCell>
                   <TableCell className="text-center text-blue-600 font-black border-r bg-slate-100">{grandTotals.leave}</TableCell>
                   <TableCell className="text-center text-purple-600 font-black border-r bg-slate-100">{grandTotals.holiday}</TableCell>
                   <TableCell className="text-center text-indigo-600 font-black border-r bg-slate-100">{grandTotals.coff}</TableCell>
                   <TableCell className="text-center text-amber-600 font-black border-r bg-slate-100">{grandTotals.weekoff}</TableCell>
-                  <TableCell className="text-center border-r bg-slate-100">{grandTotals.ot}</TableCell>
+                  <TableCell className="text-center border-r bg-slate-100 text-red-500">{reportData.reduce((acc, r) => acc + r.totalLateHoursCut, 0)}h</TableCell>
                   <TableCell className="text-center text-primary font-black border-r bg-primary/5">{grandTotals.paidWorkingDays}</TableCell>
                   <TableCell className="sticky right-0 bg-primary/20 z-20 font-black text-primary text-center border-l">₹{Math.round(grandTotals.salary).toLocaleString()}</TableCell>
                 </TableRow>
@@ -320,31 +377,45 @@ export default function MonthlyReport() {
       <Dialog open={!!editingDay} onOpenChange={() => setEditingDay(null)}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Update Status - {editingDay?.date}</DialogTitle>
+            <DialogTitle>Update Attendance & Permission - {editingDay?.date}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>Special Status</Label>
+              <Label>Day Status</Label>
               <Select value={editForm.status} onValueChange={(v) => setEditForm(p => ({ ...p, status: v }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="None">Reset (Default)</SelectItem>
-                  <SelectItem value="Leave">Leave (L - Unpaid)</SelectItem>
+                  <SelectItem value="None">Reset (Default / Auto Preset)</SelectItem>
+                  <SelectItem value="Present">Present (పూర్తి హాజరు)</SelectItem>
+                  <SelectItem value="Half-Day">Half-Day (అర రోజు జీతం)</SelectItem>
+                  <SelectItem value="Leave">Leave (L - Unpaid సెలవు)</SelectItem>
                   <SelectItem value="Holiday">Company Holiday (H - Paid)</SelectItem>
                   <SelectItem value="C-off">Compensatory Off (C - Paid)</SelectItem>
+                  <SelectItem value="Absent">Absent (గైరుహాజరు)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            
+            <div className="p-3 bg-amber-50 text-amber-900 border border-amber-200 text-xs rounded-lg space-y-1">
+              <p className="font-bold">⏱️ లేట్ హాజరు / పర్మిషన్ మేనేజ్‌మెంట్:</p>
+              <p>ఎంప్లాయ్ పర్మిషన్ తీసుకుని ముందే వెళ్ళినా లేదా లేట్ గా వచ్చినా కింద ఆ గంటలను (Hours) ఎంటర్ చేయండి. సిస్టమ్ ఆటోమేటిక్‌గా గంటల ప్రకారం శాలరీ కట్ (LOP) చేస్తుంది.</p>
+            </div>
+
             <div className="grid gap-2">
-              <Label>Overtime Hours</Label>
+              <Label>Late-In / Early Permission (గంటలు - Hours)</Label>
+              <Input type="number" step="0.5" min="0" max="8" placeholder="e.g. 1.5, 2" value={editForm.late} onChange={(e) => setEditForm(p => ({ ...p, late: e.target.value }))} />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Overtime Hours (ఓవర్‌టైమ్ గంటలు)</Label>
               <Input type="number" step="0.5" value={editForm.ot} onChange={(e) => setEditForm(p => ({ ...p, ot: e.target.value }))} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingDay(null)}>Cancel</Button>
-            <Button onClick={saveDayStatus}>Save Changes</Button>
+            <Button onClick={saveDayStatus} className="bg-primary text-white">Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
