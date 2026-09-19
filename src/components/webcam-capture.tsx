@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Camera, RefreshCcw, VideoOff, AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
+import { Camera, RefreshCcw, VideoOff, AlertTriangle, CheckCircle2, Trash2, X } from 'lucide-react';
 import Image from 'next/image';
 
 interface WebcamCaptureProps {
@@ -26,7 +27,7 @@ export function WebcamCapture({ onCapture }: WebcamCaptureProps) {
           videoRef.current.srcObject = stream;
         }
       } catch (err) {
-        setError("Webcam access denied. Please enable camera permissions in your browser settings.");
+        setError("Webcam access denied. Please enable camera permissions.");
       }
     } else {
         setError("Your browser does not support webcam access.");
@@ -42,34 +43,21 @@ export function WebcamCapture({ onCapture }: WebcamCaptureProps) {
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [startCamera, capturedImage, stream]);
+  }, [startCamera, capturedImage]);
   
   const handleCapture = () => {
     if (videoRef.current) {
       const canvas = document.createElement('canvas');
-      const maxWidth = 640;
-      const maxHeight = 480;
-      let width = videoRef.current.videoWidth;
-      let height = videoRef.current.videoHeight;
-
-      if (width > maxWidth) {
-        height = (maxWidth / width) * height;
-        width = maxWidth;
-      }
-      if (height > maxHeight) {
-        width = (maxHeight / height) * width;
-        height = maxHeight;
-      }
-
-      canvas.width = width;
-      canvas.height = height;
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
       
       const context = canvas.getContext('2d');
       if (context) {
         context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
         const dataUri = canvas.toDataURL('image/jpeg', 0.8);
         setCapturedImage(dataUri);
-        // Stop stream to save resources during preview
+        
+        // Stop camera stream to save resources during preview
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
             setStream(null);
@@ -93,63 +81,100 @@ export function WebcamCapture({ onCapture }: WebcamCaptureProps) {
   };
 
   return (
-    <div className="w-full aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden relative border shadow-sm">
+    <div className="w-full aspect-video bg-black rounded-xl flex items-center justify-center overflow-hidden relative border-4 border-white shadow-2xl">
       {error && (
-        <div className="p-4 text-center text-destructive-foreground bg-destructive rounded-lg flex flex-col items-center">
-          <AlertTriangle className="h-8 w-8 mb-2" />
-          <p className='font-semibold'>Camera Error</p>
-          <p className="text-sm">{error}</p>
+        <div className="p-6 text-center text-white bg-destructive/90 backdrop-blur-md rounded-lg flex flex-col items-center max-w-xs mx-auto">
+          <AlertTriangle className="h-10 w-10 mb-3" />
+          <p className='font-bold text-lg'>Camera Error</p>
+          <p className="text-sm opacity-90">{error}</p>
         </div>
       )}
+
       {!error && (
         <>
-        {capturedImage ? (
-            <div className="relative w-full h-full">
-                <Image src={capturedImage} alt="Captured" fill className="object-cover" />
+          {capturedImage ? (
+            <div className="relative w-full h-full flex flex-col">
+              <div className="relative flex-1 w-full bg-muted overflow-hidden">
+                <Image 
+                  src={capturedImage} 
+                  alt="Captured Preview" 
+                  fill 
+                  className="object-cover"
+                  priority
+                />
                 {isConfirmed && (
-                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-white">
-                        <CheckCircle2 className="h-12 w-12 text-green-400 mb-2" />
-                        <p className="font-bold">Photo Confirmed</p>
+                  <div className="absolute inset-0 bg-green-600/20 backdrop-blur-[2px] flex flex-col items-center justify-center text-white animate-in fade-in zoom-in duration-300">
+                    <div className="bg-white p-3 rounded-full mb-3 shadow-xl">
+                      <CheckCircle2 className="h-12 w-12 text-green-600" />
                     </div>
+                    <p className="font-bold text-xl drop-shadow-md">Photo Confirmed!</p>
+                  </div>
                 )}
-            </div>
-        ) : (
-            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-        )}
+              </div>
 
-        <div className="absolute bottom-4 flex justify-center gap-4 w-full px-4">
-            {capturedImage && !isConfirmed ? (
-                <>
-                    <Button onClick={handleRetake} variant="destructive" className="flex-1 max-w-[140px]">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                    </Button>
-                    <Button onClick={handleConfirm} variant="default" className="flex-1 max-w-[140px] bg-green-600 hover:bg-green-700">
-                        <CheckCircle2 className="mr-2 h-4 w-4" />
-                        OK
-                    </Button>
-                </>
-            ) : capturedImage && isConfirmed ? (
-                <Button onClick={handleRetake} variant="secondary" size="sm" className="opacity-90">
-                    <RefreshCcw className="mr-2 h-3 w-3" />
-                    Change Photo
-                </Button>
-            ) : (
-                <Button onClick={handleCapture} disabled={!stream} className="px-8 py-6 rounded-full shadow-xl">
-                    <Camera className="mr-2 h-5 w-5" />
-                    Capture Photo
-                </Button>
-            )}
-        </div>
+              {!isConfirmed && (
+                <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-6 px-6 z-20">
+                  <Button 
+                    onClick={handleRetake} 
+                    variant="destructive" 
+                    className="h-14 flex-1 max-w-[160px] text-lg rounded-full shadow-2xl border-2 border-white/20"
+                  >
+                    <Trash2 className="mr-2 h-5 w-5" />
+                    Delete
+                  </Button>
+                  <Button 
+                    onClick={handleConfirm} 
+                    className="h-14 flex-1 max-w-[160px] text-lg rounded-full bg-green-600 hover:bg-green-700 shadow-2xl border-2 border-white/20"
+                  >
+                    <CheckCircle2 className="mr-2 h-5 w-5" />
+                    OK
+                  </Button>
+                </div>
+              )}
 
-        {!stream && !capturedImage && !error &&
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50">
-                <VideoOff className="h-10 w-10 text-muted-foreground" />
-                <p className="mt-2 text-muted-foreground">Initializing camera...</p>
+              {isConfirmed && (
+                <div className="absolute bottom-6 left-0 right-0 flex justify-center z-20">
+                  <Button 
+                    onClick={handleRetake} 
+                    variant="outline" 
+                    className="bg-white/90 backdrop-blur-md text-primary hover:bg-white rounded-full px-6 shadow-xl"
+                  >
+                    <RefreshCcw className="mr-2 h-4 w-4" />
+                    Retake Photo
+                  </Button>
+                </div>
+              )}
             </div>
-        }
+          ) : (
+            <div className="relative w-full h-full">
+              <video 
+                ref={videoRef} 
+                autoPlay 
+                playsInline 
+                className="w-full h-full object-cover" 
+              />
+              
+              <div className="absolute bottom-8 left-0 right-0 flex justify-center z-20">
+                <Button 
+                  onClick={handleCapture} 
+                  disabled={!stream} 
+                  className="h-20 w-20 rounded-full bg-white text-primary hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.5)] border-4 border-primary transition-transform active:scale-90"
+                >
+                  <Camera className="h-10 w-10" />
+                </Button>
+              </div>
+
+              {!stream && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-10">
+                  <div className="h-12 w-12 border-4 border-white/30 border-t-white rounded-full animate-spin mb-4" />
+                  <p className="text-white font-medium">Initializing Camera...</p>
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>
   );
 }
+

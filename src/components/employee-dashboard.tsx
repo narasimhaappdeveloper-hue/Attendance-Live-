@@ -26,7 +26,7 @@ import { WebcamCapture } from '@/components/webcam-capture';
 import { useApp } from '@/hooks/use-app';
 import { useToast } from '@/hooks/use-toast';
 import { detectAttendanceIntrusion } from '@/ai/flows/detect-attendance-intrusion';
-import { LoaderCircle, MapPin, Clock, Calendar as CalendarIcon, Phone, User as UserIcon, RefreshCw, AlertCircle } from 'lucide-react';
+import { LoaderCircle, MapPin, Clock, Calendar as CalendarIcon, Phone, User as UserIcon, RefreshCw, AlertCircle, Check } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -130,7 +130,7 @@ export default function EmployeeDashboard() {
     try {
         toast({ title: 'విశ్లేషిస్తోంది...', description: 'ఫోటోను మరియు లొకేషన్‌ను తనిఖీ చేస్తున్నాము.'});
         
-        // Call the AI flow
+        // Call the AI flow with latest model
         const aiResult = await detectAttendanceIntrusion({ photoDataUri });
         
         if (!aiResult.isLiveFace) {
@@ -143,7 +143,6 @@ export default function EmployeeDashboard() {
             return;
         }
 
-        // Mutation call without await for optimistic update feel
         submitAttendance({
             employeeId: currentUser.id,
             shift: values.shift,
@@ -181,7 +180,7 @@ export default function EmployeeDashboard() {
       <Card className="border-green-100 bg-green-50/30">
         <CardContent className="flex flex-col items-center justify-center py-16 text-center">
           <div className="bg-green-100 p-4 rounded-full mb-6 shadow-sm">
-            <Clock className="h-16 w-16 text-green-600" />
+            <Check className="h-16 w-16 text-green-600" />
           </div>
           <CardTitle className="text-3xl font-headline text-green-800 mb-2">Attendance Completed!</CardTitle>
           <CardDescription className="text-lg text-green-700 max-w-md">
@@ -195,80 +194,80 @@ export default function EmployeeDashboard() {
   return (
     <div className="grid lg:grid-cols-12 gap-8">
       <div className="lg:col-span-7 space-y-6">
-        <Card className="overflow-hidden border-none shadow-none bg-transparent">
+        <div className="overflow-hidden rounded-2xl shadow-xl">
             <WebcamCapture onCapture={handlePhotoCapture} />
-        </Card>
+        </div>
 
         {locationError && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="rounded-xl shadow-md">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Location Access Required</AlertTitle>
+            <AlertTitle>Location Access Needed</AlertTitle>
             <AlertDescription>
-              దయచేసి మీ బ్రౌజర్‌లో లొకేషన్ పర్మిషన్ ఇవ్వండి. ఇప్పుడు డీఫాల్ట్ లొకేషన్ వాడుతున్నాము.
+              దయచేసి బ్రౌజర్‌లో లొకేషన్ పర్మిషన్ ఇవ్వండి.
             </AlertDescription>
           </Alert>
         )}
 
-        <Card>
-            <CardContent className="p-6 space-y-4">
-                <div className="flex items-start gap-3">
-                    <div className="bg-primary/10 p-2 rounded-full mt-1">
-                        <MapPin className="h-5 w-5 text-primary" />
+        <Card className="rounded-2xl shadow-md border-none bg-white">
+            <CardContent className="p-6 space-y-5">
+                <div className="flex items-start gap-4">
+                    <div className="bg-primary/10 p-3 rounded-full">
+                        <MapPin className="h-6 w-6 text-primary" />
                     </div>
                     <div className="flex-1">
                         <div className="flex items-center justify-between">
-                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Present Location</p>
-                            <Button variant="ghost" size="sm" onClick={getLocation} disabled={isLocating} className="h-6 text-[10px]">
-                                <RefreshCw className={`h-3 w-3 mr-1 ${isLocating ? 'animate-spin' : ''}`} />
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Current Location</p>
+                            <Button variant="ghost" size="sm" onClick={getLocation} disabled={isLocating} className="h-8 text-primary font-bold">
+                                <RefreshCw className={`h-4 w-4 mr-1 ${isLocating ? 'animate-spin' : ''}`} />
                                 Refresh
                             </Button>
                         </div>
-                        <p className="text-sm font-medium leading-tight mt-1">{address}</p>
+                        <p className="text-base font-semibold leading-snug mt-1 text-slate-800">{address}</p>
                     </div>
                 </div>
 
-                <Separator />
+                <Separator className="opacity-50" />
 
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center gap-3">
+                <div className="grid grid-cols-2 gap-6">
+                    <div className="flex items-center gap-4">
                         <div className="bg-primary/10 p-2 rounded-full">
-                            <CalendarIcon className="h-4 w-4 text-primary" />
+                            <CalendarIcon className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Date</p>
-                            <p className="text-xs font-medium">{format(currentTime, 'dd/MM/yyyy')}</p>
+                            <p className="text-[11px] font-bold text-muted-foreground uppercase">Date</p>
+                            <p className="text-sm font-bold text-slate-800">{format(currentTime, 'dd/MM/yyyy')}</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                         <div className="bg-primary/10 p-2 rounded-full">
-                            <Clock className="h-4 w-4 text-primary" />
+                            <Clock className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Time</p>
-                            <p className="text-xs font-medium">{format(currentTime, 'hh:mm:ss a')}</p>
+                            <p className="text-[11px] font-bold text-muted-foreground uppercase">Time</p>
+                            <p className="text-sm font-bold text-slate-800">{format(currentTime, 'hh:mm:ss a')}</p>
                         </div>
                     </div>
                 </div>
 
-                <Separator />
+                <Separator className="opacity-50" />
 
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center gap-3">
+                <div className="grid grid-cols-2 gap-6">
+                    <div className="flex items-center gap-4">
                         <div className="bg-primary/10 p-2 rounded-full">
-                            <UserIcon className="h-4 w-4 text-primary" />
+                            <UserIcon className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Employee</p>
-                            <p className="text-xs font-medium">{currentUser?.name}</p>
+                            <p className="text-[11px] font-bold text-muted-foreground uppercase">Employee</p>
+                            <p className="text-sm font-bold text-slate-800">{currentUser?.name}</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                         <div className="bg-primary/10 p-2 rounded-full">
-                            <Phone className="h-4 w-4 text-primary" />
+                            <Phone className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Mobile</p>
-                            <p className="text-xs font-medium">{currentUser?.phone || 'Not Available'}</p>
+                            <p className="text-[11px] font-bold text-muted-foreground uppercase">Mobile</p>
+                            <p className="text-sm font-bold text-slate-800">{currentUser?.phone || '----'}</p>
                         </div>
                     </div>
                 </div>
@@ -277,10 +276,10 @@ export default function EmployeeDashboard() {
       </div>
 
       <div className="lg:col-span-5">
-        <Card className="h-full">
-          <CardHeader>
-            <CardTitle className="font-headline text-2xl">Submission Details</CardTitle>
-            <CardDescription>షిఫ్ట్ మరియు సైట్ వివరాలను ఎంచుకుని అటెండెన్స్ పంపండి.</CardDescription>
+        <Card className="h-full rounded-2xl shadow-xl border-none">
+          <CardHeader className="pb-4">
+            <CardTitle className="font-headline text-2xl text-slate-800">Submit Attendance</CardTitle>
+            <CardDescription className="text-slate-500 font-medium">షిఫ్ట్ మరియు సైట్ వివరాలను ఎంచుకోండి.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -290,10 +289,10 @@ export default function EmployeeDashboard() {
                   name="shift"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-bold">Select Shift</FormLabel>
+                      <FormLabel className="font-bold text-slate-700">Select Shift</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger className="h-12">
+                          <SelectTrigger className="h-14 rounded-xl border-slate-200">
                             <SelectValue placeholder="Choose shift" />
                           </SelectTrigger>
                         </FormControl>
@@ -313,10 +312,10 @@ export default function EmployeeDashboard() {
                   name="site"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-bold">Work Site</FormLabel>
+                      <FormLabel className="font-bold text-slate-700">Work Site</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger className="h-12">
+                          <SelectTrigger className="h-14 rounded-xl border-slate-200">
                             <SelectValue placeholder="Choose site" />
                           </SelectTrigger>
                         </FormControl>
@@ -331,20 +330,23 @@ export default function EmployeeDashboard() {
                   )}
                 />
                 
-                <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
-                  <p className="text-xs text-amber-800 leading-relaxed font-medium">
-                    గమనిక: ఫోటో తీసిన తర్వాత 'OK' బటన్ నొక్కి కన్ఫర్మ్ చేయండి. ఆ తర్వాతే 'Submit Attendance' బటన్ పనిచేస్తుంది.
+                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                  <p className="text-sm text-amber-800 leading-relaxed font-semibold flex gap-2">
+                    <AlertCircle className="h-5 w-5 shrink-0" />
+                    ఫోటో తీసిన తర్వాత 'OK' నొక్కి కన్ఫర్మ్ చేయాలి. ఆ తర్వాతే సబ్మిట్ బటన్ పనిచేస్తుంది.
                   </p>
                 </div>
 
                 <Button 
                   type="submit" 
-                  className="w-full text-lg py-8 shadow-lg transition-all" 
+                  className={`w-full text-xl py-9 rounded-2xl shadow-2xl transition-all duration-300 font-bold ${
+                    isPhotoConfirmed ? 'bg-primary scale-100' : 'bg-slate-300 scale-95 opacity-50 cursor-not-allowed'
+                  }`} 
                   disabled={isSubmitting || !photoDataUri || !isPhotoConfirmed}
                 >
                   {isSubmitting ? (
                     <>
-                      <LoaderCircle className="mr-2 h-6 w-6 animate-spin" />
+                      <LoaderCircle className="mr-3 h-6 w-6 animate-spin" />
                       Submitting...
                     </>
                   ) : (
@@ -359,3 +361,4 @@ export default function EmployeeDashboard() {
     </div>
   );
 }
+
