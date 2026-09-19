@@ -67,6 +67,13 @@ export function LoginForm() {
                     description: 'Your account is pending approval by HR.',
                   });
                 break;
+            case 'resigned':
+                toast({
+                    variant: 'destructive',
+                    title: 'Access Denied',
+                    description: 'ఈ ఖాతా ఇనాక్టివ్‌గా ఉంది. హెచ్‌ఆర్‌ను సంప్రదించండి.',
+                  });
+                break;
             case 'not_found':
             default:
               toast({

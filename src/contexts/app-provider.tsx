@@ -15,11 +15,12 @@ interface AppContextType {
   extraStatuses: ExtraStatus[];
   salarySlips: SalarySlip[];
   hasSubmittedToday: boolean;
-  login: (id: string, name: string) => 'employee' | 'hr' | 'not_found' | 'pending';
+  login: (id: string, name: string) => 'employee' | 'hr' | 'not_found' | 'pending' | 'resigned';
   signupHr: (id: string, name: string) => void;
   logout: () => void;
   addEmployee: (employee: Omit<Employee, 'status'>) => void;
   updateEmployee: (id: string, data: Partial<Employee>) => void;
+  updateEmployeeStatus: (id: string, status: 'Approved' | 'Pending' | 'Resigned') => void;
   deleteEmployee: (id: string) => void;
   addSite: (name: string) => void;
   deleteSite: (id: string) => void;
@@ -56,7 +57,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const storedEmployees: Employee[] = storedEmployeesRaw ? JSON.parse(storedEmployeesRaw) : [];
       
       const employeeMap = new Map<string, Employee>();
-      initialEmployees.forEach(emp => employeeMap.set(emp.id.toUpperCase(), emp));
+      initialEmployees.forEach(emp => employeeMap.set(emp.id.toUpperCase(), emp as Employee));
       storedEmployees.forEach(emp => employeeMap.set(emp.id.toUpperCase(), emp));
       setEmployees(Array.from(employeeMap.values()));
       
@@ -102,7 +103,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   }, [currentUser, attendanceRecords]);
 
-  const login = useCallback((id: string, name: string): 'employee' | 'hr' | 'not_found' | 'pending' => {
+  const login = useCallback((id: string, name: string): 'employee' | 'hr' | 'not_found' | 'pending' | 'resigned' => {
     const uppercaseId = id.toUpperCase();
     const hr = hrUsers.find(h => h.id.toUpperCase() === uppercaseId);
     if (hr) {
@@ -112,6 +113,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const employee = employees.find((e) => e.id.toUpperCase() === uppercaseId);
     if (employee) {
       if (employee.status === 'Pending') return 'pending';
+      if (employee.status === 'Resigned') return 'resigned';
       setCurrentUser({ id: employee.id, name: name || employee.name, role: 'employee', phone: employee.phone });
       return 'employee';
     }
@@ -141,8 +143,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setEmployees((prev) => prev.map((emp) => (emp.id.toUpperCase() === id.toUpperCase() ? { ...emp, ...data } : emp)));
   }, []);
 
+  const updateEmployeeStatus = useCallback((id: string, status: 'Approved' | 'Pending' | 'Resigned') => {
+    setEmployees((prev) => prev.map((emp) => (emp.id.toUpperCase() === id.toUpperCase() ? { ...emp, status } : emp)));
+  }, []);
+
   const deleteEmployee = useCallback((id: string) => {
     const uppercaseId = id.toUpperCase();
+    // Warning: Hard delete removes history. 
     setEmployees((prev) => prev.filter((emp) => emp.id.toUpperCase() !== uppercaseId));
     setAttendanceRecords((prev) => prev.filter((rec) => rec.employeeId.toUpperCase() !== uppercaseId));
   }, []);
@@ -172,7 +179,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const saveSalarySlip = useCallback((slip: SalarySlip) => {
     setSalarySlips(prev => {
-      // Prevent duplicates for same employee and same month
       const filtered = prev.filter(s => !(s.employeeId === slip.employeeId && s.month === slip.month));
       return [...filtered, slip];
     });
@@ -180,8 +186,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({
     currentUser, employees, sites, attendanceRecords, extraStatuses, salarySlips, hasSubmittedToday,
-    login, signupHr, logout, addEmployee, updateEmployee, deleteEmployee, addSite, deleteSite, submitAttendance, markExtraStatus, saveSalarySlip
-  }), [currentUser, employees, sites, attendanceRecords, extraStatuses, salarySlips, hasSubmittedToday, login, signupHr, logout, addEmployee, updateEmployee, deleteEmployee, addSite, deleteSite, submitAttendance, markExtraStatus, saveSalarySlip]);
+    login, signupHr, logout, addEmployee, updateEmployee, updateEmployeeStatus, deleteEmployee, addSite, deleteSite, submitAttendance, markExtraStatus, saveSalarySlip
+  }), [currentUser, employees, sites, attendanceRecords, extraStatuses, salarySlips, hasSubmittedToday, login, signupHr, logout, addEmployee, updateEmployee, updateEmployeeStatus, deleteEmployee, addSite, deleteSite, submitAttendance, markExtraStatus, saveSalarySlip]);
 
   return (
     <AppContext.Provider value={value}>

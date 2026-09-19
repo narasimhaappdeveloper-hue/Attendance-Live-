@@ -2,7 +2,7 @@
 export type Employee = {
   id: string;
   name: string;
-  status: 'Approved' | 'Pending';
+  status: 'Approved' | 'Pending' | 'Resigned';
   phone?: string;
   weekOffDay?: string;
   

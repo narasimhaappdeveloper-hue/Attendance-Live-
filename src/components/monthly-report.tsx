@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -28,7 +29,22 @@ export default function MonthlyReport() {
   }, [selectedMonth]);
 
   const reportData = useMemo(() => {
-    return employees.filter(e => e.status === 'Approved').map(employee => {
+    // Show employees who were approved OR resigned, but ONLY if they had activity in the selected month
+    return employees.filter(e => {
+        if (e.status === 'Approved') return true;
+        if (e.status === 'Resigned') {
+            // Check if they have any attendance records or extra statuses in this month
+            const hasActivity = attendanceRecords.some(r => 
+                r.employeeId.toUpperCase() === e.id.toUpperCase() && 
+                format(new Date(r.dateTime), 'yyyy-MM') === format(selectedMonth, 'yyyy-MM')
+            ) || extraStatuses.some(ex => 
+                ex.employeeId.toUpperCase() === e.id.toUpperCase() &&
+                ex.date.startsWith(format(selectedMonth, 'yyyy-MM'))
+            );
+            return hasActivity;
+        }
+        return false;
+    }).map(employee => {
       const dailyStatus = daysInMonth.map(day => {
         const dateStr = format(day, 'yyyy-MM-dd');
         const record = attendanceRecords.find(r => 
@@ -54,7 +70,6 @@ export default function MonthlyReport() {
       // Paid Working Days Calculation: Only Present + Week-off + Holiday + C-off
       const paidWorkingDays = stats.Present + stats['Week-off'] + stats.Holiday + stats['C-off'];
       
-      // Dynamic Daily Rate calculation fix: Use dailyRate if explicitly provided, otherwise fallback to basicSalary breakdown
       const effectiveDailyRate = employee.dailyRate || (employee.basicSalary ? Math.round(employee.basicSalary / daysInMonth.length) : 0);
       const salary = (paidWorkingDays * effectiveDailyRate) + (stats.totalOT * (employee.otRate || 0));
 
@@ -101,8 +116,8 @@ export default function MonthlyReport() {
           <CardContent className="pt-6 flex items-center gap-4">
             <Users className="h-6 w-6 text-primary" />
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Staff</p>
-              <h3 className="text-2xl font-bold">{employees.filter(e => e.status === 'Approved').length}</h3>
+              <p className="text-sm font-medium text-muted-foreground">Staff Displayed</p>
+              <h3 className="text-2xl font-bold">{reportData.length}</h3>
             </div>
           </CardContent>
         </Card>
@@ -216,7 +231,10 @@ export default function MonthlyReport() {
                 {reportData.map(row => (
                   <TableRow key={row.id} className="hover:bg-slate-50/50">
                     <TableCell className="sticky left-0 bg-white font-bold z-20 border-r shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
-                      {row.name}
+                      <div className="flex items-center gap-1">
+                        {row.name}
+                        {row.status === 'Resigned' && <Badge variant="outline" className="text-[7px] h-3 px-1 border-amber-500 text-amber-600">Former</Badge>}
+                      </div>
                       <div className="text-[9px] text-muted-foreground font-normal">{row.id}</div>
                     </TableCell>
 
@@ -293,7 +311,6 @@ export default function MonthlyReport() {
             <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-purple-500"></div> Holiday (H)</div>
             <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-amber-400"></div> Week-off (W)</div>
             <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-indigo-500"></div> C-off (C)</div>
-            <div className="flex items-center gap-1.5 text-primary"><div className="h-3 w-3 rounded bg-primary/20"></div> Paid Work Days = P + H + W + C (లీవ్ మరియు అబ్సెంట్ రోజులకు వేతనం కట్ చేయబడుతుంది)</div>
           </div>
         </CardContent>
       </Card>
