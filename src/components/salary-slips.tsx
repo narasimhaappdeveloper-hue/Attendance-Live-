@@ -7,11 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay } from 'date-fns';
 import { FileText, Printer, CheckCircle2, IndianRupee, LoaderCircle, ShieldCheck, Briefcase } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { SalarySlip, Employee } from '@/lib/types';
+import type { SalarySlip } from '@/lib/types';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -51,7 +51,8 @@ export default function SalarySlips() {
       });
 
       const totalPaidDays = p + l + h + c + w;
-      const lopDeduction = a * employee.dailyRate;
+      // Calculate LOP Deduction automatically
+      const lopDeduction = a * (employee.dailyRate || 0);
 
       const earnings = {
         basic: employee.basicSalary || 0,
@@ -60,7 +61,7 @@ export default function SalarySlips() {
         conveyance: employee.conveyance || 0,
         special: employee.specialAllowance || 0,
         incentive: employee.incentive || 0,
-        otPay: ot * employee.otRate,
+        otPay: ot * (employee.otRate || 0),
         bonus: employee.attendanceBonus || 0,
         food: employee.foodAllowance || 0,
         other: employee.otherEarnings || 0,
@@ -212,6 +213,8 @@ export default function SalarySlips() {
 
       <Dialog open={!!selectedSlip} onOpenChange={() => setSelectedSlip(null)}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl">
+          <DialogTitle className="sr-only">Salary Slip Preview</DialogTitle>
+          <DialogDescription className="sr-only">Detailed professional salary slip with earnings and deductions breakdown.</DialogDescription>
           {selectedSlip && (
             <div className="bg-white text-slate-900 printable-area text-[11px] sm:text-[13px] font-sans">
               {/* Header */}
@@ -229,7 +232,7 @@ export default function SalarySlips() {
                 </div>
                 <div className="text-right">
                   <h2 className="text-lg font-black uppercase">Attendance App Pvt Ltd</h2>
-                  <p className="text-slate-500 max-w-[200px] ml-auto">Sector 5, Industrial Estate, Anantapur, AP - 515001</p>
+                  <p className="text-slate-500 max-w-[200px] ml-auto">Industrial Zone, AP - 515001</p>
                 </div>
               </div>
 
@@ -328,7 +331,7 @@ export default function SalarySlips() {
               <div className="p-8 flex flex-col items-center sm:flex-row sm:justify-between gap-6 bg-primary/5">
                 <div className="space-y-1">
                   <h3 className="text-sm font-black text-primary uppercase tracking-widest">Net Salary Payable</h3>
-                  <p className="text-slate-500 font-bold italic">Amount in words: Rupees {selectedSlip.totalSalary.toLocaleString()} Only</p>
+                  <p className="text-slate-500 font-bold italic">Rupees {selectedSlip.totalSalary.toLocaleString()} Only</p>
                 </div>
                 <div className="flex items-center gap-3 bg-primary text-white p-6 rounded-2xl shadow-xl">
                   <IndianRupee className="h-8 w-8" />
