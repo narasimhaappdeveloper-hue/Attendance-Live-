@@ -15,7 +15,7 @@ import { Users, CheckCircle2, Clock, Calendar, Info } from 'lucide-react';
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export default function MonthlyReport() {
-  const { employees, attendanceRecords, extraStatuses, markExtraStatus } = useApp();
+  const { employees, attendanceRecords, extraStatuses, extraStatuses: _, markExtraStatus } = useApp();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [editingDay, setEditingDay] = useState<{ empId: string, date: string } | null>(null);
   const [editForm, setEditForm] = useState<{ status: string, ot: string }>({ status: '', ot: '0' });
@@ -51,11 +51,11 @@ export default function MonthlyReport() {
         return acc;
       }, { Present: 0, Absent: 0, 'Week-off': 0, Leave: 0, Holiday: 0, 'C-off': 0, totalOT: 0 });
 
-      // Salary Calculation
-      const paidDays = stats.Present + stats['Week-off'] + stats.Leave + stats.Holiday + stats['C-off'];
-      const salary = (paidDays * (employee.dailyRate || 0)) + (stats.totalOT * (employee.otRate || 0));
+      // Paid Working Days Calculation: Present + Week-off + Leave + Holiday + C-off
+      const paidWorkingDays = stats.Present + stats['Week-off'] + stats.Leave + stats.Holiday + stats['C-off'];
+      const salary = (paidWorkingDays * (employee.dailyRate || 0)) + (stats.totalOT * (employee.otRate || 0));
 
-      return { ...employee, dailyStatus, stats, salary, totalDays: daysInMonth.length };
+      return { ...employee, dailyStatus, stats, salary, paidWorkingDays, totalDays: daysInMonth.length };
     });
   }, [employees, attendanceRecords, extraStatuses, daysInMonth, selectedMonth]);
 
@@ -69,9 +69,10 @@ export default function MonthlyReport() {
       acc.coff += curr.stats['C-off'];
       acc.weekoff += curr.stats['Week-off'];
       acc.ot += curr.stats.totalOT;
+      acc.paidWorkingDays += curr.paidWorkingDays;
       acc.salary += curr.salary;
       return acc;
-    }, { totalDays: 0, present: 0, absent: 0, leave: 0, holiday: 0, coff: 0, weekoff: 0, ot: 0, salary: 0 });
+    }, { totalDays: 0, present: 0, absent: 0, leave: 0, holiday: 0, coff: 0, weekoff: 0, ot: 0, paidWorkingDays: 0, salary: 0 });
   }, [reportData]);
 
   const handleDayClick = (empId: string, dateStr: string) => {
@@ -176,14 +177,14 @@ export default function MonthlyReport() {
                   })}
 
                   {/* Summary Columns Next */}
-                  <TableHead className="text-center font-bold px-1 bg-slate-50 border-l border-r">Total Days</TableHead>
-                  <TableHead className="text-center font-bold px-1 text-green-600 bg-slate-50 border-r">P</TableHead>
+                  <TableHead className="text-center font-bold px-1 text-green-600 bg-slate-50 border-l border-r">P</TableHead>
                   <TableHead className="text-center font-bold px-1 text-red-600 bg-slate-50 border-r">A</TableHead>
                   <TableHead className="text-center font-bold px-1 text-blue-600 bg-slate-50 border-r">L</TableHead>
                   <TableHead className="text-center font-bold px-1 text-purple-600 bg-slate-50 border-r">H</TableHead>
                   <TableHead className="text-center font-bold px-1 text-indigo-600 bg-slate-50 border-r">C</TableHead>
                   <TableHead className="text-center font-bold px-1 text-amber-600 bg-slate-50 border-r">W</TableHead>
                   <TableHead className="text-center font-bold px-1 bg-slate-50 border-r">OT(h)</TableHead>
+                  <TableHead className="text-center font-bold px-1 bg-primary/10 text-primary border-r" title="Paid Work Days = P + L + H + C + W">Paid Work Days</TableHead>
                   <TableHead className="sticky right-0 bg-primary/10 z-30 min-w-[90px] text-primary font-bold text-center border-l">Salary</TableHead>
                 </TableRow>
               </TableHeader>
@@ -227,14 +228,14 @@ export default function MonthlyReport() {
                     })}
 
                     {/* Summary Statistics Cells */}
-                    <TableCell className="text-center bg-slate-50/30 border-l border-r">{row.totalDays}</TableCell>
-                    <TableCell className="text-center bg-slate-50/30 font-bold text-green-600 border-r">{row.stats.Present}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 font-bold text-green-600 border-l border-r">{row.stats.Present}</TableCell>
                     <TableCell className="text-center bg-slate-50/30 font-bold text-red-600 border-r">{row.stats.Absent}</TableCell>
                     <TableCell className="text-center bg-slate-50/30 font-bold text-blue-600 border-r">{row.stats.Leave}</TableCell>
                     <TableCell className="text-center bg-slate-50/30 font-bold text-purple-600 border-r">{row.stats.Holiday}</TableCell>
                     <TableCell className="text-center bg-slate-50/30 font-bold text-indigo-600 border-r">{row.stats['C-off']}</TableCell>
                     <TableCell className="text-center bg-slate-50/30 font-bold text-amber-600 border-r">{row.stats['Week-off']}</TableCell>
                     <TableCell className="text-center bg-slate-50/30 border-r">{row.stats.totalOT}</TableCell>
+                    <TableCell className="text-center bg-primary/5 font-black text-primary border-r">{row.paidWorkingDays}</TableCell>
                     <TableCell className="sticky right-0 bg-primary/5 z-20 font-black text-primary text-center border-l">
                       ₹{row.salary.toLocaleString()}
                     </TableCell>
@@ -251,14 +252,14 @@ export default function MonthlyReport() {
                   ))}
 
                   {/* Summary Totals in Footer */}
-                  <TableCell className="text-center border-l border-r bg-slate-100">{grandTotals.totalDays}</TableCell>
-                  <TableCell className="text-center text-green-700 font-black border-r bg-slate-100">{grandTotals.present}</TableCell>
+                  <TableCell className="text-center text-green-700 font-black border-l border-r bg-slate-100">{grandTotals.present}</TableCell>
                   <TableCell className="text-center text-red-600 font-black border-r bg-slate-100">{grandTotals.absent}</TableCell>
                   <TableCell className="text-center text-blue-600 font-black border-r bg-slate-100">{grandTotals.leave}</TableCell>
                   <TableCell className="text-center text-purple-600 font-black border-r bg-slate-100">{grandTotals.holiday}</TableCell>
                   <TableCell className="text-center text-indigo-600 font-black border-r bg-slate-100">{grandTotals.coff}</TableCell>
                   <TableCell className="text-center text-amber-600 font-black border-r bg-slate-100">{grandTotals.weekoff}</TableCell>
                   <TableCell className="text-center border-r bg-slate-100">{grandTotals.ot}</TableCell>
+                  <TableCell className="text-center text-primary font-black border-r bg-primary/5">{grandTotals.paidWorkingDays}</TableCell>
                   <TableCell className="sticky right-0 bg-primary/20 z-20 font-black text-primary text-center border-l">₹{grandTotals.salary.toLocaleString()}</TableCell>
                 </TableRow>
               </TableFooter>
@@ -272,6 +273,7 @@ export default function MonthlyReport() {
             <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-purple-500"></div> Holiday (H)</div>
             <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-amber-400"></div> Week-off (W)</div>
             <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-indigo-500"></div> C-off (C)</div>
+            <div className="flex items-center gap-1.5 text-primary"><div className="h-3 w-3 rounded bg-primary/20"></div> Paid Work Days = P + L + H + C + W (జీతం లభించే మొత్తం రోజులు)</div>
           </div>
         </CardContent>
       </Card>
