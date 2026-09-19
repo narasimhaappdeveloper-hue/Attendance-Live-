@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -10,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { IndianRupee, Save, CheckCircle2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function PayrollManagement() {
   const { employees, updateEmployee } = useApp();
@@ -63,6 +61,11 @@ export default function PayrollManagement() {
           <CardDescription>ప్రతి ఉద్యోగికి జీతం, అలవెన్సులు మరియు డిడక్షన్లను ఇక్కడ సెట్ చేయండి.</CardDescription>
         </CardHeader>
       </Card>
+
+      <div className="p-4 bg-amber-50 text-amber-800 text-xs font-semibold rounded-xl border border-amber-200 flex items-start gap-2">
+         <Info className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+         <p>గమనిక: ప్రభుత్వ నిబంధనల ప్రకారం PF మరియు ESI బాక్సులు ఇక్కడ అవసరం లేదు, స్లిప్ జనరేట్ చేసినప్పుడు సిస్టమే ఆటోమేటిక్‌గా 12% PF మరియు 0.75% ESI లెక్కించి కట్ చేస్తుంది.</p>
+      </div>
 
       <Card className="border-none shadow-md overflow-hidden">
         <CardContent className="p-0">
@@ -131,13 +134,13 @@ export default function PayrollManagement() {
                       {/* Deductions Columns */}
                       <TableCell>
                          <div className="grid grid-cols-2 gap-2 py-2 w-[300px]">
-                           <div className="space-y-1">
-                             <label className="text-[9px] text-destructive">PF (EPF)</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.providentFund} onChange={(e) => handleRateChange(emp.id, 'providentFund', e.target.value)} />
+                           <div className="space-y-1 opacity-70">
+                             <label className="text-[9px] text-blue-600 font-bold">PF (Auto 12%)</label>
+                             <div className="h-7 text-xs border rounded bg-slate-50 flex items-center px-2 font-mono font-bold text-slate-500">₹{Math.round((data.basicSalary || 0) * 0.12)}</div>
                            </div>
-                           <div className="space-y-1">
-                             <label className="text-[9px] text-destructive">ESI</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.esi} onChange={(e) => handleRateChange(emp.id, 'esi', e.target.value)} />
+                           <div className="space-y-1 opacity-70">
+                             <label className="text-[9px] text-blue-600 font-bold">ESI (Auto 0.75%)</label>
+                             <div className="h-7 text-xs border rounded bg-slate-50 flex items-center px-2 font-mono font-bold text-slate-500">Auto Govt Rule</div>
                            </div>
                            <div className="space-y-1">
                              <label className="text-[9px] text-destructive">Professional Tax</label>

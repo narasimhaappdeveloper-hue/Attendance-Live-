@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -9,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay } from 'date-fns';
-import { FileText, Printer, CheckCircle2, IndianRupee, LoaderCircle, ShieldCheck, Briefcase } from 'lucide-react';
+import { FileText, Printer, CheckCircle2, IndianRupee, LoaderCircle, ShieldCheck, Briefcase, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { SalarySlip } from '@/lib/types';
 
@@ -51,7 +50,6 @@ export default function SalarySlips() {
       });
 
       const totalPaidDays = p + l + h + c + w;
-      // Calculate LOP Deduction automatically
       const lopDeduction = a * (employee.dailyRate || 0);
 
       const earnings = {
@@ -67,9 +65,17 @@ export default function SalarySlips() {
         other: employee.otherEarnings || 0,
       };
 
+      const grossEarnings = Object.values(earnings).reduce((a, b) => a + b, 0);
+
+      // Govt Rules Statutory Calculations
+      // PF = 12% of Basic Salary
+      const autoPF = Math.round(earnings.basic * 0.12);
+      // ESI = 0.75% of Gross Salary if Gross <= 21,000 INR
+      const autoESI = grossEarnings <= 21000 ? Math.round(grossEarnings * 0.0075) : 0;
+
       const deductions = {
-        pf: employee.providentFund || 0,
-        esi: employee.esi || 0,
+        pf: autoPF,
+        esi: autoESI,
         pt: employee.professionalTax || 0,
         it: employee.incomeTax || 0,
         loan: employee.loanRecovery || 0,
@@ -78,7 +84,6 @@ export default function SalarySlips() {
         other: employee.otherDeductions || 0,
       };
 
-      const grossEarnings = Object.values(earnings).reduce((a, b) => a + b, 0);
       const totalDeductions = Object.values(deductions).reduce((a, b) => a + b, 0);
       const netPay = grossEarnings - totalDeductions;
 
@@ -131,12 +136,22 @@ export default function SalarySlips() {
         saveSalarySlip(slip);
       });
       setIsGenerating(false);
-      toast({ title: "Slips Finalized", description: `Professional slips for ${format(selectedMonth, 'MMMM yyyy')} are ready.` });
+      toast({ title: "Slips Finalized", description: `Govt standard compliant slips for ${format(selectedMonth, 'MMMM yyyy')} are ready.` });
     }, 1200);
   };
 
   return (
     <div className="space-y-6">
+      <div className="p-4 bg-primary/5 border rounded-2xl flex items-start gap-3 text-sm text-primary">
+         <Info className="h-5 w-5 shrink-0 mt-0.5" />
+         <div>
+            <p className="font-bold">Govt Statutory Calculation Guidelines Active:</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+               PF ఆటోమేటిక్‌గా 12% (Basic Salary నుంచి) మరియు ESI ఆటోమేటిక్‌గా 0.75% (Gross Salary జీతం ₹21,000 లోపు ఉంటే) ప్రభుత్వ నిబంధనల ప్రకారం లెక్కించబడుతుంది.
+            </p>
+         </div>
+      </div>
+
       <Card>
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0">
           <div>
@@ -236,7 +251,7 @@ export default function SalarySlips() {
                 </div>
               </div>
 
-              {/* 1. Employee Details Section */}
+              {/* Employee Details Section */}
               <div className="p-8 grid grid-cols-2 gap-8 bg-slate-50/50">
                 <div className="space-y-4">
                   <div className="grid grid-cols-2">
@@ -284,7 +299,7 @@ export default function SalarySlips() {
                 </div>
               </div>
 
-              {/* 2 & 3. Earnings and Deductions Table */}
+              {/* Earnings and Deductions Table */}
               <div className="grid grid-cols-2 border-y">
                 {/* Earnings */}
                 <div className="border-r">
@@ -302,10 +317,13 @@ export default function SalarySlips() {
                 </div>
                 {/* Deductions */}
                 <div>
-                   <div className="bg-slate-100 p-2 font-black text-[10px] uppercase border-b">Deductions</div>
+                   <div className="bg-slate-100 p-2 font-black text-[10px] uppercase border-b flex justify-between items-center">
+                     <span>Deductions</span>
+                     <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold">Govt Rules Auto</span>
+                   </div>
                    <div className="p-4 space-y-2">
-                     <div className="flex justify-between"><span>Employee PF</span><span className="font-bold">₹{selectedSlip.deductions.pf.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span>ESI</span><span className="font-bold">₹{selectedSlip.deductions.esi.toLocaleString()}</span></div>
+                     <div className="flex justify-between text-slate-800 font-medium"><span>Employee PF (12%)</span><span className="font-bold">₹{selectedSlip.deductions.pf.toLocaleString()}</span></div>
+                     <div className="flex justify-between text-slate-800 font-medium"><span>ESI (0.75%)</span><span className="font-bold">₹{selectedSlip.deductions.esi.toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Professional Tax</span><span className="font-bold">₹{selectedSlip.deductions.pt.toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Income Tax (TDS)</span><span className="font-bold">₹{selectedSlip.deductions.it.toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Loan / Advance</span><span className="font-bold">₹{(selectedSlip.deductions.loan + selectedSlip.deductions.advance).toLocaleString()}</span></div>
@@ -327,7 +345,7 @@ export default function SalarySlips() {
                 </div>
               </div>
 
-              {/* 4. Final Summary (Net Pay) */}
+              {/* Final Summary (Net Pay) */}
               <div className="p-8 flex flex-col items-center sm:flex-row sm:justify-between gap-6 bg-primary/5">
                 <div className="space-y-1">
                   <h3 className="text-sm font-black text-primary uppercase tracking-widest">Net Salary Payable</h3>
