@@ -49,8 +49,11 @@ export default function SalarySlips() {
         if (extra?.otHours) ot += extra.otHours;
       });
 
-      const totalPaidDays = p + l + h + c + w;
-      const lopDeduction = a * (employee.dailyRate || 0);
+      // Paid Days = Present + Week-off + Holiday + C-off
+      const totalPaidDays = p + w + h + c;
+      // Loss of Pay Days = Leave (L) + Absent (A)
+      const lopDays = l + a;
+      const lopDeduction = lopDays * (employee.dailyRate || 0);
 
       const earnings = {
         basic: employee.basicSalary || 0,
@@ -68,9 +71,7 @@ export default function SalarySlips() {
       const grossEarnings = Object.values(earnings).reduce((a, b) => a + b, 0);
 
       // Govt Rules Statutory Calculations
-      // PF = 12% of Basic Salary
       const autoPF = Math.round(earnings.basic * 0.12);
-      // ESI = 0.75% of Gross Salary if Gross <= 21,000 INR
       const autoESI = grossEarnings <= 21000 ? Math.round(grossEarnings * 0.0075) : 0;
 
       const deductions = {
@@ -85,13 +86,13 @@ export default function SalarySlips() {
       };
 
       const totalDeductions = Object.values(deductions).reduce((a, b) => a + b, 0);
-      const netPay = grossEarnings - totalDeductions;
+      const netPay = Math.max(0, grossEarnings - totalDeductions);
 
       const existingSlip = salarySlips.find(s => s.employeeId === employee.id && s.month === monthStr);
 
       return {
         employee,
-        stats: { p, l, h, c, w, ot, a, totalPaidDays },
+        stats: { p, l, h, c, w, ot, a, totalPaidDays, lopDays },
         earnings,
         deductions,
         grossEarnings,
@@ -123,7 +124,7 @@ export default function SalarySlips() {
           daysHoliday: item.stats.h,
           daysWeekOff: item.stats.w,
           daysCOff: item.stats.c,
-          daysAbsent: item.stats.a,
+          daysAbsent: item.stats.a + item.stats.l, // Total unpaid days
           otHours: item.stats.ot,
           dailyRate: item.employee.dailyRate,
           otRate: item.employee.otRate,
@@ -136,7 +137,7 @@ export default function SalarySlips() {
         saveSalarySlip(slip);
       });
       setIsGenerating(false);
-      toast({ title: "Slips Finalized", description: `Govt standard compliant slips for ${format(selectedMonth, 'MMMM yyyy')} are ready.` });
+      toast({ title: "Slips Finalized", description: `Slips for ${format(selectedMonth, 'MMMM yyyy')} are generated successfully.` });
     }, 1200);
   };
 
@@ -145,9 +146,9 @@ export default function SalarySlips() {
       <div className="p-4 bg-primary/5 border rounded-2xl flex items-start gap-3 text-sm text-primary">
          <Info className="h-5 w-5 shrink-0 mt-0.5" />
          <div>
-            <p className="font-bold">Govt Statutory Calculation Guidelines Active:</p>
+            <p className="font-bold">Govt Rules & Unpaid Leave Update:</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-               PF ఆటోమేటిక్‌గా 12% (Basic Salary నుంచి) మరియు ESI ఆటోమేటిక్‌గా 0.75% (Gross Salary జీతం ₹21,000 లోపు ఉంటే) ప్రభుత్వ నిబంధనల ప్రకారం లెక్కించబడుతుంది.
+               లీవ్ (Leave) మరియు అబ్సెంట్ (Absent) రోజులు శాలరీ లెక్కింపులో ఆటోమేటిక్‌గా **Loss of Pay (LOP)** కింద జీతం కట్ చేయబడతాయి.
             </p>
          </div>
       </div>
@@ -183,6 +184,7 @@ export default function SalarySlips() {
                 <TableRow>
                   <TableHead>Employee</TableHead>
                   <TableHead>Paid Days</TableHead>
+                  <TableHead>LOP Days</TableHead>
                   <TableHead>Gross</TableHead>
                   <TableHead>Net Pay</TableHead>
                   <TableHead>Status</TableHead>
@@ -197,6 +199,7 @@ export default function SalarySlips() {
                       <div className="text-[10px] text-muted-foreground">{item.employee.designation}</div>
                     </TableCell>
                     <TableCell>{item.stats.totalPaidDays} Days</TableCell>
+                    <TableCell className="text-destructive font-semibold">{item.stats.lopDays} Days</TableCell>
                     <TableCell className="text-muted-foreground">₹{item.grossEarnings.toLocaleString()}</TableCell>
                     <TableCell className="font-bold text-primary">₹{item.netPay.toLocaleString()}</TableCell>
                     <TableCell>
@@ -289,7 +292,7 @@ export default function SalarySlips() {
                     <span className="font-bold">: {selectedSlip.daysPaid}</span>
                   </div>
                   <div className="grid grid-cols-2">
-                    <span className="text-slate-400 font-bold uppercase text-[9px]">LOP Days</span>
+                    <span className="text-slate-400 font-bold uppercase text-[9px]">LOP/Absent Days</span>
                     <span className="font-bold text-destructive">: {selectedSlip.daysAbsent}</span>
                   </div>
                   <div className="grid grid-cols-2">
@@ -312,14 +315,14 @@ export default function SalarySlips() {
                      <div className="flex justify-between text-green-700 font-medium"><span>Food Allowance</span><span className="font-bold">₹{selectedSlip.earnings.food.toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Overtime Pay</span><span className="font-bold">₹{selectedSlip.earnings.otPay.toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Bonus / Incentive</span><span className="font-bold">₹{(selectedSlip.earnings.bonus + selectedSlip.earnings.special + selectedSlip.earnings.incentive).toLocaleString()}</span></div>
-                     <div className="flex justify-between font-italic text-slate-500"><span>Other Earnings</span><span className="font-bold">₹{selectedSlip.earnings.other.toLocaleString()}</span></div>
+                     <div className="flex justify-between text-slate-500"><span>Other Earnings</span><span className="font-bold">₹{selectedSlip.earnings.other.toLocaleString()}</span></div>
                    </div>
                 </div>
                 {/* Deductions */}
                 <div>
                    <div className="bg-slate-100 p-2 font-black text-[10px] uppercase border-b flex justify-between items-center">
                      <span>Deductions</span>
-                     <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold">Govt Rules Auto</span>
+                     <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold">Statutory Rules</span>
                    </div>
                    <div className="p-4 space-y-2">
                      <div className="flex justify-between text-slate-800 font-medium"><span>Employee PF (12%)</span><span className="font-bold">₹{selectedSlip.deductions.pf.toLocaleString()}</span></div>
@@ -327,8 +330,8 @@ export default function SalarySlips() {
                      <div className="flex justify-between"><span>Professional Tax</span><span className="font-bold">₹{selectedSlip.deductions.pt.toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Income Tax (TDS)</span><span className="font-bold">₹{selectedSlip.deductions.it.toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Loan / Advance</span><span className="font-bold">₹{(selectedSlip.deductions.loan + selectedSlip.deductions.advance).toLocaleString()}</span></div>
-                     <div className="flex justify-between text-destructive"><span>LOP Deduction</span><span className="font-bold">₹{selectedSlip.deductions.lop.toLocaleString()}</span></div>
-                     <div className="flex justify-between text-destructive font-italic"><span>Other Deductions</span><span className="font-bold">₹{selectedSlip.deductions.other.toLocaleString()}</span></div>
+                     <div className="flex justify-between text-destructive font-semibold"><span>LOP Deduction (Leaves/Absent)</span><span className="font-bold">₹{selectedSlip.deductions.lop.toLocaleString()}</span></div>
+                     <div className="flex justify-between text-destructive"><span>Other Deductions</span><span className="font-bold">₹{selectedSlip.deductions.other.toLocaleString()}</span></div>
                    </div>
                 </div>
               </div>

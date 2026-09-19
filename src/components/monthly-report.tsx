@@ -15,7 +15,7 @@ import { Users, CheckCircle2, Clock, Calendar, Info } from 'lucide-react';
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export default function MonthlyReport() {
-  const { employees, attendanceRecords, extraStatuses, extraStatuses: _, markExtraStatus } = useApp();
+  const { employees, attendanceRecords, extraStatuses, markExtraStatus } = useApp();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [editingDay, setEditingDay] = useState<{ empId: string, date: string } | null>(null);
   const [editForm, setEditForm] = useState<{ status: string, ot: string }>({ status: '', ot: '0' });
@@ -51,8 +51,8 @@ export default function MonthlyReport() {
         return acc;
       }, { Present: 0, Absent: 0, 'Week-off': 0, Leave: 0, Holiday: 0, 'C-off': 0, totalOT: 0 });
 
-      // Paid Working Days Calculation: Present + Week-off + Leave + Holiday + C-off
-      const paidWorkingDays = stats.Present + stats['Week-off'] + stats.Leave + stats.Holiday + stats['C-off'];
+      // Correct Paid Working Days Calculation: Only Present + Week-off + Holiday + C-off (Leave and Absent are Unpaid)
+      const paidWorkingDays = stats.Present + stats['Week-off'] + stats.Holiday + stats['C-off'];
       const salary = (paidWorkingDays * (employee.dailyRate || 0)) + (stats.totalOT * (employee.otRate || 0));
 
       return { ...employee, dailyStatus, stats, salary, paidWorkingDays, totalDays: daysInMonth.length };
@@ -134,7 +134,7 @@ export default function MonthlyReport() {
           <div>
             <CardTitle>Master Attendance Report</CardTitle>
             <CardDescription>
-              Sundays (Red) & Saturdays (Amber) are highlighted. Click cells to edit status or OT.
+              Sundays (Red) & Saturdays (Amber) are highlighted. Leave & Absent are Unpaid (Loss of Pay).
             </CardDescription>
           </div>
           <Select value={format(selectedMonth, 'yyyy-MM')} onValueChange={(v) => setSelectedMonth(new Date(v))}>
@@ -156,7 +156,7 @@ export default function MonthlyReport() {
                 <TableRow className="bg-muted/50 text-[10px]">
                   <TableHead className="sticky left-0 bg-muted/50 z-30 min-w-[120px] border-r">Employee Name</TableHead>
                   
-                  {/* Date Columns First */}
+                  {/* Date Columns */}
                   {daysInMonth.map(day => {
                     const isSun = isSunday(day);
                     const isSat = isSaturday(day);
@@ -176,7 +176,7 @@ export default function MonthlyReport() {
                     );
                   })}
 
-                  {/* Summary Columns Next */}
+                  {/* Summary Columns at the end */}
                   <TableHead className="text-center font-bold px-1 text-green-600 bg-slate-50 border-l border-r">P</TableHead>
                   <TableHead className="text-center font-bold px-1 text-red-600 bg-slate-50 border-r">A</TableHead>
                   <TableHead className="text-center font-bold px-1 text-blue-600 bg-slate-50 border-r">L</TableHead>
@@ -184,7 +184,7 @@ export default function MonthlyReport() {
                   <TableHead className="text-center font-bold px-1 text-indigo-600 bg-slate-50 border-r">C</TableHead>
                   <TableHead className="text-center font-bold px-1 text-amber-600 bg-slate-50 border-r">W</TableHead>
                   <TableHead className="text-center font-bold px-1 bg-slate-50 border-r">OT(h)</TableHead>
-                  <TableHead className="text-center font-bold px-1 bg-primary/10 text-primary border-r" title="Paid Work Days = P + L + H + C + W">Paid Work Days</TableHead>
+                  <TableHead className="text-center font-bold px-1 bg-primary/10 text-primary border-r" title="Paid Work Days = P + H + C + W">Paid Work Days</TableHead>
                   <TableHead className="sticky right-0 bg-primary/10 z-30 min-w-[90px] text-primary font-bold text-center border-l">Salary</TableHead>
                 </TableRow>
               </TableHeader>
@@ -242,13 +242,13 @@ export default function MonthlyReport() {
                   </TableRow>
                 ))}
               </TableBody>
-              <TableFooter className="bg-muted/80 text-[11px] font-black text-slate-900">
+              <TableFooter className="bg-muted/80 chimneys text-[11px] font-black text-slate-900">
                 <TableRow>
                   <TableCell className="sticky left-0 bg-slate-100 font-black z-20 border-r shadow-[2px_0_5px_rgba(0,0,0,0.05)]">Grand Total</TableCell>
                   
                   {/* Empty Footer Cells for Dates */}
                   {daysInMonth.map((_, i) => (
-                    <TableCell key={`ft-date-${i}`} className="border-l bg-muted/40"></TableCell>
+                    <TableCell key={`ft-date-${i}`} className="border-l bg-muted/44"></TableCell>
                   ))}
 
                   {/* Summary Totals in Footer */}
@@ -268,12 +268,12 @@ export default function MonthlyReport() {
           
           <div className="mt-6 flex flex-wrap gap-4 text-[10px] font-bold">
             <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-green-500"></div> Present (P)</div>
-            <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-red-100 border text-red-400 text-center text-[8px]">A</div> Absent (A)</div>
-            <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-blue-500"></div> Leave (L)</div>
+            <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-red-100 border text-red-400 text-center text-[8px]">A</div> Absent (A - Unpaid)</div>
+            <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-blue-500"></div> Leave (L - Unpaid)</div>
             <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-purple-500"></div> Holiday (H)</div>
             <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-amber-400"></div> Week-off (W)</div>
             <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-indigo-500"></div> C-off (C)</div>
-            <div className="flex items-center gap-1.5 text-primary"><div className="h-3 w-3 rounded bg-primary/20"></div> Paid Work Days = P + L + H + C + W (జీతం లభించే మొత్తం రోజులు)</div>
+            <div className="flex items-center gap-1.5 text-primary"><div className="h-3 w-3 rounded bg-primary/20"></div> Paid Work Days = P + H + W + C (లీవ్ మరియు అబ్సెంట్ రోజులకు వేతనం కట్ చేయబడుతుంది)</div>
           </div>
         </CardContent>
       </Card>
@@ -292,9 +292,9 @@ export default function MonthlyReport() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="None">Reset (Default)</SelectItem>
-                  <SelectItem value="Leave">Paid Leave (L)</SelectItem>
-                  <SelectItem value="Holiday">Company Holiday (H)</SelectItem>
-                  <SelectItem value="C-off">Compensatory Off (C)</SelectItem>
+                  <SelectItem value="Leave">Leave (L - Unpaid)</SelectItem>
+                  <SelectItem value="Holiday">Company Holiday (H - Paid)</SelectItem>
+                  <SelectItem value="C-off">Compensatory Off (C - Paid)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
