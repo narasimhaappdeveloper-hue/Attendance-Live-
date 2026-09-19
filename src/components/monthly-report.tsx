@@ -91,6 +91,9 @@ export default function MonthlyReport() {
     setEditingDay(null);
   };
 
+  const currentYear = selectedMonth.getFullYear();
+  const currentMonth = selectedMonth.getMonth();
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -140,17 +143,37 @@ export default function MonthlyReport() {
               Sundays (Red) & Saturdays (Amber) are highlighted. Leave & Absent are Unpaid (Loss of Pay).
             </CardDescription>
           </div>
-          <Select value={format(selectedMonth, 'yyyy-MM')} onValueChange={(v) => setSelectedMonth(new Date(v))}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 12 }).map((_, i) => {
-                const date = new Date(new Date().getFullYear(), new Date().getMonth() - i, 1);
-                return <SelectItem key={i} value={format(date, 'yyyy-MM')}>{format(date, 'MMMM yyyy')}</SelectItem>;
-              })}
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select value={currentYear.toString()} onValueChange={(v) => {
+              const d = new Date(selectedMonth);
+              d.setFullYear(parseInt(v));
+              setSelectedMonth(d);
+            }}>
+              <SelectTrigger className="w-[100px]">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 2050 - 2020 + 1 }).map((_, i) => {
+                  const year = 2020 + i;
+                  return <SelectItem key={year} value={year.toString()}>{year}</SelectItem>;
+                })}
+              </SelectContent>
+            </Select>
+            <Select value={currentMonth.toString()} onValueChange={(v) => {
+              const d = new Date(selectedMonth);
+              d.setMonth(parseInt(v));
+              setSelectedMonth(d);
+            }}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <SelectItem key={i} value={i.toString()}>{format(new Date(2000, i, 1), 'MMMM')}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto border rounded-xl">

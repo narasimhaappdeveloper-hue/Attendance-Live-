@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -179,6 +178,9 @@ export default function SalarySlips() {
     }, 1200);
   };
 
+  const currentYear = selectedMonth.getFullYear();
+  const currentMonth = selectedMonth.getMonth();
+
   return (
     <div className="space-y-6">
       <div className="p-4 bg-primary/5 border rounded-2xl flex items-start gap-3 text-sm text-primary">
@@ -198,17 +200,37 @@ export default function SalarySlips() {
             <CardDescription>Generate and manage professional employee payslips.</CardDescription>
           </div>
           <div className="flex gap-4">
-            <Select value={monthStr} onValueChange={(v) => setSelectedMonth(new Date(v))}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 12 }).map((_, i) => {
-                  const date = new Date(new Date().getFullYear(), new Date().getMonth() - i, 1);
-                  return <SelectItem key={i} value={format(date, 'yyyy-MM')}>{format(date, 'MMMM yyyy')}</SelectItem>;
-                })}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <Select value={currentYear.toString()} onValueChange={(v) => {
+                const d = new Date(selectedMonth);
+                d.setFullYear(parseInt(v));
+                setSelectedMonth(d);
+              }}>
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 2050 - 2020 + 1 }).map((_, i) => {
+                    const year = 2020 + i;
+                    return <SelectItem key={year} value={year.toString()}>{year}</SelectItem>;
+                  })}
+                </SelectContent>
+              </Select>
+              <Select value={currentMonth.toString()} onValueChange={(v) => {
+                const d = new Date(selectedMonth);
+                d.setMonth(parseInt(v));
+                setSelectedMonth(d);
+              }}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <SelectItem key={i} value={i.toString()}>{format(new Date(2000, i, 1), 'MMMM')}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button onClick={handleGenerateSlips} disabled={isGenerating}>
               {isGenerating ? <LoaderCircle className="animate-spin mr-2" /> : <FileText className="mr-2 h-4 w-4" />}
               Generate All Slips
