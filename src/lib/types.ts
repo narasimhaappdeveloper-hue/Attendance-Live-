@@ -5,11 +5,38 @@ export type Employee = {
   status: 'Approved' | 'Pending';
   phone?: string;
   weekOffDay?: string;
-  dailyRate: number; // Base pay per day
-  otRate: number;    // Pay per hour of overtime
-  attendanceBonus: number; // Monthly bonus
-  foodAllowance: number;   // Monthly food allowance
-  deductions: number;      // Monthly standard deductions (PF/Insurance etc)
+  
+  // Professional Details
+  designation?: string;
+  department?: string;
+  dateOfJoining?: string;
+  panNumber?: string;
+  uanNumber?: string;
+  bankAccountSuffix?: string;
+
+  // Rates & Basic Settings
+  dailyRate: number; 
+  otRate: number;
+
+  // Earnings Components (Monthly)
+  basicSalary: number;
+  hra: number;
+  da: number;
+  conveyance: number;
+  specialAllowance: number;
+  incentive: number;
+  attendanceBonus: number;
+  foodAllowance: number;
+  otherEarnings: number;
+
+  // Deductions Components (Monthly)
+  providentFund: number;
+  esi: number;
+  professionalTax: number;
+  incomeTax: number;
+  loanRecovery: number;
+  advanceRecovery: number;
+  otherDeductions: number;
 };
 
 export type Site = {
@@ -45,18 +72,57 @@ export type SalarySlip = {
   employeeName: string;
   month: string; // YYYY-MM
   generatedDate: string;
+  
+  // Attendance Summary
+  daysPaid: number;
   daysPresent: number;
   daysLeave: number;
   daysHoliday: number;
   daysWeekOff: number;
   daysCOff: number;
+  daysAbsent: number;
   otHours: number;
+
+  // Rates for reference
   dailyRate: number;
   otRate: number;
-  attendanceBonus: number;
-  foodAllowance: number;
-  deductions: number;
-  totalSalary: number;
+
+  // Professional Details for the slip
+  designation: string;
+  department: string;
+  uan: string;
+  pan: string;
+  bankAccount: string;
+
+  // Final Earnings Breakdown
+  earnings: {
+    basic: number;
+    hra: number;
+    da: number;
+    conveyance: number;
+    special: number;
+    incentive: number;
+    otPay: number;
+    bonus: number;
+    food: number;
+    other: number;
+  };
+
+  // Final Deductions Breakdown
+  deductions: {
+    pf: number;
+    esi: number;
+    pt: number;
+    it: number;
+    loan: number;
+    advance: number;
+    lop: number;
+    other: number;
+  };
+
+  grossEarnings: number;
+  totalDeductions: number;
+  totalSalary: number; // Net Pay
 };
 
 export type CurrentUser = {

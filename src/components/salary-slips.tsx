@@ -7,11 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay } from 'date-fns';
-import { FileText, Printer, CheckCircle2, IndianRupee, LoaderCircle, ShieldCheck } from 'lucide-react';
+import { FileText, Printer, CheckCircle2, IndianRupee, LoaderCircle, ShieldCheck, Briefcase } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { SalarySlip } from '@/lib/types';
+import type { SalarySlip, Employee } from '@/lib/types';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -27,12 +27,12 @@ export default function SalarySlips() {
   const calculatedData = useMemo(() => {
     const start = startOfMonth(selectedMonth);
     const end = endOfMonth(selectedMonth);
-    const days = eachDayOfInterval({ start, end });
+    const daysInMonth = eachDayOfInterval({ start, end });
 
     return employees.filter(e => e.status === 'Approved').map(employee => {
-      let p = 0, l = 0, h = 0, c = 0, w = 0, ot = 0;
+      let p = 0, l = 0, h = 0, c = 0, w = 0, ot = 0, a = 0;
 
-      days.forEach(day => {
+      daysInMonth.forEach(day => {
         const dateStr = format(day, 'yyyy-MM-dd');
         const record = attendanceRecords.find(r => 
           r.employeeId.toUpperCase() === employee.id.toUpperCase() &&
@@ -45,19 +45,52 @@ export default function SalarySlips() {
         else if (extra?.status === 'Holiday') h++;
         else if (extra?.status === 'C-off') c++;
         else if (employee.weekOffDay === DAYS_OF_WEEK[getDay(day)]) w++;
+        else a++;
         
         if (extra?.otHours) ot += extra.otHours;
       });
 
-      const totalEarnings = ((p + l + h + c + w) * employee.dailyRate) + (ot * employee.otRate) + (employee.attendanceBonus || 0) + (employee.foodAllowance || 0);
-      const totalSalary = totalEarnings - (employee.deductions || 0);
-      
+      const totalPaidDays = p + l + h + c + w;
+      const lopDeduction = a * employee.dailyRate;
+
+      const earnings = {
+        basic: employee.basicSalary || 0,
+        hra: employee.hra || 0,
+        da: employee.da || 0,
+        conveyance: employee.conveyance || 0,
+        special: employee.specialAllowance || 0,
+        incentive: employee.incentive || 0,
+        otPay: ot * employee.otRate,
+        bonus: employee.attendanceBonus || 0,
+        food: employee.foodAllowance || 0,
+        other: employee.otherEarnings || 0,
+      };
+
+      const deductions = {
+        pf: employee.providentFund || 0,
+        esi: employee.esi || 0,
+        pt: employee.professionalTax || 0,
+        it: employee.incomeTax || 0,
+        loan: employee.loanRecovery || 0,
+        advance: employee.advanceRecovery || 0,
+        lop: lopDeduction,
+        other: employee.otherDeductions || 0,
+      };
+
+      const grossEarnings = Object.values(earnings).reduce((a, b) => a + b, 0);
+      const totalDeductions = Object.values(deductions).reduce((a, b) => a + b, 0);
+      const netPay = grossEarnings - totalDeductions;
+
       const existingSlip = salarySlips.find(s => s.employeeId === employee.id && s.month === monthStr);
 
       return {
         employee,
-        stats: { p, l, h, c, w, ot },
-        totalSalary,
+        stats: { p, l, h, c, w, ot, a, totalPaidDays },
+        earnings,
+        deductions,
+        grossEarnings,
+        totalDeductions,
+        netPay,
         existingSlip
       };
     });
@@ -73,28 +106,32 @@ export default function SalarySlips() {
           employeeName: item.employee.name,
           month: monthStr,
           generatedDate: new Date().toISOString(),
+          designation: item.employee.designation || 'Staff',
+          department: item.employee.department || 'Operations',
+          uan: item.employee.uanNumber || '-',
+          pan: item.employee.panNumber || '-',
+          bankAccount: item.employee.bankAccountSuffix ? `XXXX${item.employee.bankAccountSuffix}` : '-',
+          daysPaid: item.stats.totalPaidDays,
           daysPresent: item.stats.p,
           daysLeave: item.stats.l,
           daysHoliday: item.stats.h,
           daysWeekOff: item.stats.w,
           daysCOff: item.stats.c,
+          daysAbsent: item.stats.a,
           otHours: item.stats.ot,
           dailyRate: item.employee.dailyRate,
           otRate: item.employee.otRate,
-          attendanceBonus: item.employee.attendanceBonus || 0,
-          foodAllowance: item.employee.foodAllowance || 0,
-          deductions: item.employee.deductions || 0,
-          totalSalary: item.totalSalary
+          earnings: item.earnings,
+          deductions: item.deductions,
+          grossEarnings: item.grossEarnings,
+          totalDeductions: item.totalDeductions,
+          totalSalary: item.netPay
         };
         saveSalarySlip(slip);
       });
       setIsGenerating(false);
-      toast({ title: "Slips Generated", description: `Successfully finalized slips for ${format(selectedMonth, 'MMMM yyyy')}` });
-    }, 1000);
-  };
-
-  const handlePrint = () => {
-    window.print();
+      toast({ title: "Slips Finalized", description: `Professional slips for ${format(selectedMonth, 'MMMM yyyy')} are ready.` });
+    }, 1200);
   };
 
   return (
@@ -102,8 +139,8 @@ export default function SalarySlips() {
       <Card>
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0">
           <div>
-            <CardTitle>Professional Salary Slips</CardTitle>
-            <CardDescription>Generate official salary slips with allowances and deductions.</CardDescription>
+            <CardTitle>Official Salary Slips</CardTitle>
+            <CardDescription>Generate and manage professional employee payslips.</CardDescription>
           </div>
           <div className="flex gap-4">
             <Select value={monthStr} onValueChange={(v) => setSelectedMonth(new Date(v))}>
@@ -119,7 +156,7 @@ export default function SalarySlips() {
             </Select>
             <Button onClick={handleGenerateSlips} disabled={isGenerating}>
               {isGenerating ? <LoaderCircle className="animate-spin mr-2" /> : <FileText className="mr-2 h-4 w-4" />}
-              Finalize Slips
+              Generate All Slips
             </Button>
           </div>
         </CardHeader>
@@ -129,9 +166,9 @@ export default function SalarySlips() {
               <TableHeader className="bg-muted/50">
                 <TableRow>
                   <TableHead>Employee</TableHead>
-                  <TableHead>Pay Days</TableHead>
-                  <TableHead>OT Hours</TableHead>
-                  <TableHead>Net Salary</TableHead>
+                  <TableHead>Paid Days</TableHead>
+                  <TableHead>Gross</TableHead>
+                  <TableHead>Net Pay</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
@@ -139,14 +176,17 @@ export default function SalarySlips() {
               <TableBody>
                 {calculatedData.map((item, idx) => (
                   <TableRow key={idx}>
-                    <TableCell className="font-medium">{item.employee.name}</TableCell>
-                    <TableCell>{item.stats.p + item.stats.l + item.stats.h + item.stats.c + item.stats.w} Days</TableCell>
-                    <TableCell>{item.stats.ot} Hrs</TableCell>
-                    <TableCell className="font-bold text-primary">₹{item.totalSalary.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <div className="font-bold">{item.employee.name}</div>
+                      <div className="text-[10px] text-muted-foreground">{item.employee.designation}</div>
+                    </TableCell>
+                    <TableCell>{item.stats.totalPaidDays} Days</TableCell>
+                    <TableCell className="text-muted-foreground">₹{item.grossEarnings.toLocaleString()}</TableCell>
+                    <TableCell className="font-bold text-primary">₹{item.netPay.toLocaleString()}</TableCell>
                     <TableCell>
                       {item.existingSlip ? (
                         <div className="flex items-center text-green-600 text-xs font-bold">
-                          <CheckCircle2 className="h-3 w-3 mr-1" /> Generated
+                          <CheckCircle2 className="h-3 w-3 mr-1" /> Finalized
                         </div>
                       ) : (
                         <span className="text-amber-500 text-xs font-bold italic">Draft</span>
@@ -171,124 +211,148 @@ export default function SalarySlips() {
       </Card>
 
       <Dialog open={!!selectedSlip} onOpenChange={() => setSelectedSlip(null)}>
-        <DialogContent className="max-w-3xl p-0 overflow-hidden border-none shadow-2xl">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden border-none shadow-2xl">
           {selectedSlip && (
-            <div className="bg-white text-slate-900 printable-area text-xs sm:text-sm">
-              <div className="bg-primary p-6 text-white flex justify-between items-center">
-                <div className="space-y-1">
-                  <h2 className="text-2xl font-black tracking-tighter">SALARY SLIP</h2>
-                  <p className="bg-white/20 text-[10px] inline-block px-2 py-0.5 rounded font-bold uppercase tracking-widest">
+            <div className="bg-white text-slate-900 printable-area text-[11px] sm:text-[13px] font-sans">
+              {/* Header */}
+              <div className="p-8 border-b-4 border-primary flex justify-between items-start">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-primary text-white p-2 rounded-lg">
+                      <Briefcase className="h-6 w-6" />
+                    </div>
+                    <h1 className="text-2xl font-black text-primary tracking-tighter">PAYSLIP</h1>
+                  </div>
+                  <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">
                     {format(new Date(selectedSlip.month + "-01"), 'MMMM yyyy')}
                   </p>
                 </div>
                 <div className="text-right">
-                  <h3 className="text-lg font-bold">Attendance App Pvt Ltd</h3>
-                  <p className="text-[10px] opacity-70">Main Office Site, Anantapur, AP</p>
+                  <h2 className="text-lg font-black uppercase">Attendance App Pvt Ltd</h2>
+                  <p className="text-slate-500 max-w-[200px] ml-auto">Sector 5, Industrial Estate, Anantapur, AP - 515001</p>
                 </div>
               </div>
 
-              <div className="p-6 space-y-6">
-                <div className="grid grid-cols-2 gap-4 border p-4 rounded-xl bg-slate-50/50">
-                  <div className="space-y-2">
-                    <div>
-                      <span className="text-muted-foreground font-semibold text-[9px] uppercase block">Employee Name</span>
-                      <span className="font-bold text-base">{selectedSlip.employeeName}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground font-semibold text-[9px] uppercase block">Employee ID</span>
-                      <span className="font-bold">{selectedSlip.employeeId}</span>
-                    </div>
+              {/* 1. Employee Details Section */}
+              <div className="p-8 grid grid-cols-2 gap-8 bg-slate-50/50">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2">
+                    <span className="text-slate-400 font-bold uppercase text-[9px]">Employee Name</span>
+                    <span className="font-bold">: {selectedSlip.employeeName}</span>
                   </div>
-                  <div className="space-y-2 text-right">
-                    <div>
-                      <span className="text-muted-foreground font-semibold text-[9px] uppercase block">Slip Number</span>
-                      <span className="font-bold">{selectedSlip.id}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground font-semibold text-[9px] uppercase block">Generation Date</span>
-                      <span className="font-bold">{format(new Date(selectedSlip.generatedDate), 'PPP')}</span>
-                    </div>
+                  <div className="grid grid-cols-2">
+                    <span className="text-slate-400 font-bold uppercase text-[9px]">Employee ID</span>
+                    <span className="font-bold">: {selectedSlip.employeeId}</span>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6">
-                  {/* Earnings Column */}
-                  <div className="space-y-3">
-                    <h4 className="font-black text-primary border-b pb-1 uppercase text-[10px]">Earnings Details</h4>
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between">
-                        <span>Basic Pay ({selectedSlip.daysPresent + selectedSlip.daysWeekOff + selectedSlip.daysLeave + selectedSlip.daysHoliday + selectedSlip.daysCOff} Days)</span>
-                        <span className="font-bold">₹{((selectedSlip.daysPresent + selectedSlip.daysWeekOff + selectedSlip.daysLeave + selectedSlip.daysHoliday + selectedSlip.daysCOff) * selectedSlip.dailyRate).toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>OT Pay ({selectedSlip.otHours} Hours)</span>
-                        <span className="font-bold">₹{(selectedSlip.otHours * selectedSlip.otRate).toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Attendance Bonus</span>
-                        <span className="font-bold text-green-600">₹{selectedSlip.attendanceBonus.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Food Allowance</span>
-                        <span className="font-bold text-green-600">₹{selectedSlip.foodAllowance.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between border-t pt-2 font-black text-slate-800 bg-slate-100/50 px-2 rounded">
-                        <span>Gross Earnings</span>
-                        <span>₹{( 
-                          ((selectedSlip.daysPresent + selectedSlip.daysWeekOff + selectedSlip.daysLeave + selectedSlip.daysHoliday + selectedSlip.daysCOff) * selectedSlip.dailyRate) +
-                          (selectedSlip.otHours * selectedSlip.otRate) +
-                          selectedSlip.attendanceBonus +
-                          selectedSlip.foodAllowance
-                        ).toLocaleString()}</span>
-                      </div>
-                    </div>
+                  <div className="grid grid-cols-2">
+                    <span className="text-slate-400 font-bold uppercase text-[9px]">Designation</span>
+                    <span className="font-bold">: {selectedSlip.designation}</span>
                   </div>
-
-                  {/* Deductions Column */}
-                  <div className="space-y-3">
-                    <h4 className="font-black text-destructive border-b pb-1 uppercase text-[10px]">Deductions</h4>
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between">
-                        <span>Standard Deductions</span>
-                        <span className="font-bold text-destructive">₹{selectedSlip.deductions.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Other / Taxes</span>
-                        <span className="font-bold">₹0</span>
-                      </div>
-                      <div className="flex justify-between border-t pt-2 font-black text-slate-800 bg-slate-100/50 px-2 rounded">
-                        <span>Total Deductions</span>
-                        <span>₹{selectedSlip.deductions.toLocaleString()}</span>
-                      </div>
-                    </div>
+                  <div className="grid grid-cols-2">
+                    <span className="text-slate-400 font-bold uppercase text-[9px]">Department</span>
+                    <span className="font-bold">: {selectedSlip.department}</span>
+                  </div>
+                  <div className="grid grid-cols-2">
+                    <span className="text-slate-400 font-bold uppercase text-[9px]">PAN Number</span>
+                    <span className="font-bold">: {selectedSlip.pan}</span>
                   </div>
                 </div>
-
-                <div className="mt-8 bg-primary/5 border-2 border-primary/20 p-6 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4">
-                  <div className="text-center sm:text-left">
-                    <h4 className="text-xs font-black text-slate-600 uppercase tracking-widest">Net Payable Salary</h4>
-                    <p className="text-[10px] text-primary font-bold mt-1">Payment Method: Bank Transfer / Cash</p>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2">
+                    <span className="text-slate-400 font-bold uppercase text-[9px]">Bank A/c No</span>
+                    <span className="font-bold">: {selectedSlip.bankAccount}</span>
                   </div>
-                  <div className="flex items-center text-4xl font-black text-primary drop-shadow-sm">
-                    <IndianRupee className="h-8 w-8 mr-1" />
-                    {selectedSlip.totalSalary.toLocaleString()}
+                  <div className="grid grid-cols-2">
+                    <span className="text-slate-400 font-bold uppercase text-[9px]">UAN / PF No</span>
+                    <span className="font-bold">: {selectedSlip.uan}</span>
                   </div>
-                </div>
-
-                <div className="pt-6 grid grid-cols-2 gap-8 text-[9px] uppercase font-bold text-muted-foreground italic">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-primary opacity-50" />
-                    System Verified & Secured
+                  <div className="grid grid-cols-2">
+                    <span className="text-slate-400 font-bold uppercase text-[9px]">Paid Days</span>
+                    <span className="font-bold">: {selectedSlip.daysPaid}</span>
                   </div>
-                  <div className="text-right">
-                    Authorized By HR Management
+                  <div className="grid grid-cols-2">
+                    <span className="text-slate-400 font-bold uppercase text-[9px]">LOP Days</span>
+                    <span className="font-bold text-destructive">: {selectedSlip.daysAbsent}</span>
+                  </div>
+                  <div className="grid grid-cols-2">
+                    <span className="text-slate-400 font-bold uppercase text-[9px]">OT Hours</span>
+                    <span className="font-bold">: {selectedSlip.otHours} h</span>
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 bg-muted/20 border-t flex justify-end gap-3 no-print">
+              {/* 2 & 3. Earnings and Deductions Table */}
+              <div className="grid grid-cols-2 border-y">
+                {/* Earnings */}
+                <div className="border-r">
+                   <div className="bg-slate-100 p-2 font-black text-[10px] uppercase border-b">Earnings</div>
+                   <div className="p-4 space-y-2">
+                     <div className="flex justify-between"><span>Basic Salary</span><span className="font-bold">₹{selectedSlip.earnings.basic.toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span>HRA</span><span className="font-bold">₹{selectedSlip.earnings.hra.toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span>DA</span><span className="font-bold">₹{selectedSlip.earnings.da.toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span>Conveyance</span><span className="font-bold">₹{selectedSlip.earnings.conveyance.toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span>Special Allowance</span><span className="font-bold">₹{selectedSlip.earnings.special.toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span>Incentive</span><span className="font-bold">₹{selectedSlip.earnings.incentive.toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span>Overtime Pay</span><span className="font-bold">₹{selectedSlip.earnings.otPay.toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span>Bonus / Others</span><span className="font-bold">₹{(selectedSlip.earnings.bonus + selectedSlip.earnings.food + selectedSlip.earnings.other).toLocaleString()}</span></div>
+                   </div>
+                </div>
+                {/* Deductions */}
+                <div>
+                   <div className="bg-slate-100 p-2 font-black text-[10px] uppercase border-b">Deductions</div>
+                   <div className="p-4 space-y-2">
+                     <div className="flex justify-between"><span>Employee PF</span><span className="font-bold">₹{selectedSlip.deductions.pf.toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span>ESI</span><span className="font-bold">₹{selectedSlip.deductions.esi.toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span>Professional Tax</span><span className="font-bold">₹{selectedSlip.deductions.pt.toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span>Income Tax (TDS)</span><span className="font-bold">₹{selectedSlip.deductions.it.toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span>Loan / Advance</span><span className="font-bold">₹{(selectedSlip.deductions.loan + selectedSlip.deductions.advance).toLocaleString()}</span></div>
+                     <div className="flex justify-between text-destructive"><span>LOP Deduction</span><span className="font-bold">₹{selectedSlip.deductions.lop.toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span>Other Deductions</span><span className="font-bold">₹{selectedSlip.deductions.other.toLocaleString()}</span></div>
+                   </div>
+                </div>
+              </div>
+
+              {/* Total Calculation Row */}
+              <div className="grid grid-cols-2 bg-slate-50 font-black text-slate-800 border-b">
+                <div className="p-4 border-r flex justify-between uppercase">
+                  <span>Gross Earnings</span>
+                  <span>₹{selectedSlip.grossEarnings.toLocaleString()}</span>
+                </div>
+                <div className="p-4 flex justify-between uppercase">
+                  <span>Total Deductions</span>
+                  <span>₹{selectedSlip.totalDeductions.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* 4. Final Summary (Net Pay) */}
+              <div className="p-8 flex flex-col items-center sm:flex-row sm:justify-between gap-6 bg-primary/5">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-black text-primary uppercase tracking-widest">Net Salary Payable</h3>
+                  <p className="text-slate-500 font-bold italic">Amount in words: Rupees {selectedSlip.totalSalary.toLocaleString()} Only</p>
+                </div>
+                <div className="flex items-center gap-3 bg-primary text-white p-6 rounded-2xl shadow-xl">
+                  <IndianRupee className="h-8 w-8" />
+                  <span className="text-4xl font-black">{selectedSlip.totalSalary.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Footer / Signatures */}
+              <div className="p-10 grid grid-cols-2 gap-20">
+                <div className="text-center pt-8 border-t border-slate-200">
+                  <p className="font-bold text-slate-600">Employee Signature</p>
+                </div>
+                <div className="text-center pt-8 border-t border-slate-200">
+                  <p className="font-bold text-slate-600">Authorized HR Signatory</p>
+                  <div className="flex justify-center mt-2 text-primary opacity-30">
+                     <ShieldCheck className="h-10 w-10" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Controls */}
+              <div className="p-6 border-t bg-slate-100 flex justify-end gap-3 no-print">
                 <Button variant="outline" onClick={() => setSelectedSlip(null)}>Close</Button>
-                <Button onClick={handlePrint} className="bg-primary hover:bg-primary/90">
+                <Button onClick={() => window.print()} className="bg-primary hover:bg-primary/90">
                   <Printer className="mr-2 h-4 w-4" /> Print Payslip
                 </Button>
               </div>
@@ -299,24 +363,18 @@ export default function SalarySlips() {
 
       <style jsx global>{`
         @media print {
-          body * {
-            visibility: hidden;
-          }
-          .printable-area, .printable-area * {
-            visibility: visible;
-          }
+          body * { visibility: hidden; }
+          .printable-area, .printable-area * { visibility: visible; }
           .printable-area {
             position: fixed;
             left: 0;
             top: 0;
             width: 100%;
             height: 100%;
-            padding: 40px;
+            padding: 0;
             background: white !important;
           }
-          .no-print {
-            display: none !important;
-          }
+          .no-print { display: none !important; }
         }
       `}</style>
     </div>
