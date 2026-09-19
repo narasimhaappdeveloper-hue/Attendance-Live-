@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -10,9 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, getDay } from 'date-fns';
-import { Users, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, getDay, isSunday, isSaturday } from 'date-fns';
+import { Users, CheckCircle2, Clock, Calendar } from 'lucide-react';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -57,7 +55,7 @@ export default function MonthlyReport() {
       const paidDays = stats.Present + stats['Week-off'] + stats.Leave + stats.Holiday + stats['C-off'];
       const salary = (paidDays * employee.dailyRate) + (stats.totalOT * employee.otRate);
 
-      return { ...employee, dailyStatus, stats, salary };
+      return { ...employee, dailyStatus, stats, salary, totalDays: daysInMonth.length };
     });
   }, [employees, attendanceRecords, extraStatuses, daysInMonth]);
 
@@ -76,7 +74,7 @@ export default function MonthlyReport() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-primary/5">
           <CardContent className="pt-6 flex items-center gap-4">
             <Users className="h-6 w-6 text-primary" />
@@ -104,13 +102,24 @@ export default function MonthlyReport() {
             </div>
           </CardContent>
         </Card>
+        <Card className="bg-blue-50">
+          <CardContent className="pt-6 flex items-center gap-4">
+            <Calendar className="h-6 w-6 text-blue-600" />
+            <div>
+              <p className="text-sm font-medium">Month Days</p>
+              <h3 className="text-2xl font-bold">{daysInMonth.length}</h3>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0">
           <div>
             <CardTitle>Master Attendance Report</CardTitle>
-            <CardDescription>Click a cell to mark Leave, Holiday, or OT hours.</CardDescription>
+            <CardDescription>
+              Sundays (Red) & Saturdays (Amber) are highlighted. Click cells to edit.
+            </CardDescription>
           </div>
           <Select value={format(selectedMonth, 'yyyy-MM')} onValueChange={(v) => setSelectedMonth(new Date(v))}>
             <SelectTrigger className="w-[180px]">
@@ -125,43 +134,98 @@ export default function MonthlyReport() {
           </Select>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto border rounded-md">
+          <div className="overflow-x-auto border rounded-xl">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/50 text-[11px]">
-                  <TableHead className="sticky left-0 bg-muted/50 z-20 min-w-[120px]">Employee</TableHead>
-                  <TableHead>Days</TableHead>
-                  <TableHead>OT</TableHead>
-                  <TableHead className="text-primary font-bold">Salary</TableHead>
-                  {daysInMonth.map(day => (
-                    <TableHead key={day.toISOString()} className="text-center min-w-[35px]">{format(day, 'd')}</TableHead>
-                  ))}
+                <TableRow className="bg-muted/50 text-[10px]">
+                  <TableHead className="sticky left-0 bg-muted/50 z-30 min-w-[120px] border-r">Employee Name</TableHead>
+                  <TableHead className="text-center font-bold px-1 bg-slate-50 border-r">Total Days</TableHead>
+                  <TableHead className="text-center font-bold px-1 text-green-600 bg-slate-50 border-r">P</TableHead>
+                  <TableHead className="text-center font-bold px-1 text-red-600 bg-slate-50 border-r">A</TableHead>
+                  <TableHead className="text-center font-bold px-1 text-blue-600 bg-slate-50 border-r">L</TableHead>
+                  <TableHead className="text-center font-bold px-1 text-purple-600 bg-slate-50 border-r">H</TableHead>
+                  <TableHead className="text-center font-bold px-1 text-amber-600 bg-slate-50 border-r">W</TableHead>
+                  <TableHead className="text-center font-bold px-1 bg-slate-50 border-r">OT(h)</TableHead>
+                  <TableHead className="sticky right-0 bg-primary/10 z-30 min-w-[90px] text-primary font-bold text-center border-l">Salary</TableHead>
+                  {daysInMonth.map(day => {
+                    const isSun = isSunday(day);
+                    const isSat = isSaturday(day);
+                    return (
+                      <TableHead 
+                        key={day.toISOString()} 
+                        className={`text-center min-w-[40px] border-l p-1 ${
+                          isSun ? 'bg-red-50 text-red-600 font-black' : 
+                          isSat ? 'bg-amber-50 text-amber-600 font-bold' : ''
+                        }`}
+                      >
+                        <div className="flex flex-col items-center leading-tight">
+                          <span>{format(day, 'd')}</span>
+                          <span className="text-[8px] uppercase">{format(day, 'EEE')}</span>
+                        </div>
+                      </TableHead>
+                    );
+                  })}
                 </TableRow>
               </TableHeader>
               <TableBody className="text-[11px]">
                 {reportData.map(row => (
-                  <TableRow key={row.id}>
-                    <TableCell className="sticky left-0 bg-white font-medium z-10 border-r">{row.name}</TableCell>
-                    <TableCell>{row.stats.Present + row.stats.Holiday + row.stats.Leave}</TableCell>
-                    <TableCell>{row.stats.totalOT}h</TableCell>
-                    <TableCell className="font-bold text-primary">₹{row.salary.toLocaleString()}</TableCell>
-                    {row.dailyStatus.map((s, i) => (
-                      <TableCell key={i} className="p-1 text-center cursor-pointer hover:bg-slate-100" onClick={() => handleDayClick(row.id, s.dateStr)}>
-                        <div className={`h-6 w-6 rounded-full mx-auto flex items-center justify-center font-bold ${
-                          s.status === 'Present' ? 'bg-green-500 text-white' : 
-                          s.status === 'Holiday' ? 'bg-blue-500 text-white' :
-                          s.status === 'Leave' ? 'bg-red-400 text-white' :
-                          s.status === 'C-off' ? 'bg-purple-500 text-white' :
-                          s.status === 'Week-off' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400'
-                        }`}>
-                          {s.status === 'Present' ? 'P' : s.status === 'Holiday' ? 'H' : s.status === 'Leave' ? 'L' : s.status === 'C-off' ? 'C' : s.status === 'Week-off' ? 'W' : 'A'}
-                        </div>
-                      </TableCell>
-                    ))}
+                  <TableRow key={row.id} className="hover:bg-slate-50/50">
+                    <TableCell className="sticky left-0 bg-white font-bold z-20 border-r shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
+                      {row.name}
+                      <div className="text-[9px] text-muted-foreground font-normal">{row.id}</div>
+                    </TableCell>
+                    <TableCell className="text-center bg-slate-50/30 border-r">{row.totalDays}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 font-bold text-green-600 border-r">{row.stats.Present}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 font-bold text-red-600 border-r">{row.stats.Absent}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 font-bold text-blue-600 border-r">{row.stats.Leave}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 font-bold text-purple-600 border-r">{row.stats.Holiday}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 font-bold text-amber-600 border-r">{row.stats['Week-off']}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 border-r">{row.stats.totalOT}</TableCell>
+                    <TableCell className="sticky right-0 bg-primary/5 z-20 font-black text-primary text-center border-l">
+                      ₹{row.salary.toLocaleString()}
+                    </TableCell>
+                    {row.dailyStatus.map((s, i) => {
+                      const isSun = isSunday(s.day);
+                      const isSat = isSaturday(s.day);
+                      return (
+                        <TableCell 
+                          key={i} 
+                          className={`p-1 text-center cursor-pointer border-l hover:bg-slate-200 transition-colors ${
+                            isSun ? 'bg-red-50/30' : isSat ? 'bg-amber-50/30' : ''
+                          }`} 
+                          onClick={() => handleDayClick(row.id, s.dateStr)}
+                        >
+                          <div className={`h-6 w-6 rounded-md mx-auto flex items-center justify-center font-bold text-[10px] shadow-sm ${
+                            s.status === 'Present' ? 'bg-green-500 text-white' : 
+                            s.status === 'Holiday' ? 'bg-purple-500 text-white' :
+                            s.status === 'Leave' ? 'bg-blue-500 text-white' :
+                            s.status === 'C-off' ? 'bg-indigo-500 text-white' :
+                            s.status === 'Week-off' ? 'bg-amber-400 text-amber-900' : 
+                            s.status === 'Absent' ? 'bg-red-100 text-red-400' : 'bg-slate-100 text-slate-400'
+                          }`}>
+                            {s.status === 'Present' ? 'P' : 
+                             s.status === 'Holiday' ? 'H' : 
+                             s.status === 'Leave' ? 'L' : 
+                             s.status === 'C-off' ? 'C' : 
+                             s.status === 'Week-off' ? 'W' : 'A'}
+                          </div>
+                          {s.ot > 0 && <div className="text-[7px] text-amber-600 font-black mt-0.5">+{s.ot}h</div>}
+                        </TableCell>
+                      );
+                    })}
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+          </div>
+          
+          <div className="mt-6 flex flex-wrap gap-4 text-[10px] font-bold">
+            <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-green-500"></div> Present (P)</div>
+            <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-red-100 border text-red-400 text-center text-[8px]">A</div> Absent (A)</div>
+            <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-blue-500"></div> Leave (L)</div>
+            <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-purple-500"></div> Holiday (H)</div>
+            <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-amber-400"></div> Week-off (W)</div>
+            <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-indigo-500"></div> C-off (C)</div>
           </div>
         </CardContent>
       </Card>
@@ -188,7 +252,7 @@ export default function MonthlyReport() {
             </div>
             <div className="grid gap-2">
               <Label>Overtime Hours</Label>
-              <Input type="number" value={editForm.ot} onChange={(e) => setEditForm(p => ({ ...p, ot: e.target.value }))} />
+              <Input type="number" step="0.5" value={editForm.ot} onChange={(e) => setEditForm(p => ({ ...p, ot: e.target.value }))} />
             </div>
           </div>
           <DialogFooter>
