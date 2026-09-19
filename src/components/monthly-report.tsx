@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '@/hooks/use-app';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -58,6 +58,21 @@ export default function MonthlyReport() {
       return { ...employee, dailyStatus, stats, salary, totalDays: daysInMonth.length };
     });
   }, [employees, attendanceRecords, extraStatuses, daysInMonth, selectedMonth]);
+
+  const grandTotals = useMemo(() => {
+    return reportData.reduce((acc, curr) => {
+      acc.totalDays += curr.totalDays;
+      acc.present += curr.stats.Present;
+      acc.absent += curr.stats.Absent;
+      acc.leave += curr.stats.Leave;
+      acc.holiday += curr.stats.Holiday;
+      acc.coff += curr.stats['C-off'];
+      acc.weekoff += curr.stats['Week-off'];
+      acc.ot += curr.stats.totalOT;
+      acc.salary += curr.salary;
+      return acc;
+    }, { totalDays: 0, present: 0, absent: 0, leave: 0, holiday: 0, coff: 0, weekoff: 0, ot: 0, salary: 0 });
+  }, [reportData]);
 
   const handleDayClick = (empId: string, dateStr: string) => {
     const current = extraStatuses.find(e => e.employeeId === empId && e.date === dateStr);
@@ -218,6 +233,23 @@ export default function MonthlyReport() {
                   </TableRow>
                 ))}
               </TableBody>
+              <TableFooter className="bg-muted/80 text-[11px] font-black text-slate-900">
+                <TableRow>
+                  <TableCell className="sticky left-0 bg-slate-100 font-black z-20 border-r shadow-[2px_0_5px_rgba(0,0,0,0.05)]">Grand Total</TableCell>
+                  <TableCell className="text-center border-r">{grandTotals.totalDays}</TableCell>
+                  <TableCell className="text-center text-green-700 font-black border-r">{grandTotals.present}</TableCell>
+                  <TableCell className="text-center text-red-600 font-black border-r">{grandTotals.absent}</TableCell>
+                  <TableCell className="text-center text-blue-600 font-black border-r">{grandTotals.leave}</TableCell>
+                  <TableCell className="text-center text-purple-600 font-black border-r">{grandTotals.holiday}</TableCell>
+                  <TableCell className="text-center text-indigo-600 font-black border-r">{grandTotals.coff}</TableCell>
+                  <TableCell className="text-center text-amber-600 font-black border-r">{grandTotals.weekoff}</TableCell>
+                  <TableCell className="text-center border-r">{grandTotals.ot}</TableCell>
+                  <TableCell className="sticky right-0 bg-primary/20 z-20 font-black text-primary text-center border-l">₹{grandTotals.salary.toLocaleString()}</TableCell>
+                  {daysInMonth.map((_, i) => (
+                    <TableCell key={`ft-${i}`} className="border-l bg-muted/40"></TableCell>
+                  ))}
+                </TableRow>
+              </TableFooter>
             </Table>
           </div>
           
