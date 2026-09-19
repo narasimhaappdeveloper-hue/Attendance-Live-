@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, getDay, isSunday, isSaturday } from 'date-fns';
-import { Users, CheckCircle2, Clock, Calendar, Info, Calculator } from 'lucide-react';
+import { Users, CheckCircle2, Clock, Calendar, Info, Calculator, Layers } from 'lucide-react';
 import type { ShiftSettings } from '@/lib/types';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -52,16 +52,17 @@ export default function MonthlyReport() {
 
       const dailyStatus = daysInMonth.map(day => {
         const dateStr = format(day, 'yyyy-MM-dd');
-        const record = attendanceRecords.find(r => 
+        const dayRecords = attendanceRecords.filter(r => 
           r.employeeId.toUpperCase() === employee.id.toUpperCase() &&
           isSameDay(new Date(r.dateTime), day)
         );
         const extra = extraStatuses.find(ex => ex.employeeId === employee.id && ex.date === dateStr);
 
-        // Auto calculate Late-In using dynamic shiftSettings
-        const shiftType = record?.shift || 'General';
-        const shiftStartHour = shiftSettings[shiftType as keyof ShiftSettings] ?? 9;
-        const actualTime = record ? new Date(record.dateTime) : null;
+        // Auto calculate Late-In using dynamic shiftSettings for the first record of the day
+        const primaryRecord = dayRecords.length > 0 ? dayRecords[dayRecords.length - 1] : null; // Oldest record is first punch
+        const shiftType = primaryRecord?.shift || 'General';
+        const shiftStartHour = shiftSettings[shiftType as keyof ShiftSettings]?.startHour ?? 9;
+        const actualTime = primaryRecord ? new Date(primaryRecord.dateTime) : null;
         let autoLateIn = 0;
         if (actualTime) {
           const actualHours = actualTime.getHours() + actualTime.getMinutes() / 60;
@@ -72,7 +73,7 @@ export default function MonthlyReport() {
         
         if (extra && extra.status !== 'None') {
           status = extra.status as any;
-        } else if (record) {
+        } else if (dayRecords.length > 0) {
           status = 'Present';
         } else if (employee.weekOffDay === DAYS_OF_WEEK[getDay(day)]) {
           status = 'Week-off';
@@ -85,15 +86,28 @@ export default function MonthlyReport() {
         const dailyLate = effectiveLateIn + (extra?.earlyOutHours || 0);
         monthlyCustomLateHoursCut += dailyLate;
 
+        // Auto calculate OT from multiple shifts
+        // If an employee worked A+B+C, and each is 8h, total 24h.
+        // OT = (Records > 1) * dutyHours.
+        let autoOT = 0;
+        if (dayRecords.length > 1) {
+            dayRecords.slice(0, dayRecords.length - 1).forEach(r => {
+                autoOT += shiftSettings[r.shift as keyof ShiftSettings]?.dutyHours || 8;
+            });
+        }
+
+        const finalOT = extra?.otHours || autoOT;
+
         return { 
           day, 
           dateStr, 
           status, 
-          ot: extra?.otHours || 0, 
+          ot: finalOT, 
           late: dailyLate,
           lateIn: effectiveLateIn,
           earlyOut: extra?.earlyOutHours || 0,
-          autoLateIn
+          autoLateIn,
+          punches: dayRecords.length
         };
       });
 
@@ -237,7 +251,7 @@ export default function MonthlyReport() {
           <div>
             <CardTitle>Master Attendance Report</CardTitle>
             <CardDescription>
-              Sundays (Red) & Saturdays (Amber) are highlighted. ఒక రోజుపై క్లిక్ చేసి Late/Early Permission గంటలను మార్చవచ్చు.
+                Sundays (Red) & Saturdays (Amber) are highlighted. ఒక రోజుకు ఒకటి కంటే ఎక్కువ షిఫ్టులు చేస్తే అవి ఆటోమేటిక్‌గా OT లో కలుస్తాయి.
             </CardDescription>
           </div>
           <div className="flex gap-2">
@@ -332,7 +346,7 @@ export default function MonthlyReport() {
                           }`} 
                           onClick={() => handleDayClick(row.id, s.dateStr)}
                         >
-                          <div className={`h-6 w-6 rounded-md mx-auto flex items-center justify-center font-bold text-[10px] shadow-sm ${
+                          <div className={`h-6 w-6 rounded-md mx-auto flex items-center justify-center font-bold text-[10px] shadow-sm relative ${
                             s.status === 'Present' ? 'bg-green-500 text-white' : 
                             s.status === 'Half-Day' ? 'bg-orange-400 text-white' : 
                             s.status === 'Holiday' ? 'bg-purple-500 text-white' :
@@ -347,6 +361,12 @@ export default function MonthlyReport() {
                              s.status === 'Leave' ? 'L' : 
                              s.status === 'C-off' ? 'C' : 
                              s.status === 'Week-off' ? 'W' : 'A'}
+                             
+                             {s.punches > 1 && (
+                                <div className="absolute -top-1 -right-1 bg-primary text-white text-[7px] w-3 h-3 flex items-center justify-center rounded-full border border-white">
+                                    {s.punches}
+                                </div>
+                             )}
                           </div>
                           {s.ot > 0 && <div className="text-[7px] text-green-600 font-black mt-0.5">+{s.ot}h OT</div>}
                           {s.late > 0 && <div className="text-[7px] text-destructive font-black mt-0.5">-{s.late.toFixed(1)}h L</div>}
@@ -421,9 +441,9 @@ export default function MonthlyReport() {
             <div className="p-3 bg-blue-50 text-blue-900 border border-blue-200 text-xs rounded-lg flex items-start gap-2">
               <Calculator className="h-4 w-4 shrink-0 mt-0.5 text-blue-600" />
               <div>
-                <p className="font-bold">Auto Late-In Calculation:</p>
-                <p>ఈ రోజు ఎంప్లాయ్ సబ్మిట్ చేసిన టైమింగ్ ప్రకారం ఆటోమేటిక్ లీట్-ఇన్: <b>{editingDay?.autoLate.toFixed(2)} Hrs</b></p>
-                <p className="mt-1 opacity-80">మీరు మాన్యువల్‌గా కింద బాక్స్‌లో ఎంటర్ చేస్తే, ఆటోమేటిక్ లెక్కింపు ఆగిపోయి మీరు ఇచ్చిందే తీసుకుంటుంది.</p>
+                <p className="font-bold">Auto Calculation Note:</p>
+                <p>ఎక్కువ షిఫ్టులు (Double Shift) చేస్తే ఆ గంటలు ఆటోమేటిక్‌గా OT లోకి వస్తాయి.</p>
+                <p className="mt-1 opacity-80">లేట్-ఇన్: <b>{editingDay?.autoLate.toFixed(2)} Hrs</b></p>
               </div>
             </div>
 
@@ -451,8 +471,9 @@ export default function MonthlyReport() {
             </div>
 
             <div className="grid gap-2">
-              <Label>Overtime Hours</Label>
+              <Label>Overtime Hours (Override)</Label>
               <Input type="number" step="0.5" value={editForm.ot} onChange={(e) => setEditForm(p => ({ ...p, ot: e.target.value }))} />
+              <p className="text-[10px] text-muted-foreground italic">మాన్యువల్‌గా ఇక్కడ OT ఇస్తే ఆటోమేటిక్ లెక్కింపు ఆగిపోతుంది.</p>
             </div>
           </div>
           <DialogFooter>

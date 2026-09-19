@@ -2,7 +2,7 @@
 
 import { createContext, useState, useEffect, useMemo, type ReactNode, useCallback } from 'react';
 import { initialEmployees } from '@/lib/initial-data';
-import type { Employee, AttendanceRecord, CurrentUser, Site, ExtraStatus, SalarySlip, ShiftSettings } from '@/lib/types';
+import type { Employee, AttendanceRecord, CurrentUser, Site, ExtraStatus, SalarySlip, ShiftSettings, ShiftDetail } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { isSameDay } from 'date-fns';
 
@@ -14,7 +14,7 @@ interface AppContextType {
   extraStatuses: ExtraStatus[];
   salarySlips: SalarySlip[];
   shiftSettings: ShiftSettings;
-  hasSubmittedToday: boolean;
+  todayAttendance: AttendanceRecord[];
   login: (id: string, name: string) => 'employee' | 'hr' | 'not_found' | 'pending' | 'resigned';
   signupHr: (id: string, name: string) => void;
   logout: () => void;
@@ -27,7 +27,7 @@ interface AppContextType {
   submitAttendance: (record: Omit<AttendanceRecord, 'id' | 'employeeName'>) => void;
   markExtraStatus: (employeeId: string, date: string, status: 'Leave' | 'C-off' | 'Holiday' | 'Half-Day' | 'Present' | 'Absent', otHours: number, lateInHours?: number, earlyOutHours?: number) => void;
   saveSalarySlip: (slip: SalarySlip) => void;
-  updateShiftSetting: (shift: keyof ShiftSettings, startHour: number) => void;
+  updateShiftSetting: (shift: keyof ShiftSettings, config: Partial<ShiftDetail>) => void;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -39,10 +39,10 @@ const defaultSites: Site[] = [
 ];
 
 const defaultShiftSettings: ShiftSettings = {
-  'General': 9,
-  'Shift A': 6,
-  'Shift B': 14,
-  'Shift C': 22,
+  'General': { startHour: 9, dutyHours: 8 },
+  'Shift A': { startHour: 6, dutyHours: 8 },
+  'Shift B': { startHour: 14, dutyHours: 8 },
+  'Shift C': { startHour: 22, dutyHours: 8 },
 };
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -108,9 +108,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('shiftSettings', JSON.stringify(shiftSettings));
   }, [currentUser, employees, hrUsers, sites, attendanceRecords, extraStatuses, salarySlips, shiftSettings, isLoaded]);
 
-  const hasSubmittedToday = useMemo(() => {
-    if (!currentUser || currentUser.role !== 'employee') return false;
-    return attendanceRecords.some(record => 
+  const todayAttendance = useMemo(() => {
+    if (!currentUser || currentUser.role !== 'employee') return [];
+    return attendanceRecords.filter(record => 
       record.employeeId.toUpperCase() === currentUser.id.toUpperCase() && 
       isSameDay(new Date(record.dateTime), new Date())
     );
@@ -205,17 +205,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const updateShiftSetting = useCallback((shift: keyof ShiftSettings, startHour: number) => {
+  const updateShiftSetting = useCallback((shift: keyof ShiftSettings, config: Partial<ShiftDetail>) => {
     setShiftSettings(prev => ({
       ...prev,
-      [shift]: startHour
+      [shift]: { ...prev[shift], ...config }
     }));
   }, []);
 
   const value = useMemo(() => ({
-    currentUser, employees, sites, attendanceRecords, extraStatuses, salarySlips, shiftSettings, hasSubmittedToday,
+    currentUser, employees, sites, attendanceRecords, extraStatuses, salarySlips, shiftSettings, todayAttendance,
     login, signupHr, logout, addEmployee, updateEmployee, updateEmployeeStatus, deleteEmployee, addSite, deleteSite, submitAttendance, markExtraStatus, saveSalarySlip, updateShiftSetting
-  }), [currentUser, employees, sites, attendanceRecords, extraStatuses, salarySlips, shiftSettings, hasSubmittedToday, login, signupHr, logout, addEmployee, updateEmployee, updateEmployeeStatus, deleteEmployee, addSite, deleteSite, submitAttendance, markExtraStatus, saveSalarySlip, updateShiftSetting]);
+  }), [currentUser, employees, sites, attendanceRecords, extraStatuses, salarySlips, shiftSettings, todayAttendance, login, signupHr, logout, addEmployee, updateEmployee, updateEmployeeStatus, deleteEmployee, addSite, deleteSite, submitAttendance, markExtraStatus, saveSalarySlip, updateShiftSetting]);
 
   return (
     <AppContext.Provider value={value}>

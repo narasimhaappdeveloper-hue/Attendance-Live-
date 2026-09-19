@@ -144,9 +144,14 @@ export type CurrentUser = {
   phone?: string;
 };
 
+export type ShiftDetail = {
+  startHour: number;
+  dutyHours: number;
+};
+
 export type ShiftSettings = {
-  'General': number;
-  'Shift A': number;
-  'Shift B': number;
-  'Shift C': number;
+  'General': ShiftDetail;
+  'Shift A': ShiftDetail;
+  'Shift B': ShiftDetail;
+  'Shift C': ShiftDetail;
 };

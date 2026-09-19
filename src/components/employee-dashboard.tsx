@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -26,10 +25,9 @@ import { WebcamCapture } from '@/components/webcam-capture';
 import { useApp } from '@/hooks/use-app';
 import { useToast } from '@/hooks/use-toast';
 import { detectAttendanceIntrusion } from '@/ai/flows/detect-attendance-intrusion';
-import { LoaderCircle, MapPin, Clock, Calendar as CalendarIcon, Phone, User as UserIcon, RefreshCw, AlertCircle, Check } from 'lucide-react';
+import { LoaderCircle, MapPin, Clock, Calendar as CalendarIcon, Phone, User as UserIcon, RefreshCw, AlertCircle, Check, ClipboardCheck } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
-import { Alert, AlertDescription, AlertTitle } from '@/alert-dialog';
 
 const formSchema = z.object({
   shift: z.enum(['Shift A', 'Shift B', 'Shift C', 'General']),
@@ -39,7 +37,7 @@ const formSchema = z.object({
 const LOCATION_PLACEHOLDER = 'చిరునామాను గుర్తిస్తున్నాము...';
 
 export default function EmployeeDashboard() {
-  const { currentUser, sites, submitAttendance, hasSubmittedToday } = useApp();
+  const { currentUser, sites, submitAttendance, todayAttendance } = useApp();
   const { toast } = useToast();
   const [photoDataUri, setPhotoDataUri] = useState<string | null>(null);
   const [isPhotoConfirmed, setIsPhotoConfirmed] = useState(false);
@@ -170,7 +168,7 @@ export default function EmployeeDashboard() {
             photoDataUri: photoDataUri,
         });
 
-        toast({ title: 'విజయం', description: 'అటెండెన్స్ సమర్పించబడింది.' });
+        toast({ title: 'విజయం', description: `${values.shift} అటెండెన్స్ సమర్పించబడింది.` });
         form.reset();
         setPhotoDataUri(null);
         setIsPhotoConfirmed(false);
@@ -191,27 +189,19 @@ export default function EmployeeDashboard() {
     ));
   }, [sites]);
 
-  if (hasSubmittedToday) {
-    return (
-      <Card className="border-green-100 bg-green-50/30">
-        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="bg-green-100 p-4 rounded-full mb-6">
-            <Check className="h-16 w-16 text-green-600" />
-          </div>
-          <CardTitle className="text-3xl text-green-800 mb-2">Attendance Completed!</CardTitle>
-          <CardDescription className="text-lg text-green-700 max-w-md">
-            ఈ రోజుకు మీ అటెండెన్స్ విజయవంతంగా సమర్పించబడింది.
-          </CardDescription>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="grid lg:grid-cols-12 gap-8">
       <div className="lg:col-span-7 space-y-6">
-        <div className="overflow-hidden rounded-2xl shadow-xl bg-black">
+        <div className="overflow-hidden rounded-2xl shadow-xl bg-black relative">
             <WebcamCapture onCapture={handlePhotoCapture} />
+            {todayAttendance.length > 0 && (
+                <div className="absolute top-4 left-4 z-10">
+                    <div className="bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg border border-white/20">
+                        <ClipboardCheck className="h-3 w-3" />
+                        Today: {todayAttendance.length} Shift(s) Done
+                    </div>
+                </div>
+            )}
         </div>
 
         {locationError && (
@@ -290,8 +280,8 @@ export default function EmployeeDashboard() {
         </Card>
       </div>
 
-      <div className="lg:col-span-5">
-        <Card className="h-full rounded-2xl shadow-xl border-none">
+      <div className="lg:col-span-5 flex flex-col gap-6">
+        <Card className="rounded-2xl shadow-xl border-none">
           <CardHeader className="pb-4">
             <CardTitle className="text-2xl text-slate-800">Submit Attendance</CardTitle>
             <CardDescription className="text-slate-500">షిఫ్ట్ మరియు సైట్ వివరాలను ఎంచుకోండి.</CardDescription>
@@ -372,8 +362,26 @@ export default function EmployeeDashboard() {
             </Form>
           </CardContent>
         </Card>
+
+        {todayAttendance.length > 0 && (
+            <Card className="rounded-2xl border-none shadow-lg">
+                <CardHeader>
+                    <CardTitle className="text-lg">Today's History</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    {todayAttendance.map((rec) => (
+                        <div key={rec.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border">
+                            <div>
+                                <p className="font-bold text-slate-700">{rec.shift}</p>
+                                <p className="text-[10px] text-muted-foreground">{format(new Date(rec.dateTime), 'hh:mm a')}</p>
+                            </div>
+                            <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100">Submitted</Badge>
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
+        )}
       </div>
     </div>
   );
 }
-
