@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, getDay, isSunday, isSaturday } from 'date-fns';
-import { Users, CheckCircle2, Clock, Calendar } from 'lucide-react';
+import { Users, CheckCircle2, Clock, Calendar, Info } from 'lucide-react';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -53,11 +53,11 @@ export default function MonthlyReport() {
 
       // Salary Calculation
       const paidDays = stats.Present + stats['Week-off'] + stats.Leave + stats.Holiday + stats['C-off'];
-      const salary = (paidDays * employee.dailyRate) + (stats.totalOT * employee.otRate);
+      const salary = (paidDays * (employee.dailyRate || 0)) + (stats.totalOT * (employee.otRate || 0));
 
       return { ...employee, dailyStatus, stats, salary, totalDays: daysInMonth.length };
     });
-  }, [employees, attendanceRecords, extraStatuses, daysInMonth]);
+  }, [employees, attendanceRecords, extraStatuses, daysInMonth, selectedMonth]);
 
   const handleDayClick = (empId: string, dateStr: string) => {
     const current = extraStatuses.find(e => e.employeeId === empId && e.date === dateStr);
@@ -80,7 +80,7 @@ export default function MonthlyReport() {
             <Users className="h-6 w-6 text-primary" />
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Staff</p>
-              <h3 className="text-2xl font-bold">{employees.length}</h3>
+              <h3 className="text-2xl font-bold">{employees.filter(e => e.status === 'Approved').length}</h3>
             </div>
           </CardContent>
         </Card>
@@ -118,7 +118,7 @@ export default function MonthlyReport() {
           <div>
             <CardTitle>Master Attendance Report</CardTitle>
             <CardDescription>
-              Sundays (Red) & Saturdays (Amber) are highlighted. Click cells to edit.
+              Sundays (Red) & Saturdays (Amber) are highlighted. Click cells to edit status or OT.
             </CardDescription>
           </div>
           <Select value={format(selectedMonth, 'yyyy-MM')} onValueChange={(v) => setSelectedMonth(new Date(v))}>
@@ -144,6 +144,7 @@ export default function MonthlyReport() {
                   <TableHead className="text-center font-bold px-1 text-red-600 bg-slate-50 border-r">A</TableHead>
                   <TableHead className="text-center font-bold px-1 text-blue-600 bg-slate-50 border-r">L</TableHead>
                   <TableHead className="text-center font-bold px-1 text-purple-600 bg-slate-50 border-r">H</TableHead>
+                  <TableHead className="text-center font-bold px-1 text-indigo-600 bg-slate-50 border-r">C</TableHead>
                   <TableHead className="text-center font-bold px-1 text-amber-600 bg-slate-50 border-r">W</TableHead>
                   <TableHead className="text-center font-bold px-1 bg-slate-50 border-r">OT(h)</TableHead>
                   <TableHead className="sticky right-0 bg-primary/10 z-30 min-w-[90px] text-primary font-bold text-center border-l">Salary</TableHead>
@@ -179,6 +180,7 @@ export default function MonthlyReport() {
                     <TableCell className="text-center bg-slate-50/30 font-bold text-red-600 border-r">{row.stats.Absent}</TableCell>
                     <TableCell className="text-center bg-slate-50/30 font-bold text-blue-600 border-r">{row.stats.Leave}</TableCell>
                     <TableCell className="text-center bg-slate-50/30 font-bold text-purple-600 border-r">{row.stats.Holiday}</TableCell>
+                    <TableCell className="text-center bg-slate-50/30 font-bold text-indigo-600 border-r">{row.stats['C-off']}</TableCell>
                     <TableCell className="text-center bg-slate-50/30 font-bold text-amber-600 border-r">{row.stats['Week-off']}</TableCell>
                     <TableCell className="text-center bg-slate-50/30 border-r">{row.stats.totalOT}</TableCell>
                     <TableCell className="sticky right-0 bg-primary/5 z-20 font-black text-primary text-center border-l">
