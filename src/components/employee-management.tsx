@@ -96,7 +96,12 @@ export default function EmployeeManagement() {
       name: values.name, 
       id: values.id.toUpperCase(), 
       phone: values.phone,
-      weekOffDay: values.weekOffDay
+      weekOffDay: values.weekOffDay,
+      dailyRate: 0,
+      otRate: 0,
+      attendanceBonus: 0,
+      foodAllowance: 0,
+      deductions: 0
     });
     toast({ title: 'Success', description: 'కొత్త ఉద్యోగి విజయవంతంగా చేర్చబడ్డారు.' });
     form.reset();

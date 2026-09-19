@@ -7,6 +7,9 @@ export type Employee = {
   weekOffDay?: string;
   dailyRate: number; // Base pay per day
   otRate: number;    // Pay per hour of overtime
+  attendanceBonus: number; // Monthly bonus
+  foodAllowance: number;   // Monthly food allowance
+  deductions: number;      // Monthly standard deductions (PF/Insurance etc)
 };
 
 export type Site = {
@@ -50,6 +53,9 @@ export type SalarySlip = {
   otHours: number;
   dailyRate: number;
   otRate: number;
+  attendanceBonus: number;
+  foodAllowance: number;
+  deductions: number;
   totalSalary: number;
 };
 
