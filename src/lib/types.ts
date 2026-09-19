@@ -36,6 +36,23 @@ export type ExtraStatus = {
   otHours: number;
 };
 
+export type SalarySlip = {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  month: string; // YYYY-MM
+  generatedDate: string;
+  daysPresent: number;
+  daysLeave: number;
+  daysHoliday: number;
+  daysWeekOff: number;
+  daysCOff: number;
+  otHours: number;
+  dailyRate: number;
+  otRate: number;
+  totalSalary: number;
+};
+
 export type CurrentUser = {
   id: string;
   name: string;

@@ -7,11 +7,13 @@ import AttendanceLog from './attendance-log';
 import SiteManagement from './site-management';
 import MonthlyReport from './monthly-report';
 import PayrollManagement from './payroll-management';
-import { Users, ClipboardList, MapPin, BarChart3, ChevronRight, Wallet } from 'lucide-react';
+import SalarySlips from './salary-slips';
+import PaymentHistory from './payment-history';
+import { Users, ClipboardList, MapPin, BarChart3, ChevronRight, Wallet, FileText, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
-type DashboardTab = 'employees' | 'sites' | 'reports' | 'attendance' | 'payroll';
+type DashboardTab = 'employees' | 'sites' | 'reports' | 'attendance' | 'payroll' | 'slips' | 'history';
 
 export default function HrDashboard() {
   const [activeTab, setActiveTab] = useState<DashboardTab>('employees');
@@ -19,9 +21,11 @@ export default function HrDashboard() {
   const navItems = [
     { id: 'employees', label: 'Employees', icon: Users },
     { id: 'sites', label: 'Work Sites', icon: MapPin },
-    { id: 'reports', label: 'Reports', icon: BarChart3 },
-    { id: 'attendance', label: 'Attendance Log', icon: ClipboardList },
-    { id: 'payroll', label: 'Payroll', icon: Wallet },
+    { id: 'reports', label: 'Attendance Master', icon: BarChart3 },
+    { id: 'attendance', label: 'Daily Logs', icon: ClipboardList },
+    { id: 'payroll', label: 'Salary Rates', icon: Wallet },
+    { id: 'slips', label: 'Salary Slips', icon: FileText },
+    { id: 'history', label: 'Payment History', icon: History },
   ];
 
   const renderContent = () => {
@@ -36,6 +40,10 @@ export default function HrDashboard() {
         return <AttendanceLog />;
       case 'payroll':
         return <PayrollManagement />;
+      case 'slips':
+        return <SalarySlips />;
+      case 'history':
+        return <PaymentHistory />;
       default:
         return <EmployeeManagement />;
     }

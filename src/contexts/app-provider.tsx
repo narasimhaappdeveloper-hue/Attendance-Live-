@@ -3,9 +3,9 @@
 
 import { createContext, useState, useEffect, useMemo, type ReactNode, useCallback } from 'react';
 import { initialEmployees } from '@/lib/initial-data';
-import type { Employee, AttendanceRecord, CurrentUser, Site, ExtraStatus } from '@/lib/types';
+import type { Employee, AttendanceRecord, CurrentUser, Site, ExtraStatus, SalarySlip } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { isSameDay, format } from 'date-fns';
+import { isSameDay } from 'date-fns';
 
 interface AppContextType {
   currentUser: CurrentUser | null;
@@ -13,6 +13,7 @@ interface AppContextType {
   sites: Site[];
   attendanceRecords: AttendanceRecord[];
   extraStatuses: ExtraStatus[];
+  salarySlips: SalarySlip[];
   hasSubmittedToday: boolean;
   login: (id: string, name: string) => 'employee' | 'hr' | 'not_found' | 'pending';
   signupHr: (id: string, name: string) => void;
@@ -24,6 +25,7 @@ interface AppContextType {
   deleteSite: (id: string) => void;
   submitAttendance: (record: Omit<AttendanceRecord, 'id' | 'employeeName'>) => void;
   markExtraStatus: (employeeId: string, date: string, status: 'Leave' | 'C-off' | 'Holiday', otHours: number) => void;
+  saveSalarySlip: (slip: SalarySlip) => void;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -41,6 +43,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [sites, setSites] = useState<Site[]>(defaultSites);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [extraStatuses, setExtraStatuses] = useState<ExtraStatus[]>([]);
+  const [salarySlips, setSalarySlips] = useState<SalarySlip[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const router = useRouter();
 
@@ -71,6 +74,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       const storedExtra = localStorage.getItem('extraStatuses');
       if (storedExtra) setExtraStatuses(JSON.parse(storedExtra));
+
+      const storedSlips = localStorage.getItem('salarySlips');
+      if (storedSlips) setSalarySlips(JSON.parse(storedSlips));
     } catch (error) {
       console.warn("Storage initialization warning");
     }
@@ -85,7 +91,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('sites', JSON.stringify(sites));
     localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
     localStorage.setItem('extraStatuses', JSON.stringify(extraStatuses));
-  }, [currentUser, employees, hrUsers, sites, attendanceRecords, extraStatuses, isLoaded]);
+    localStorage.setItem('salarySlips', JSON.stringify(salarySlips));
+  }, [currentUser, employees, hrUsers, sites, attendanceRecords, extraStatuses, salarySlips, isLoaded]);
 
   const hasSubmittedToday = useMemo(() => {
     if (!currentUser || currentUser.role !== 'employee') return false;
@@ -163,10 +170,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const saveSalarySlip = useCallback((slip: SalarySlip) => {
+    setSalarySlips(prev => {
+      // Prevent duplicates for same employee and same month
+      const filtered = prev.filter(s => !(s.employeeId === slip.employeeId && s.month === slip.month));
+      return [...filtered, slip];
+    });
+  }, []);
+
   const value = useMemo(() => ({
-    currentUser, employees, sites, attendanceRecords, extraStatuses, hasSubmittedToday,
-    login, signupHr, logout, addEmployee, updateEmployee, deleteEmployee, addSite, deleteSite, submitAttendance, markExtraStatus
-  }), [currentUser, employees, sites, attendanceRecords, extraStatuses, hasSubmittedToday, login, signupHr, logout, addEmployee, updateEmployee, deleteEmployee, addSite, deleteSite, submitAttendance, markExtraStatus]);
+    currentUser, employees, sites, attendanceRecords, extraStatuses, salarySlips, hasSubmittedToday,
+    login, signupHr, logout, addEmployee, updateEmployee, deleteEmployee, addSite, deleteSite, submitAttendance, markExtraStatus, saveSalarySlip
+  }), [currentUser, employees, sites, attendanceRecords, extraStatuses, salarySlips, hasSubmittedToday, login, signupHr, logout, addEmployee, updateEmployee, deleteEmployee, addSite, deleteSite, submitAttendance, markExtraStatus, saveSalarySlip]);
 
   return (
     <AppContext.Provider value={value}>
