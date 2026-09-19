@@ -53,10 +53,15 @@ export default function SalarySlips() {
       const totalPaidDays = p + w + h + c;
       // Loss of Pay Days = Leave (L) + Absent (A)
       const lopDays = l + a;
-      const lopDeduction = lopDays * (employee.dailyRate || 0);
+      
+      const effectiveDailyRate = employee.dailyRate || (employee.basicSalary ? Math.round(employee.basicSalary / daysInMonth.length) : 0);
+      const lopDeduction = lopDays * effectiveDailyRate;
+
+      // Real calculated dynamic basic salary fallback if structural components are zeroed out
+      const calculatedBasic = employee.basicSalary || (totalPaidDays * effectiveDailyRate);
 
       const earnings = {
-        basic: employee.basicSalary || 0,
+        basic: calculatedBasic,
         hra: employee.hra || 0,
         da: employee.da || 0,
         conveyance: employee.conveyance || 0,
@@ -70,7 +75,6 @@ export default function SalarySlips() {
 
       const grossEarnings = Object.values(earnings).reduce((a, b) => a + b, 0);
 
-      // Govt Rules Statutory Calculations
       const autoPF = Math.round(earnings.basic * 0.12);
       const autoESI = grossEarnings <= 21000 ? Math.round(grossEarnings * 0.0075) : 0;
 
@@ -124,7 +128,7 @@ export default function SalarySlips() {
           daysHoliday: item.stats.h,
           daysWeekOff: item.stats.w,
           daysCOff: item.stats.c,
-          daysAbsent: item.stats.a + item.stats.l, // Total unpaid days
+          daysAbsent: item.stats.a + item.stats.l,
           otHours: item.stats.ot,
           dailyRate: item.employee.dailyRate,
           otRate: item.employee.otRate,
@@ -235,7 +239,6 @@ export default function SalarySlips() {
           <DialogDescription className="sr-only">Detailed professional salary slip with earnings and deductions breakdown.</DialogDescription>
           {selectedSlip && (
             <div className="bg-white text-slate-900 printable-area text-[11px] sm:text-[13px] font-sans">
-              {/* Header */}
               <div className="p-8 border-b-4 border-primary flex justify-between items-start">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -254,7 +257,6 @@ export default function SalarySlips() {
                 </div>
               </div>
 
-              {/* Employee Details Section */}
               <div className="p-8 grid grid-cols-2 gap-8 bg-slate-50/50">
                 <div className="space-y-4">
                   <div className="grid grid-cols-2">
@@ -302,9 +304,7 @@ export default function SalarySlips() {
                 </div>
               </div>
 
-              {/* Earnings and Deductions Table */}
               <div className="grid grid-cols-2 border-y">
-                {/* Earnings */}
                 <div className="border-r">
                    <div className="bg-slate-100 p-2 font-black text-[10px] uppercase border-b">Earnings</div>
                    <div className="p-4 space-y-2">
@@ -318,7 +318,6 @@ export default function SalarySlips() {
                      <div className="flex justify-between text-slate-500"><span>Other Earnings</span><span className="font-bold">₹{selectedSlip.earnings.other.toLocaleString()}</span></div>
                    </div>
                 </div>
-                {/* Deductions */}
                 <div>
                    <div className="bg-slate-100 p-2 font-black text-[10px] uppercase border-b flex justify-between items-center">
                      <span>Deductions</span>
@@ -336,7 +335,6 @@ export default function SalarySlips() {
                 </div>
               </div>
 
-              {/* Total Calculation Row */}
               <div className="grid grid-cols-2 bg-slate-50 font-black text-slate-800 border-b">
                 <div className="p-4 border-r flex justify-between uppercase">
                   <span>Gross Earnings</span>
@@ -348,7 +346,6 @@ export default function SalarySlips() {
                 </div>
               </div>
 
-              {/* Final Summary (Net Pay) */}
               <div className="p-8 flex flex-col items-center sm:flex-row sm:justify-between gap-6 bg-primary/5">
                 <div className="space-y-1">
                   <h3 className="text-sm font-black text-primary uppercase tracking-widest">Net Salary Payable</h3>
@@ -360,7 +357,6 @@ export default function SalarySlips() {
                 </div>
               </div>
 
-              {/* Footer / Signatures */}
               <div className="p-10 grid grid-cols-2 gap-20">
                 <div className="text-center pt-8 border-t border-slate-200">
                   <p className="font-bold text-slate-600">Employee Signature</p>
@@ -373,7 +369,6 @@ export default function SalarySlips() {
                 </div>
               </div>
 
-              {/* Controls */}
               <div className="p-6 border-t bg-slate-100 flex justify-end gap-3 no-print">
                 <Button variant="outline" onClick={() => setSelectedSlip(null)}>Close</Button>
                 <Button onClick={() => window.print()} className="bg-primary hover:bg-primary/90">

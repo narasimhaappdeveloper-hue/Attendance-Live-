@@ -51,9 +51,12 @@ export default function MonthlyReport() {
         return acc;
       }, { Present: 0, Absent: 0, 'Week-off': 0, Leave: 0, Holiday: 0, 'C-off': 0, totalOT: 0 });
 
-      // Correct Paid Working Days Calculation: Only Present + Week-off + Holiday + C-off (Leave and Absent are Unpaid)
+      // Paid Working Days Calculation: Only Present + Week-off + Holiday + C-off
       const paidWorkingDays = stats.Present + stats['Week-off'] + stats.Holiday + stats['C-off'];
-      const salary = (paidWorkingDays * (employee.dailyRate || 0)) + (stats.totalOT * (employee.otRate || 0));
+      
+      // Dynamic Daily Rate calculation fix: Use dailyRate if explicitly provided, otherwise fallback to basicSalary breakdown
+      const effectiveDailyRate = employee.dailyRate || (employee.basicSalary ? Math.round(employee.basicSalary / daysInMonth.length) : 0);
+      const salary = (paidWorkingDays * effectiveDailyRate) + (stats.totalOT * (employee.otRate || 0));
 
       return { ...employee, dailyStatus, stats, salary, paidWorkingDays, totalDays: daysInMonth.length };
     });
@@ -156,7 +159,6 @@ export default function MonthlyReport() {
                 <TableRow className="bg-muted/50 text-[10px]">
                   <TableHead className="sticky left-0 bg-muted/50 z-30 min-w-[120px] border-r">Employee Name</TableHead>
                   
-                  {/* Date Columns */}
                   {daysInMonth.map(day => {
                     const isSun = isSunday(day);
                     const isSat = isSaturday(day);
@@ -176,7 +178,6 @@ export default function MonthlyReport() {
                     );
                   })}
 
-                  {/* Summary Columns at the end */}
                   <TableHead className="text-center font-bold px-1 text-green-600 bg-slate-50 border-l border-r">P</TableHead>
                   <TableHead className="text-center font-bold px-1 text-red-600 bg-slate-50 border-r">A</TableHead>
                   <TableHead className="text-center font-bold px-1 text-blue-600 bg-slate-50 border-r">L</TableHead>
@@ -184,7 +185,7 @@ export default function MonthlyReport() {
                   <TableHead className="text-center font-bold px-1 text-indigo-600 bg-slate-50 border-r">C</TableHead>
                   <TableHead className="text-center font-bold px-1 text-amber-600 bg-slate-50 border-r">W</TableHead>
                   <TableHead className="text-center font-bold px-1 bg-slate-50 border-r">OT(h)</TableHead>
-                  <TableHead className="text-center font-bold px-1 bg-primary/10 text-primary border-r" title="Paid Work Days = P + H + C + W">Paid Work Days</TableHead>
+                  <TableHead className="text-center font-bold px-1 bg-primary/10 text-primary border-r">Paid Work Days</TableHead>
                   <TableHead className="sticky right-0 bg-primary/10 z-30 min-w-[90px] text-primary font-bold text-center border-l">Salary</TableHead>
                 </TableRow>
               </TableHeader>
@@ -196,7 +197,6 @@ export default function MonthlyReport() {
                       <div className="text-[9px] text-muted-foreground font-normal">{row.id}</div>
                     </TableCell>
 
-                    {/* Daily Status Cells */}
                     {row.dailyStatus.map((s, i) => {
                       const isSun = isSunday(s.day);
                       const isSat = isSaturday(s.day);
@@ -227,7 +227,6 @@ export default function MonthlyReport() {
                       );
                     })}
 
-                    {/* Summary Statistics Cells */}
                     <TableCell className="text-center bg-slate-50/30 font-bold text-green-600 border-l border-r">{row.stats.Present}</TableCell>
                     <TableCell className="text-center bg-slate-50/30 font-bold text-red-600 border-r">{row.stats.Absent}</TableCell>
                     <TableCell className="text-center bg-slate-50/30 font-bold text-blue-600 border-r">{row.stats.Leave}</TableCell>
@@ -246,12 +245,10 @@ export default function MonthlyReport() {
                 <TableRow>
                   <TableCell className="sticky left-0 bg-slate-100 font-black z-20 border-r shadow-[2px_0_5px_rgba(0,0,0,0.05)]">Grand Total</TableCell>
                   
-                  {/* Empty Footer Cells for Dates */}
                   {daysInMonth.map((_, i) => (
                     <TableCell key={`ft-date-${i}`} className="border-l bg-muted/44"></TableCell>
                   ))}
 
-                  {/* Summary Totals in Footer */}
                   <TableCell className="text-center text-green-700 font-black border-l border-r bg-slate-100">{grandTotals.present}</TableCell>
                   <TableCell className="text-center text-red-600 font-black border-r bg-slate-100">{grandTotals.absent}</TableCell>
                   <TableCell className="text-center text-blue-600 font-black border-r bg-slate-100">{grandTotals.leave}</TableCell>
