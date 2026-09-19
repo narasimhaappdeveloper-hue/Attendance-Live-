@@ -1,6 +1,5 @@
 
-
-'use client';
+'use server';
 
 /**
  * @fileOverview Flow for detecting attendance intrusion using facial liveness detection.
@@ -47,7 +46,6 @@ const detectAttendanceIntrusionFlow = ai.defineFlow(
   },
   async input => {
     try {
-        // Updated to use gemini-2.5-flash for maximum stability and speed
         const {output} = await ai.generate({
           model: googleAI.model('gemini-2.5-flash'),
           system: `You are an AI expert in detecting fraudulent attendance submissions.
@@ -58,7 +56,6 @@ Ensure the photo looks authentic and not manipulated.`,
             {
               media: {
                 url: input.photoDataUri,
-                contentType: 'image/jpeg',
               },
             },
           ],
@@ -83,4 +80,3 @@ Ensure the photo looks authentic and not manipulated.`,
     }
   }
 );
-

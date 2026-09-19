@@ -130,7 +130,7 @@ export default function EmployeeDashboard() {
     try {
         toast({ title: 'విశ్లేషిస్తోంది...', description: 'ఫోటోను మరియు లొకేషన్‌ను తనిఖీ చేస్తున్నాము.'});
         
-        // Call the AI flow with latest model
+        // Call the AI flow (Server Action)
         const aiResult = await detectAttendanceIntrusion({ photoDataUri });
         
         if (!aiResult.isLiveFace) {
@@ -361,4 +361,3 @@ export default function EmployeeDashboard() {
     </div>
   );
 }
-
