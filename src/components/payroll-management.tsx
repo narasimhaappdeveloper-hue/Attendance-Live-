@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -8,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { IndianRupee, Save, CheckCircle2, Info, Settings2 } from 'lucide-react';
+import { IndianRupee, Save, CheckCircle2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
@@ -58,13 +57,13 @@ export default function PayrollManagement() {
             <IndianRupee className="h-5 w-5" /> 
             Professional Payroll Configuration
           </CardTitle>
-          <CardDescription>ప్రతి ఉద్యోగికి జీతం, అలవెన్సులు మరియు డిడక్షన్లను ఇక్కడ సెట్ చేయండి.</CardDescription>
+          <CardDescription>ప్రతి ఉద్యోగికి రోజువారీ రేటు, జీతం, అలవెన్సులు మరియు డిడక్షన్లను ఇక్కడ సెట్ చేయండి.</CardDescription>
         </CardHeader>
       </Card>
 
       <div className="p-4 bg-amber-50 text-amber-800 text-xs font-semibold rounded-xl border border-amber-200 flex items-start gap-2">
          <Info className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
-         <p>గమనిక: PF (12%), ESI (0.75%), PT, మరియు IT/TDS లను ఆన్ చేసినప్పుడు మాత్రమే ప్రభుత్వ నిబంధనల ప్రకారం ఆటోమేటిక్‌గా లెక్కించబడతాయి.</p>
+         <p>గమనిక: PF (12%), ESI (0.75%), PT, మరియు IT/TDS లను ఆన్ చేసినప్పుడు మాత్రమే ప్రభుత్వ నిబంధనల ప్రకారం ఆటోమేటిక్‌గా లెక్కించబడతాయి. లీవ్ మరియు అబ్సెంట్ రోజులకు LOP Deduction ఆటోమేటిక్‌గా లెక్కించబడుతుంది.</p>
       </div>
 
       <Card className="border-none shadow-md overflow-hidden">
@@ -74,7 +73,7 @@ export default function PayrollManagement() {
               <TableHeader>
                 <TableRow className="bg-muted/50 text-[10px] uppercase tracking-wider">
                   <TableHead className="min-w-[150px] sticky left-0 bg-muted/50 z-20">Employee</TableHead>
-                  <TableHead>Earnings (Monthly)</TableHead>
+                  <TableHead>Earnings & Rates (Monthly)</TableHead>
                   <TableHead>Statutory (Toggle On/Off)</TableHead>
                   <TableHead>Manual Deductions</TableHead>
                   <TableHead className="text-right sticky right-0 bg-muted/50 z-20">Action</TableHead>
@@ -93,9 +92,13 @@ export default function PayrollManagement() {
                       </TableCell>
 
                       <TableCell>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 py-2 w-[550px]">
+                        <div className="grid grid-cols-3 gap-x-4 gap-y-2 py-2 w-[650px]">
                            <div className="space-y-1">
-                             <label className="text-[9px] text-muted-foreground">Basic</label>
+                             <label className="text-[9px] font-bold text-primary">Daily Rate (₹/Day)</label>
+                             <Input type="number" className="h-7 text-xs font-bold border-primary" defaultValue={data.dailyRate} onChange={(e) => handleRateChange(emp.id, 'dailyRate', parseFloat(e.target.value) || 0)} />
+                           </div>
+                           <div className="space-y-1">
+                             <label className="text-[9px] text-muted-foreground">Basic Salary</label>
                              <Input type="number" className="h-7 text-xs" defaultValue={data.basicSalary} onChange={(e) => handleRateChange(emp.id, 'basicSalary', parseFloat(e.target.value) || 0)} />
                            </div>
                            <div className="space-y-1">
@@ -107,10 +110,14 @@ export default function PayrollManagement() {
                              <Input type="number" className="h-7 text-xs" defaultValue={data.foodAllowance} onChange={(e) => handleRateChange(emp.id, 'foodAllowance', parseFloat(e.target.value) || 0)} />
                            </div>
                            <div className="space-y-1">
+                             <label className="text-[9px] text-green-700 font-bold">Incentive</label>
+                             <Input type="number" className="h-7 text-xs border-green-200" defaultValue={data.incentive} onChange={(e) => handleRateChange(emp.id, 'incentive', parseFloat(e.target.value) || 0)} />
+                           </div>
+                           <div className="space-y-1">
                              <label className="text-[9px] text-muted-foreground">OT Rate (h)</label>
                              <Input type="number" className="h-7 text-xs" defaultValue={data.otRate} onChange={(e) => handleRateChange(emp.id, 'otRate', parseFloat(e.target.value) || 0)} />
                            </div>
-                           <div className="space-y-1 col-span-2">
+                           <div className="space-y-1 col-span-3">
                              <label className="text-[9px] text-primary font-bold">Manual Other Earnings (Amt & Reason)</label>
                              <div className="flex gap-1">
                                <Input type="number" className="h-7 text-xs w-20" placeholder="Amt" defaultValue={data.otherEarnings} onChange={(e) => handleRateChange(emp.id, 'otherEarnings', parseFloat(e.target.value) || 0)} />
