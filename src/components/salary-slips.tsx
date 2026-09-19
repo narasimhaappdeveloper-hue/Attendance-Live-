@@ -309,10 +309,10 @@ export default function SalarySlips() {
                      <div className="flex justify-between"><span>HRA</span><span className="font-bold">₹{selectedSlip.earnings.hra.toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>DA</span><span className="font-bold">₹{selectedSlip.earnings.da.toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Conveyance</span><span className="font-bold">₹{selectedSlip.earnings.conveyance.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span>Special Allowance</span><span className="font-bold">₹{selectedSlip.earnings.special.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span>Incentive</span><span className="font-bold">₹{selectedSlip.earnings.incentive.toLocaleString()}</span></div>
+                     <div className="flex justify-between text-green-700 font-medium"><span>Food Allowance</span><span className="font-bold">₹{selectedSlip.earnings.food.toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Overtime Pay</span><span className="font-bold">₹{selectedSlip.earnings.otPay.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span>Bonus / Others</span><span className="font-bold">₹{(selectedSlip.earnings.bonus + selectedSlip.earnings.food + selectedSlip.earnings.other).toLocaleString()}</span></div>
+                     <div className="flex justify-between"><span>Bonus / Incentive</span><span className="font-bold">₹{(selectedSlip.earnings.bonus + selectedSlip.earnings.special + selectedSlip.earnings.incentive).toLocaleString()}</span></div>
+                     <div className="flex justify-between font-italic text-slate-500"><span>Other Earnings</span><span className="font-bold">₹{selectedSlip.earnings.other.toLocaleString()}</span></div>
                    </div>
                 </div>
                 {/* Deductions */}
@@ -328,7 +328,7 @@ export default function SalarySlips() {
                      <div className="flex justify-between"><span>Income Tax (TDS)</span><span className="font-bold">₹{selectedSlip.deductions.it.toLocaleString()}</span></div>
                      <div className="flex justify-between"><span>Loan / Advance</span><span className="font-bold">₹{(selectedSlip.deductions.loan + selectedSlip.deductions.advance).toLocaleString()}</span></div>
                      <div className="flex justify-between text-destructive"><span>LOP Deduction</span><span className="font-bold">₹{selectedSlip.deductions.lop.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span>Other Deductions</span><span className="font-bold">₹{selectedSlip.deductions.other.toLocaleString()}</span></div>
+                     <div className="flex justify-between text-destructive font-italic"><span>Other Deductions</span><span className="font-bold">₹{selectedSlip.deductions.other.toLocaleString()}</span></div>
                    </div>
                 </div>
               </div>

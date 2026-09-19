@@ -64,7 +64,7 @@ export default function PayrollManagement() {
 
       <div className="p-4 bg-amber-50 text-amber-800 text-xs font-semibold rounded-xl border border-amber-200 flex items-start gap-2">
          <Info className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
-         <p>గమనిక: ప్రభుత్వ నిబంధనల ప్రకారం PF మరియు ESI బాక్సులు ఇక్కడ అవసరం లేదు, స్లిప్ జనరేట్ చేసినప్పుడు సిస్టమే ఆటోమేటిక్‌గా 12% PF మరియు 0.75% ESI లెక్కించి కట్ చేస్తుంది.</p>
+         <p>గమనిక: PF (12%) మరియు ESI (0.75%) ప్రభుత్వ నిబంధనల ప్రకారం ఆటోమేటిక్‌గా లెక్కించబడతాయి. Food Allowance మరియు ఇతర అలవెన్సులను మీరు మాన్యువల్‌గా ఎంటర్ చేయవచ్చు.</p>
       </div>
 
       <Card className="border-none shadow-md overflow-hidden">
@@ -103,7 +103,7 @@ export default function PayrollManagement() {
 
                       {/* Earnings Columns */}
                       <TableCell>
-                        <div className="grid grid-cols-2 gap-2 py-2 w-[350px]">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 py-2 w-[450px]">
                            <div className="space-y-1">
                              <label className="text-[9px] text-muted-foreground">Basic</label>
                              <Input type="number" className="h-7 text-xs" defaultValue={data.basicSalary} onChange={(e) => handleRateChange(emp.id, 'basicSalary', e.target.value)} />
@@ -121,19 +121,27 @@ export default function PayrollManagement() {
                              <Input type="number" className="h-7 text-xs" defaultValue={data.conveyance} onChange={(e) => handleRateChange(emp.id, 'conveyance', e.target.value)} />
                            </div>
                            <div className="space-y-1">
-                             <label className="text-[9px] text-muted-foreground">Bonus</label>
+                             <label className="text-[9px] text-green-600 font-bold">Food Allowance</label>
+                             <Input type="number" className="h-7 text-xs" defaultValue={data.foodAllowance} onChange={(e) => handleRateChange(emp.id, 'foodAllowance', e.target.value)} />
+                           </div>
+                           <div className="space-y-1">
+                             <label className="text-[9px] text-green-600 font-bold">Bonus/Others</label>
                              <Input type="number" className="h-7 text-xs" defaultValue={data.attendanceBonus} onChange={(e) => handleRateChange(emp.id, 'attendanceBonus', e.target.value)} />
                            </div>
                            <div className="space-y-1">
                              <label className="text-[9px] text-muted-foreground">OT Rate (h)</label>
                              <Input type="number" className="h-7 text-xs" defaultValue={data.otRate} onChange={(e) => handleRateChange(emp.id, 'otRate', e.target.value)} />
                            </div>
+                           <div className="space-y-1">
+                             <label className="text-[9px] text-muted-foreground">Manual Other Earnings</label>
+                             <Input type="number" className="h-7 text-xs" defaultValue={data.otherEarnings} onChange={(e) => handleRateChange(emp.id, 'otherEarnings', e.target.value)} />
+                           </div>
                         </div>
                       </TableCell>
 
                       {/* Deductions Columns */}
                       <TableCell>
-                         <div className="grid grid-cols-2 gap-2 py-2 w-[300px]">
+                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 py-2 w-[350px]">
                            <div className="space-y-1 opacity-70">
                              <label className="text-[9px] text-blue-600 font-bold">PF (Auto 12%)</label>
                              <div className="h-7 text-xs border rounded bg-slate-50 flex items-center px-2 font-mono font-bold text-slate-500">₹{Math.round((data.basicSalary || 0) * 0.12)}</div>
@@ -149,6 +157,10 @@ export default function PayrollManagement() {
                            <div className="space-y-1">
                              <label className="text-[9px] text-destructive">Income Tax (TDS)</label>
                              <Input type="number" className="h-7 text-xs" defaultValue={data.incomeTax} onChange={(e) => handleRateChange(emp.id, 'incomeTax', e.target.value)} />
+                           </div>
+                           <div className="space-y-1">
+                             <label className="text-[9px] text-destructive font-bold">Manual Other Deductions</label>
+                             <Input type="number" className="h-7 text-xs" defaultValue={data.otherDeductions} onChange={(e) => handleRateChange(emp.id, 'otherDeductions', e.target.value)} />
                            </div>
                          </div>
                       </TableCell>
