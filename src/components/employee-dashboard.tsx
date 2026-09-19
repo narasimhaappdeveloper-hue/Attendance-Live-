@@ -29,12 +29,14 @@ import { detectAttendanceIntrusion } from '@/ai/flows/detect-attendance-intrusio
 import { LoaderCircle, MapPin, Clock, Calendar as CalendarIcon, Phone, User as UserIcon, RefreshCw, AlertCircle, Check } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/alert-dialog';
 
 const formSchema = z.object({
   shift: z.enum(['Shift A', 'Shift B', 'Shift C', 'General']),
   site: z.string().min(1, { message: 'దయచేసి సైట్‌ను ఎంచుకోండి.' }),
 });
+
+const LOCATION_PLACEHOLDER = 'చిరునామాను గుర్తిస్తున్నాము...';
 
 export default function EmployeeDashboard() {
   const { currentUser, sites, submitAttendance, hasSubmittedToday } = useApp();
@@ -42,7 +44,7 @@ export default function EmployeeDashboard() {
   const [photoDataUri, setPhotoDataUri] = useState<string | null>(null);
   const [isPhotoConfirmed, setIsPhotoConfirmed] = useState(false);
   const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
-  const [address, setAddress] = useState<string>('చిరునామాను గుర్తిస్తున్నాము...');
+  const [address, setAddress] = useState<string>(LOCATION_PLACEHOLDER);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -82,6 +84,7 @@ export default function EmployeeDashboard() {
     if (isLocating) return;
     setIsLocating(true);
     setLocationError(null);
+    setAddress(LOCATION_PLACEHOLDER);
     
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -108,19 +111,34 @@ export default function EmployeeDashboard() {
 
   useEffect(() => {
     getLocation();
-  }, [getLocation]);
+  }, []);
 
   const handlePhotoCapture = useCallback((dataUri: string | null) => {
     setPhotoDataUri(dataUri);
     setIsPhotoConfirmed(!!dataUri); 
   }, []);
 
+  const isLocationReady = useMemo(() => {
+    return gps !== null && address !== LOCATION_PLACEHOLDER;
+  }, [gps, address]);
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!currentUser || !photoDataUri || !isPhotoConfirmed) {
+    if (!currentUser) return;
+
+    if (!photoDataUri || !isPhotoConfirmed) {
       toast({
         variant: 'destructive',
         title: 'Error',
         description: 'దయచేసి ఫోటో తీసి OK నొక్కండి.',
+      });
+      return;
+    }
+
+    if (!isLocationReady) {
+      toast({
+        variant: 'destructive',
+        title: 'Location Required',
+        description: 'దయచేసి లొకేషన్ లోడ్ అయ్యే వరకు వేచి ఉండండి.',
       });
       return;
     }
@@ -147,7 +165,7 @@ export default function EmployeeDashboard() {
             shift: values.shift,
             site: values.site,
             dateTime: new Date().toISOString(),
-            gpsCoordinates: gps || { lat: 14.159487, lng: 77.615092 },
+            gpsCoordinates: gps!,
             address: address,
             photoDataUri: photoDataUri,
         });
@@ -197,11 +215,10 @@ export default function EmployeeDashboard() {
         </div>
 
         {locationError && (
-          <Alert variant="destructive" className="rounded-xl shadow-md">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Location Access Needed</AlertTitle>
-            <AlertDescription>దయచేసి లొకేషన్ పర్మిషన్ ఇవ్వండి.</AlertDescription>
-          </Alert>
+          <div className="p-4 bg-destructive/10 text-destructive rounded-xl border border-destructive/20 flex items-center gap-3">
+            <AlertCircle className="h-5 w-5" />
+            <p className="text-sm font-medium">లొకేషన్ పర్మిషన్ అవసరం. దయచేసి సెట్టింగ్స్‌లో అనుమతించండి.</p>
+          </div>
         )}
 
         <Card className="rounded-2xl shadow-md border-none bg-white">
@@ -212,13 +229,15 @@ export default function EmployeeDashboard() {
                     </div>
                     <div className="flex-1">
                         <div className="flex items-center justify-between">
-                            <p className="text-xs font-bold text-muted-foreground uppercase">Current Location</p>
-                            <Button variant="ghost" size="sm" onClick={getLocation} disabled={isLocating} className="h-8 text-primary">
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Current Location</p>
+                            <Button variant="ghost" size="sm" onClick={getLocation} disabled={isLocating} className="h-8 text-primary hover:bg-primary/5">
                                 <RefreshCw className={`h-4 w-4 mr-1 ${isLocating ? 'animate-spin' : ''}`} />
                                 Refresh
                             </Button>
                         </div>
-                        <p className="text-base font-semibold text-slate-800">{address}</p>
+                        <p className={`text-base font-semibold mt-1 ${address === LOCATION_PLACEHOLDER ? 'text-muted-foreground animate-pulse' : 'text-slate-800'}`}>
+                            {address}
+                        </p>
                     </div>
                 </div>
 
@@ -288,7 +307,7 @@ export default function EmployeeDashboard() {
                       <FormLabel className="font-bold">Select Shift</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger className="h-14 rounded-xl">
+                          <SelectTrigger className="h-14 rounded-xl border-slate-200">
                             <SelectValue placeholder="Choose shift" />
                           </SelectTrigger>
                         </FormControl>
@@ -311,7 +330,7 @@ export default function EmployeeDashboard() {
                       <FormLabel className="font-bold">Work Site</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger className="h-14 rounded-xl">
+                          <SelectTrigger className="h-14 rounded-xl border-slate-200">
                             <SelectValue placeholder="Choose site" />
                           </SelectTrigger>
                         </FormControl>
@@ -324,21 +343,30 @@ export default function EmployeeDashboard() {
                   )}
                 />
                 
-                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 space-y-2">
                   <p className="text-sm text-amber-800 leading-relaxed font-semibold flex gap-2">
-                    <AlertCircle className="h-5 w-5 shrink-0" />
-                    ఫోటో తీసిన తర్వాత OK నొక్కాలి. ఆ తర్వాతే సబ్మిట్ చేయాలి.
+                    <Check className={`h-5 w-5 shrink-0 ${isPhotoConfirmed ? 'text-green-600' : 'text-slate-400'}`} />
+                    ఫోటో తీసి "OK" నొక్కాలి.
+                  </p>
+                  <p className="text-sm text-amber-800 leading-relaxed font-semibold flex gap-2">
+                    <Check className={`h-5 w-5 shrink-0 ${isLocationReady ? 'text-green-600' : 'text-slate-400'}`} />
+                    లొకేషన్ పూర్తిగా లోడ్ అవ్వాలి.
                   </p>
                 </div>
 
                 <Button 
                   type="submit" 
-                  className={`w-full text-xl py-9 rounded-2xl shadow-2xl transition-all duration-300 font-bold ${
-                    isPhotoConfirmed ? 'bg-primary' : 'bg-slate-300 opacity-50 cursor-not-allowed'
+                  className={`w-full text-xl py-9 rounded-2xl shadow-lg transition-all duration-300 font-bold ${
+                    isPhotoConfirmed && isLocationReady ? 'bg-primary hover:bg-primary/90' : 'bg-slate-300 opacity-50 cursor-not-allowed'
                   }`} 
-                  disabled={isSubmitting || !photoDataUri || !isPhotoConfirmed}
+                  disabled={isSubmitting || !photoDataUri || !isPhotoConfirmed || !isLocationReady}
                 >
-                  {isSubmitting ? <LoaderCircle className="h-6 w-6 animate-spin" /> : 'Submit Attendance'}
+                  {isSubmitting ? (
+                    <div className="flex items-center gap-2">
+                      <LoaderCircle className="h-6 w-6 animate-spin" />
+                      <span>Submitting...</span>
+                    </div>
+                  ) : 'Submit Attendance'}
                 </Button>
               </form>
             </Form>
@@ -348,3 +376,4 @@ export default function EmployeeDashboard() {
     </div>
   );
 }
+
