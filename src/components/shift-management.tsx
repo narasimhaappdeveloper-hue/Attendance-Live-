@@ -1,208 +1,203 @@
+
 'use client';
 
 import { useApp } from '@/hooks/use-app';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Clock, Save, Sun, Moon, Check, RotateCcw } from 'lucide-react';
+import { Clock, Save, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ShiftSettings } from '@/lib/types';
-import { useState, useMemo, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 
-interface ClockPickerProps {
-  value: number; // Decimal hours (e.g., 14.5 for 2:30 PM)
-  onChange: (newValue: number) => void;
+interface ClockModalProps {
+  shiftName: string;
+  initialValue: number;
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (newValue: number) => void;
 }
 
-function ClockPicker({ value, onChange }: ClockPickerProps) {
+function ModernClockModal({ shiftName, initialValue, isOpen, onClose, onSave }: ClockModalProps) {
   const [mode, setMode] = useState<'hours' | 'minutes'>('hours');
-  const clockRef = useRef<HTMLDivElement>(null);
-  
-  const hourPart = Math.floor(value);
-  const minutePart = Math.round((value - hourPart) * 60);
-  
+  const [tempValue, setTempValue] = useState(initialValue);
+  const faceRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTempValue(initialValue);
+      setMode('hours');
+    }
+  }, [isOpen, initialValue]);
+
+  const hourPart = Math.floor(tempValue);
+  const minutePart = Math.round((tempValue - hourPart) * 60);
   const isPm = hourPart >= 12;
   const displayHour = hourPart % 12 === 0 ? 12 : hourPart % 12;
 
-  const handleHourClick = (h: number) => {
-    const newHour = isPm ? (h === 12 ? 12 : h + 12) : (h === 12 ? 0 : h);
-    onChange(newHour + minutePart / 60);
-    setMode('minutes');
-  };
-
-  const handleMinuteClick = (m: number) => {
-    onChange(hourPart + m / 60);
+  const handleModeChange = (newMode: 'hours' | 'minutes') => {
+    setMode(newMode);
   };
 
   const toggleAmPm = () => {
     if (isPm) {
-      onChange(value - 12);
+      setTempValue(tempValue - 12);
     } else {
-      onChange(value + 12);
+      setTempValue(tempValue + 12);
     }
   };
 
-  const handleClockFaceClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!clockRef.current) return;
-    const rect = clockRef.current.getBoundingClientRect();
+  const calculateTimeFromAngle = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!faceRef.current) return;
+    const rect = faceRef.current.getBoundingClientRect();
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-    const clickX = e.clientX - rect.left - centerX;
-    const clickY = e.clientY - rect.top - centerY;
+    
+    let clientX, clientY;
+    if ('touches' in e) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
 
-    // Calculate angle in degrees (0 deg is top/12 o'clock, going clockwise)
+    const clickX = clientX - rect.left - centerX;
+    const clickY = clientY - rect.top - centerY;
+
     let angle = Math.atan2(clickX, -clickY) * (180 / Math.PI);
     if (angle < 0) angle += 360;
 
     if (mode === 'hours') {
       let hour = Math.round(angle / 30);
       if (hour === 0) hour = 12;
-      handleHourClick(hour);
+      const finalHour = isPm ? (hour === 12 ? 12 : hour + 12) : (hour === 12 ? 0 : hour);
+      setTempValue(finalHour + minutePart / 60);
     } else {
       let minute = Math.round(angle / 6);
       if (minute === 60) minute = 0;
-      // Snap to nearest 5 minutes for better user experience
+      // Snap to 5 mins
       minute = Math.round(minute / 5) * 5;
       if (minute === 60) minute = 0;
-      handleMinuteClick(minute);
+      setTempValue(hourPart + minute / 60);
     }
   };
 
-  const numbers = mode === 'hours' 
-    ? [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-    : [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+  if (!isOpen) return null;
 
-  // Perfect center adjustments for w-56 (224px)
-  const radius = 76;
-  const clockCenter = 104; 
-
-  const rotationDegrees = mode === 'hours' 
-    ? (displayHour % 12) * 30 
-    : (minutePart % 60) * 6;
+  const hours = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  const minutes = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+  const numbers = mode === 'hours' ? hours : minutes;
+  const rotationDegrees = mode === 'hours' ? (displayHour % 12) * 30 : (minutePart % 60) * 6;
 
   return (
-    <div className="flex flex-col items-center gap-6">
-      <div className="flex gap-4 mb-2">
-        <button 
-          type="button"
-          onClick={() => setMode('hours')}
-          className={cn(
-            "text-2xl font-black px-4 py-1.5 rounded-xl transition-all",
-            mode === 'hours' ? "bg-primary text-white shadow-md" : "text-slate-400 hover:bg-slate-100"
-          )}
-        >
-          {displayHour.toString().padStart(2, '0')}
-        </button>
-        <span className="text-2xl font-black text-slate-300 flex items-center">:</span>
-        <button 
-          type="button"
-          onClick={() => setMode('minutes')}
-          className={cn(
-            "text-2xl font-black px-4 py-1.5 rounded-xl transition-all",
-            mode === 'minutes' ? "bg-primary text-white shadow-md" : "text-slate-400 hover:bg-slate-100"
-          )}
-        >
-          {minutePart.toString().padStart(2, '0')}
-        </button>
-      </div>
-
-      <div 
-        ref={clockRef}
-        onClick={handleClockFaceClick}
-        className="relative w-56 h-56 bg-slate-50 rounded-full border-8 border-white shadow-[inset_0_2px_10px_rgba(0,0,0,0.1),0_10px_20px_rgba(0,0,0,0.05)] flex items-center justify-center cursor-pointer select-none"
-      >
-        {/* Clock Marks */}
-        {Array.from({ length: 12 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-0.5 h-3 rounded-full bg-slate-300"
-            style={{
-              left: 'calc(50% - 1px)',
-              top: '6px',
-              transformOrigin: '50% 100px',
-              transform: `rotate(${i * 30}deg)`
-            }}
-          />
-        ))}
-
-        {/* Center Node */}
-        <div className="absolute w-3.5 h-3.5 bg-primary rounded-full z-30 shadow-md pointer-events-none" />
-        
-        {/* Animated Clock Hand with precise transform origin anchor */}
-        <div 
-          className="absolute w-1.5 bg-primary rounded-full z-20 transition-transform duration-300 ease-out"
-          style={{ 
-            height: mode === 'hours' ? '58px' : '72px', 
-            bottom: '104px', 
-            left: 'calc(50% - 3px)',
-            transformOrigin: '50% 100%',
-            transform: `rotate(${rotationDegrees}deg)`
-          }}
-        >
-          <div className="absolute -top-2 -left-2 w-5 h-5 bg-primary rounded-full border-4 border-white shadow-md pointer-events-none" />
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white w-[280px] rounded-2xl overflow-hidden shadow-2xl border animate-in zoom-in-95 duration-200">
+        {/* Clock Header */}
+        <div className="bg-[#1976d2] text-white p-5 flex flex-col items-center">
+          <p className="text-[10px] uppercase font-bold tracking-widest opacity-80 mb-2">Set {shiftName} Start Time</p>
+          <div className="flex items-baseline gap-2">
+            <button 
+              onClick={() => handleModeChange('hours')}
+              className={cn(
+                "text-4xl font-bold transition-all border-b-2 pb-1",
+                mode === 'hours' ? "border-white opacity-100" : "border-transparent opacity-60"
+              )}
+            >
+              {displayHour.toString().padStart(2, '0')}
+            </button>
+            <span className="text-3xl font-bold opacity-60">:</span>
+            <button 
+              onClick={() => handleModeChange('minutes')}
+              className={cn(
+                "text-4xl font-bold transition-all border-b-2 pb-1",
+                mode === 'minutes' ? "border-white opacity-100" : "border-transparent opacity-60"
+              )}
+            >
+              {minutePart.toString().padStart(2, '0')}
+            </button>
+            
+            <button 
+              onClick={toggleAmPm}
+              className="ml-3 text-sm font-black bg-white/20 border border-white/40 px-3 py-1.5 rounded-lg hover:bg-white/30 transition-colors"
+            >
+              {isPm ? 'PM' : 'AM'}
+            </button>
+          </div>
         </div>
 
-        {/* Numbers around the dial */}
-        {numbers.map((num, i) => {
-          const angle = (i * 30 * Math.PI) / 180;
-          const x = clockCenter + radius * Math.sin(angle);
-          const y = clockCenter - radius * Math.cos(angle);
-          const isActive = mode === 'hours' ? displayHour === num : minutePart === num;
+        {/* Clock Face Wrap */}
+        <div className="p-6 flex justify-center bg-slate-50/50">
+          <div 
+            ref={faceRef}
+            onClick={calculateTimeFromAngle}
+            onMouseDown={(e) => {
+              const move = (me: MouseEvent) => calculateTimeFromAngle(me as any);
+              const up = () => {
+                window.removeEventListener('mousemove', move);
+                window.removeEventListener('mouseup', up);
+                if (mode === 'hours') setMode('minutes');
+              };
+              window.addEventListener('mousemove', move);
+              window.addEventListener('mouseup', up);
+            }}
+            className="w-[220px] h-[220px] bg-[#edeef0] rounded-full relative border-[3px] border-[#1976d2] cursor-pointer touch-none select-none shadow-inner"
+          >
+            {/* Numbers */}
+            {numbers.map((num, i) => {
+              const angle = (i * 30 * Math.PI) / 180;
+              const radius = 88;
+              const x = 110 + radius * Math.sin(angle);
+              const y = 110 - radius * Math.cos(angle);
+              const isSelected = mode === 'hours' ? displayHour === num : minutePart === num;
 
-          return (
-            <button
-              key={num}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation(); // prevent double triggering from container click
-                if (mode === 'hours') handleHourClick(num);
-                else handleMinuteClick(num);
+              return (
+                <div
+                  key={num}
+                  className={cn(
+                    "absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center text-[12px] font-bold transition-colors",
+                    isSelected ? "text-white z-10" : "text-[#333]"
+                  )}
+                  style={{ left: `${x}px`, top: `${y}px` }}
+                >
+                  {mode === 'minutes' ? num.toString().padStart(2, '0') : num}
+                </div>
+              );
+            })}
+
+            {/* Hand */}
+            <div 
+              className="absolute bottom-1/2 left-1/2 w-[2px] bg-[#1976d2] origin-bottom transition-transform duration-300 ease-out"
+              style={{ 
+                height: mode === 'hours' ? '70px' : '85px', 
+                transform: `translateX(-50%) rotate(${rotationDegrees}deg)` 
               }}
-              className={cn(
-                "absolute w-9 h-9 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center font-bold text-xs transition-all z-10",
-                isActive 
-                  ? "bg-primary text-white shadow-md scale-110" 
-                  : "text-slate-500 hover:bg-slate-200 hover:text-slate-800"
-              )}
-              style={{ left: `${x + 4}px`, top: `${y + 4}px` }}
             >
-              {mode === 'minutes' ? num.toString().padStart(2, '0') : num}
-            </button>
-          );
-        })}
-      </div>
+              <div className="w-[28px] h-[28px] bg-[#1976d2] rounded-full absolute -top-[14px] -left-[13px] flex items-center justify-center shadow-lg" />
+            </div>
 
-      <div className="flex items-center gap-4 bg-slate-100 p-1.5 rounded-full border shadow-inner">
-        <Button
-          type="button"
-          variant={!isPm ? "default" : "ghost"}
-          size="sm"
-          onClick={() => isPm && toggleAmPm()}
-          className={cn("rounded-full px-6 transition-all font-bold h-9", !isPm && "bg-amber-500 hover:bg-amber-600 text-white shadow-md")}
-        >
-          <Sun className="h-4 w-4 mr-2" /> AM
-        </Button>
-        <Button
-          type="button"
-          variant={isPm ? "default" : "ghost"}
-          size="sm"
-          onClick={() => !isPm && toggleAmPm()}
-          className={cn("rounded-full px-6 transition-all font-bold h-9", isPm && "bg-blue-600 hover:bg-blue-700 text-white shadow-md")}
-        >
-          <Moon className="h-4 w-4 mr-2" /> PM
-        </Button>
-      </div>
+            {/* Center Dot */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-[#1976d2] rounded-full z-30" />
+          </div>
+        </div>
 
-      <Button 
-        type="button"
-        variant="ghost" 
-        size="sm" 
-        onClick={() => setMode(mode === 'hours' ? 'minutes' : 'hours')} 
-        className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest"
-      >
-        <RotateCcw className="h-3 w-3 mr-1" /> Switch to {mode === 'hours' ? 'Minutes' : 'Hours'}
-      </Button>
+        {/* Clock Actions */}
+        <div className="flex justify-end p-4 gap-4 border-t bg-white">
+          <button 
+            onClick={onClose}
+            className="text-[#1976d2] font-bold text-sm uppercase tracking-wider hover:bg-slate-50 px-4 py-2 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={() => onSave(tempValue)}
+            className="text-[#1976d2] font-black text-sm uppercase tracking-wider hover:bg-slate-50 px-4 py-2 rounded-lg transition-colors"
+          >
+            OK
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -211,15 +206,13 @@ export default function ShiftManagement() {
   const { shiftSettings, updateShiftSetting } = useApp();
   const { toast } = useToast();
   
-  const [localSettings, setLocalSettings] = useState<Record<string, number>>({});
+  const [openShift, setOpenShift] = useState<keyof ShiftSettings | null>(null);
 
-  const handleSave = (shift: keyof ShiftSettings) => {
-    const value = localSettings[shift] !== undefined ? localSettings[shift] : shiftSettings[shift];
+  const handleSave = (shift: keyof ShiftSettings, newValue: number) => {
+    updateShiftSetting(shift, newValue);
     
-    updateShiftSetting(shift, value);
-    
-    const hour = Math.floor(value);
-    const min = Math.round((value - hour) * 60);
+    const hour = Math.floor(newValue);
+    const min = Math.round((newValue - hour) * 60);
     const displayHour = hour % 12 === 0 ? 12 : hour % 12;
     const ampm = hour >= 12 ? 'PM' : 'AM';
     
@@ -228,17 +221,7 @@ export default function ShiftManagement() {
       description: `${shift} స్టార్ట్ టైమ్ ${displayHour}:${min.toString().padStart(2, '0')} ${ampm} కు మార్చబడింది.`
     });
     
-    const newLocal = { ...localSettings };
-    delete newLocal[shift];
-    setLocalSettings(newLocal);
-  };
-
-  const handleClockChange = (shift: keyof ShiftSettings, newValue: number) => {
-    setLocalSettings(prev => ({ ...prev, [shift]: newValue }));
-  };
-
-  const getActiveValue = (shift: keyof ShiftSettings) => {
-    return localSettings[shift] !== undefined ? localSettings[shift] : shiftSettings[shift];
+    setOpenShift(null);
   };
 
   const formatTime = (value: number) => {
@@ -254,71 +237,40 @@ export default function ShiftManagement() {
       <Card className="bg-primary/5 border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-primary">
-            <Clock className="h-6 w-6" /> Dynamic Shift Timings
+            <Clock className="h-6 w-6" /> Shift Management
           </CardTitle>
           <CardDescription className="text-slate-600 font-medium">
-            వాల్-క్లాక్ ముల్లును తిప్పుతూ Hours మరియు Minutes సెట్ చేయండి. AM/PM ఖచ్చితంగా గమనించగలరు.
+            షిఫ్ట్ టైమింగ్స్ మార్చడానికి కార్డుపై క్లిక్ చేయండి. ఆటోమేటిక్ లేట్-ఇన్ ఈ టైమింగ్స్ బట్టే వస్తుంది.
           </CardDescription>
         </CardHeader>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {(Object.keys(shiftSettings) as Array<keyof ShiftSettings>).map((shift) => {
-          const isModified = localSettings[shift] !== undefined;
-          const currentValue = getActiveValue(shift);
-          
-          return (
-            <Card key={shift} className={cn(
-              "shadow-lg border-slate-100 bg-white transition-all duration-300 overflow-hidden group",
-              isModified ? "ring-2 ring-primary ring-offset-2" : ""
-            )}>
-              <div className="bg-slate-50 px-6 py-4 border-b flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary text-white p-2 rounded-lg group-hover:scale-110 transition-transform shadow-sm">
-                    <Clock className="h-4 w-4" />
-                  </div>
-                  <Label className="text-lg font-black text-slate-800 tracking-tight">{shift}</Label>
-                </div>
-                <Button 
-                  size="sm"
-                  onClick={() => handleSave(shift)}
-                  disabled={!isModified}
-                  className={cn(
-                    "rounded-full px-6 transition-all font-bold",
-                    isModified ? "bg-green-600 hover:bg-green-700 shadow-lg scale-105 text-white" : "opacity-30"
-                  )}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Changes
-                </Button>
-              </div>
-              
-              <CardContent className="p-8 flex flex-col items-center">
-                <ClockPicker 
-                  value={currentValue} 
-                  onChange={(val) => handleClockChange(shift, val)} 
-                />
-                
-                <div className="mt-8 w-full p-5 bg-slate-50 rounded-2xl flex items-center justify-between border-2 border-slate-100 shadow-inner">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Shift Starts At</span>
-                    <span className="text-2xl font-black text-primary tracking-tighter">{formatTime(currentValue)}</span>
-                  </div>
-                  {isModified ? (
-                    <div className="bg-amber-100 text-amber-700 text-[10px] font-bold px-3 py-1.5 rounded-full border border-amber-200 animate-pulse">
-                      Pending Save
-                    </div>
-                  ) : (
-                    <div className="bg-green-100 text-green-700 p-2 rounded-full border border-green-200">
-                      <Check className="h-4 w-4" />
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {(Object.keys(shiftSettings) as Array<keyof ShiftSettings>).map((shift) => (
+          <Card 
+            key={shift} 
+            className="cursor-pointer hover:shadow-lg transition-all duration-300 border-slate-100 group overflow-hidden"
+            onClick={() => setOpenShift(shift)}
+          >
+            <div className="bg-slate-50 p-4 border-b flex items-center justify-between">
+              <span className="font-bold text-slate-700">{shift}</span>
+              <Clock className="h-4 w-4 text-primary opacity-40 group-hover:opacity-100 transition-opacity" />
+            </div>
+            <CardContent className="p-6 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mb-1">Starts At</p>
+              <h3 className="text-2xl font-black text-primary">{formatTime(shiftSettings[shift])}</h3>
+            </CardContent>
+          </Card>
+        ))}
       </div>
+
+      <ModernClockModal
+        isOpen={!!openShift}
+        shiftName={openShift || ''}
+        initialValue={openShift ? shiftSettings[openShift] : 0}
+        onClose={() => setOpenShift(null)}
+        onSave={(val) => openShift && handleSave(openShift, val)}
+      />
     </div>
   );
 }
