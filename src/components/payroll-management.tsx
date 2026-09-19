@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -15,9 +16,7 @@ export default function PayrollManagement() {
   const { toast } = useToast();
   const [editRates, setEditRates] = useState<Record<string, any>>({});
 
-  const handleRateChange = (id: string, field: string, value: string) => {
-    const numValue = parseFloat(value);
-    
+  const handleRateChange = (id: string, field: string, value: string | number) => {
     setEditRates(prev => {
       const currentEmp = employees.find(e => e.id.toUpperCase() === id.toUpperCase());
       const base = prev[id] || { ...currentEmp };
@@ -26,7 +25,7 @@ export default function PayrollManagement() {
         ...prev,
         [id]: {
           ...base,
-          [field]: isNaN(numValue) ? (value === "" ? 0 : value) : numValue
+          [field]: value
         }
       };
     });
@@ -92,7 +91,6 @@ export default function PayrollManagement() {
                         <div className="text-[10px] uppercase text-muted-foreground">{emp.id}</div>
                       </TableCell>
                       
-                      {/* Basic Info Fields */}
                       <TableCell>
                         <div className="space-y-2 py-2">
                           <Input className="w-32 h-7 text-[10px]" placeholder="Designation" defaultValue={data.designation} onChange={(e) => handleRateChange(emp.id, 'designation', e.target.value)} />
@@ -101,47 +99,49 @@ export default function PayrollManagement() {
                         </div>
                       </TableCell>
 
-                      {/* Earnings Columns */}
                       <TableCell>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 py-2 w-[450px]">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 py-2 w-[550px]">
                            <div className="space-y-1">
                              <label className="text-[9px] text-muted-foreground">Basic</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.basicSalary} onChange={(e) => handleRateChange(emp.id, 'basicSalary', e.target.value)} />
+                             <Input type="number" className="h-7 text-xs" defaultValue={data.basicSalary} onChange={(e) => handleRateChange(emp.id, 'basicSalary', parseFloat(e.target.value) || 0)} />
                            </div>
                            <div className="space-y-1">
                              <label className="text-[9px] text-muted-foreground">HRA</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.hra} onChange={(e) => handleRateChange(emp.id, 'hra', e.target.value)} />
+                             <Input type="number" className="h-7 text-xs" defaultValue={data.hra} onChange={(e) => handleRateChange(emp.id, 'hra', parseFloat(e.target.value) || 0)} />
                            </div>
                            <div className="space-y-1">
                              <label className="text-[9px] text-muted-foreground">DA</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.da} onChange={(e) => handleRateChange(emp.id, 'da', e.target.value)} />
+                             <Input type="number" className="h-7 text-xs" defaultValue={data.da} onChange={(e) => handleRateChange(emp.id, 'da', parseFloat(e.target.value) || 0)} />
                            </div>
                            <div className="space-y-1">
                              <label className="text-[9px] text-muted-foreground">Conveyance</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.conveyance} onChange={(e) => handleRateChange(emp.id, 'conveyance', e.target.value)} />
+                             <Input type="number" className="h-7 text-xs" defaultValue={data.conveyance} onChange={(e) => handleRateChange(emp.id, 'conveyance', parseFloat(e.target.value) || 0)} />
                            </div>
                            <div className="space-y-1">
                              <label className="text-[9px] text-green-600 font-bold">Food Allowance</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.foodAllowance} onChange={(e) => handleRateChange(emp.id, 'foodAllowance', e.target.value)} />
+                             <Input type="number" className="h-7 text-xs" defaultValue={data.foodAllowance} onChange={(e) => handleRateChange(emp.id, 'foodAllowance', parseFloat(e.target.value) || 0)} />
                            </div>
                            <div className="space-y-1">
                              <label className="text-[9px] text-green-600 font-bold">Bonus/Others</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.attendanceBonus} onChange={(e) => handleRateChange(emp.id, 'attendanceBonus', e.target.value)} />
+                             <Input type="number" className="h-7 text-xs" defaultValue={data.attendanceBonus} onChange={(e) => handleRateChange(emp.id, 'attendanceBonus', parseFloat(e.target.value) || 0)} />
                            </div>
                            <div className="space-y-1">
                              <label className="text-[9px] text-muted-foreground">OT Rate (h)</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.otRate} onChange={(e) => handleRateChange(emp.id, 'otRate', e.target.value)} />
+                             <Input type="number" className="h-7 text-xs" defaultValue={data.otRate} onChange={(e) => handleRateChange(emp.id, 'otRate', parseFloat(e.target.value) || 0)} />
+                           </div>
+                           <div className="space-y-1">
+                             <label className="text-[9px] text-muted-foreground">Other Earnings Note</label>
+                             <Input className="h-7 text-[10px]" placeholder="Reason (e.g. Incentive)" defaultValue={data.otherEarningsNote} onChange={(e) => handleRateChange(emp.id, 'otherEarningsNote', e.target.value)} />
                            </div>
                            <div className="space-y-1">
                              <label className="text-[9px] text-muted-foreground">Manual Other Earnings</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.otherEarnings} onChange={(e) => handleRateChange(emp.id, 'otherEarnings', e.target.value)} />
+                             <Input type="number" className="h-7 text-xs font-bold" defaultValue={data.otherEarnings} onChange={(e) => handleRateChange(emp.id, 'otherEarnings', parseFloat(e.target.value) || 0)} />
                            </div>
                         </div>
                       </TableCell>
 
-                      {/* Deductions Columns */}
                       <TableCell>
-                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 py-2 w-[350px]">
+                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 py-2 w-[450px]">
                            <div className="space-y-1 opacity-70">
                              <label className="text-[9px] text-blue-600 font-bold">PF (Auto 12%)</label>
                              <div className="h-7 text-xs border rounded bg-slate-50 flex items-center px-2 font-mono font-bold text-slate-500">₹{Math.round((data.basicSalary || 0) * 0.12)}</div>
@@ -152,15 +152,19 @@ export default function PayrollManagement() {
                            </div>
                            <div className="space-y-1">
                              <label className="text-[9px] text-destructive">Professional Tax</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.professionalTax} onChange={(e) => handleRateChange(emp.id, 'professionalTax', e.target.value)} />
+                             <Input type="number" className="h-7 text-xs" defaultValue={data.professionalTax} onChange={(e) => handleRateChange(emp.id, 'professionalTax', parseFloat(e.target.value) || 0)} />
                            </div>
                            <div className="space-y-1">
                              <label className="text-[9px] text-destructive">Income Tax (TDS)</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.incomeTax} onChange={(e) => handleRateChange(emp.id, 'incomeTax', e.target.value)} />
+                             <Input type="number" className="h-7 text-xs" defaultValue={data.incomeTax} onChange={(e) => handleRateChange(emp.id, 'incomeTax', parseFloat(e.target.value) || 0)} />
+                           </div>
+                           <div className="space-y-1">
+                             <label className="text-[9px] text-destructive">Other Deductions Note</label>
+                             <Input className="h-7 text-[10px]" placeholder="Reason (e.g. Fine)" defaultValue={data.otherDeductionsNote} onChange={(e) => handleRateChange(emp.id, 'otherDeductionsNote', e.target.value)} />
                            </div>
                            <div className="space-y-1">
                              <label className="text-[9px] text-destructive font-bold">Manual Other Deductions</label>
-                             <Input type="number" className="h-7 text-xs" defaultValue={data.otherDeductions} onChange={(e) => handleRateChange(emp.id, 'otherDeductions', e.target.value)} />
+                             <Input type="number" className="h-7 text-xs font-bold" defaultValue={data.otherDeductions} onChange={(e) => handleRateChange(emp.id, 'otherDeductions', parseFloat(e.target.value) || 0)} />
                            </div>
                          </div>
                       </TableCell>

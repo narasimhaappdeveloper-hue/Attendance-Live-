@@ -28,6 +28,7 @@ export type Employee = {
   attendanceBonus: number;
   foodAllowance: number;
   otherEarnings: number;
+  otherEarningsNote?: string;
 
   // Deductions Components (Monthly)
   providentFund: number;
@@ -37,6 +38,7 @@ export type Employee = {
   loanRecovery: number;
   advanceRecovery: number;
   otherDeductions: number;
+  otherDeductionsNote?: string;
 };
 
 export type Site = {
@@ -106,6 +108,7 @@ export type SalarySlip = {
     bonus: number;
     food: number;
     other: number;
+    otherNote?: string;
   };
 
   // Final Deductions Breakdown
@@ -118,6 +121,7 @@ export type SalarySlip = {
     advance: number;
     lop: number;
     other: number;
+    otherNote?: string;
   };
 
   grossEarnings: number;
