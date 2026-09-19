@@ -10,21 +10,12 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay } from 'date-fns';
 import { FileText, Printer, CheckCircle2, IndianRupee, LoaderCircle, ShieldCheck, Briefcase, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { SalarySlip } from '@/lib/types';
+import type { SalarySlip, ShiftSettings } from '@/lib/types';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-const getShiftStartHour = (shift: string) => {
-  switch (shift) {
-    case 'Shift A': return 6;
-    case 'Shift B': return 14;
-    case 'Shift C': return 22;
-    default: return 9;
-  }
-};
-
 export default function SalarySlips() {
-  const { employees, attendanceRecords, extraStatuses, salarySlips, saveSalarySlip } = useApp();
+  const { employees, attendanceRecords, extraStatuses, salarySlips, saveSalarySlip, shiftSettings } = useApp();
   const { toast } = useToast();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [selectedSlip, setSelectedSlip] = useState<SalarySlip | null>(null);
@@ -82,8 +73,9 @@ export default function SalarySlips() {
         
         if (extra?.otHours) ot += extra.otHours;
         
-        // Late calculation (Sync with MonthlyReport logic)
-        const shiftStartHour = getShiftStartHour(record?.shift || 'General');
+        // Late calculation using dynamic shiftSettings
+        const shiftType = record?.shift || 'General';
+        const shiftStartHour = shiftSettings[shiftType as keyof ShiftSettings] ?? 9;
         const actualTime = record ? new Date(record.dateTime) : null;
         let autoLateIn = 0;
         if (actualTime) {
@@ -164,7 +156,7 @@ export default function SalarySlips() {
         existingSlip
       };
     });
-  }, [employees, attendanceRecords, extraStatuses, selectedMonth, salarySlips, monthStr]);
+  }, [employees, attendanceRecords, extraStatuses, selectedMonth, salarySlips, monthStr, shiftSettings]);
 
   const handleGenerateSlips = () => {
     setIsGenerating(true);

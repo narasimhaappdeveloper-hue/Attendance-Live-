@@ -11,21 +11,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, getDay, isSunday, isSaturday } from 'date-fns';
 import { Users, CheckCircle2, Clock, Calendar, Info, Calculator } from 'lucide-react';
+import type { ShiftSettings } from '@/lib/types';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-// Shift Start Times configuration
-const getShiftStartHour = (shift: string) => {
-  switch (shift) {
-    case 'Shift A': return 6; // 6 AM
-    case 'Shift B': return 14; // 2 PM
-    case 'Shift C': return 22; // 10 PM
-    default: return 9; // General 9 AM
-  }
-};
-
 export default function MonthlyReport() {
-  const { employees, attendanceRecords, extraStatuses, markExtraStatus } = useApp();
+  const { employees, attendanceRecords, extraStatuses, markExtraStatus, shiftSettings } = useApp();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [editingDay, setEditingDay] = useState<{ empId: string, date: string, autoLate: number } | null>(null);
   const [editForm, setEditForm] = useState<{ status: string, ot: string, lateIn: string, earlyOut: string }>({ 
@@ -67,8 +58,9 @@ export default function MonthlyReport() {
         );
         const extra = extraStatuses.find(ex => ex.employeeId === employee.id && ex.date === dateStr);
 
-        // Auto calculate Late-In
-        const shiftStartHour = getShiftStartHour(record?.shift || 'General');
+        // Auto calculate Late-In using dynamic shiftSettings
+        const shiftType = record?.shift || 'General';
+        const shiftStartHour = shiftSettings[shiftType as keyof ShiftSettings] ?? 9;
         const actualTime = record ? new Date(record.dateTime) : null;
         let autoLateIn = 0;
         if (actualTime) {
@@ -86,7 +78,6 @@ export default function MonthlyReport() {
           status = 'Week-off';
         }
 
-        // Use manual LateIn if it exists in ExtraStatus, otherwise use Auto
         const effectiveLateIn = (extra && extra.lateInHours !== undefined && extra.lateInHours !== 0) 
           ? extra.lateInHours 
           : (extra?.status === 'Absent' || extra?.status === 'Leave' ? 0 : autoLateIn);
@@ -149,7 +140,7 @@ export default function MonthlyReport() {
         totalLateHoursCut: monthlyCustomLateHoursCut
       };
     });
-  }, [employees, attendanceRecords, extraStatuses, daysInMonth, selectedMonth]);
+  }, [employees, attendanceRecords, extraStatuses, daysInMonth, selectedMonth, shiftSettings]);
 
   const grandTotals = useMemo(() => {
     return reportData.reduce((acc, curr) => {
@@ -170,8 +161,6 @@ export default function MonthlyReport() {
 
   const handleDayClick = (empId: string, dateStr: string) => {
     const current = extraStatuses.find(e => e.employeeId === empId && e.date === dateStr);
-    
-    // Find auto late-in for this specific day from report data
     const empData = reportData.find(d => d.id === empId);
     const dayData = empData?.dailyStatus.find(s => s.dateStr === dateStr);
     const autoLate = dayData?.autoLateIn || 0;

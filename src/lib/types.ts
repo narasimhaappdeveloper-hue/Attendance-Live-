@@ -143,3 +143,10 @@ export type CurrentUser = {
   role: 'employee' | 'hr';
   phone?: string;
 };
+
+export type ShiftSettings = {
+  'General': number;
+  'Shift A': number;
+  'Shift B': number;
+  'Shift C': number;
+};

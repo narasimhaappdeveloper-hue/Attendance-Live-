@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -9,11 +8,12 @@ import MonthlyReport from './monthly-report';
 import PayrollManagement from './payroll-management';
 import SalarySlips from './salary-slips';
 import PaymentHistory from './payment-history';
-import { Users, ClipboardList, MapPin, BarChart3, ChevronRight, Wallet, FileText, History } from 'lucide-react';
+import ShiftManagement from './shift-management';
+import { Users, ClipboardList, MapPin, BarChart3, ChevronRight, Wallet, FileText, History, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
-type DashboardTab = 'employees' | 'sites' | 'reports' | 'attendance' | 'payroll' | 'slips' | 'history';
+type DashboardTab = 'employees' | 'sites' | 'reports' | 'attendance' | 'payroll' | 'slips' | 'history' | 'shifts';
 
 export default function HrDashboard() {
   const [activeTab, setActiveTab] = useState<DashboardTab>('employees');
@@ -26,6 +26,7 @@ export default function HrDashboard() {
     { id: 'payroll', label: 'Salary Rates', icon: Wallet },
     { id: 'slips', label: 'Salary Slips', icon: FileText },
     { id: 'history', label: 'Payment History', icon: History },
+    { id: 'shifts', label: 'Shift Settings', icon: Clock },
   ];
 
   const renderContent = () => {
@@ -44,6 +45,8 @@ export default function HrDashboard() {
         return <SalarySlips />;
       case 'history':
         return <PaymentHistory />;
+      case 'shifts':
+        return <ShiftManagement />;
       default:
         return <EmployeeManagement />;
     }
