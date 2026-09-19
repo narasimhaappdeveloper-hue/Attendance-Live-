@@ -1,3 +1,4 @@
+
 'use client';
 
 import { createContext, useState, useEffect, useMemo, type ReactNode } from 'react';
@@ -48,7 +49,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const storedEmployees = localStorage.getItem('employees');
       if (storedEmployees) {
         const parsedEmployees: Employee[] = JSON.parse(storedEmployees);
-        // Ensure unique keys by using a Map keyed by ID
+        // Ensure unique keys and prevent duplicate IDs on load
         const employeeMap = new Map<string, Employee>();
         initialEmployees.forEach(emp => employeeMap.set(emp.id, emp));
         parsedEmployees.forEach(emp => employeeMap.set(emp.id, emp));
@@ -57,6 +58,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       
       const storedHr = localStorage.getItem('hrUsers');
       if (storedHr) setHrUsers(JSON.parse(storedHr));
+      else {
+        // Initial Admin for demo
+        setHrUsers([{ id: 'ADMIN', name: 'admin' }]);
+      }
 
       const storedSites = localStorage.getItem('sites');
       if (storedSites) setSites(JSON.parse(storedSites));
@@ -66,6 +71,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       localStorage.clear();
       setEmployees(initialEmployees);
+      setHrUsers([{ id: 'ADMIN', name: 'admin' }]);
     }
     setIsLoaded(true);
   }, []);

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -18,12 +19,13 @@ import { useApp } from '@/hooks/use-app';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { LoaderCircle, UserPlus, LogIn, AlertCircle } from 'lucide-react';
+import { LoaderCircle, UserPlus, LogIn, AlertCircle, ShieldCheck } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   employeeId: z.string().min(3, { message: 'ID is required.' }),
+  securityKey: z.string().optional(),
 });
 
 export function LoginForm() {
@@ -37,6 +39,7 @@ export function LoginForm() {
     defaultValues: {
       name: '',
       employeeId: '',
+      securityKey: '',
     },
   });
 
@@ -67,7 +70,7 @@ export function LoginForm() {
               toast({
                 variant: 'destructive',
                 title: 'Login Failed',
-                description: 'Invalid credentials. HR users must sign up first or use default ADMIN.',
+                description: 'Invalid credentials. HR users must sign up first with a Security Key.',
               });
               break;
           }
@@ -77,7 +80,19 @@ export function LoginForm() {
 
   const handleHrSignup = () => {
     setIsLoading(true);
-    const { name, employeeId } = form.getValues();
+    const { name, employeeId, securityKey } = form.getValues();
+    
+    // Check for Security Key (Hardcoded for prototype security)
+    if (securityKey !== 'HR2025') {
+        toast({ 
+            variant: 'destructive', 
+            title: 'Unauthorized', 
+            description: 'Invalid Security Access Key. హెచ్‌ఆర్ సైన్అప్ చేయడానికి అనుమతి లేదు.' 
+        });
+        setIsLoading(false);
+        return;
+    }
+
     signupHr(employeeId, name);
     
     setTimeout(() => {
@@ -169,16 +184,7 @@ export function LoginForm() {
                     className="text-[11px] h-7"
                     onClick={() => fillDemo('EMP001', 'Alice Johnson')}
                   >
-                    Employee: EMP001 (Alice)
-                  </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-[11px] h-7"
-                    onClick={() => fillDemo('EMP004', 'Diana Miller')}
-                  >
-                    Employee: EMP004 (Diana)
+                    Employee: EMP001
                   </Button>
                   <Button 
                     type="button" 
@@ -187,7 +193,7 @@ export function LoginForm() {
                     className="text-[11px] h-7 bg-primary/5 border-primary/20 hover:bg-primary/10 text-primary"
                     onClick={() => fillDemo('ADMIN', 'admin')}
                   >
-                    HR Admin: ADMIN
+                    HR Demo: ADMIN
                   </Button>
                 </div>
               </div>
@@ -200,9 +206,10 @@ export function LoginForm() {
             <CardContent className="p-6">
               <Form {...form}>
                 <form className="space-y-6">
-                   <p className="text-sm text-muted-foreground mb-4">
-                    Create a new HR administrator account.
-                  </p>
+                   <div className="flex items-center gap-2 text-amber-600 mb-2">
+                    <ShieldCheck className="h-5 w-5" />
+                    <p className="text-sm font-bold">Restricted Access</p>
+                  </div>
                   <FormField
                     control={form.control}
                     name="name"
@@ -225,6 +232,20 @@ export function LoginForm() {
                         <FormControl>
                           <Input placeholder="ADMIN" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())} />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="securityKey"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Security Access Key</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Enter Security Key" {...field} />
+                        </FormControl>
+                        <FormDescription>హెచ్‌ఆర్ ఖాతా సృష్టించడానికి సెక్యూరిటీ కీ అవసరం.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
