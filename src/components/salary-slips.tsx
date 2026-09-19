@@ -75,7 +75,7 @@ export default function SalarySlips() {
         
         // Late calculation using dynamic shiftSettings
         const shiftType = record?.shift || 'General';
-        const shiftStartHour = shiftSettings[shiftType as keyof ShiftSettings] ?? 9;
+        const shiftStartHour = shiftSettings[shiftType as keyof ShiftSettings]?.startHour ?? 9;
         const actualTime = record ? new Date(record.dateTime) : null;
         let autoLateIn = 0;
         if (actualTime) {
