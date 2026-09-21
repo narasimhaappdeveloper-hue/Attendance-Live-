@@ -15,18 +15,20 @@ Once you deploy your code (e.g., using Firebase App Hosting), the platform will 
 
 ---
 
-## Features
-- AI Facial Liveness Detection
-- Live Location Address Fetching
-- Manual Attendance Submission (No Auto-submit)
-- HR Dashboard for Site and Employee Management
-- HR Signup functionality
-- Mobile & Desktop Responsive Design
-- Interactive Analog Clock for Shift Settings
+## Git ఇన్‌స్టాలేషన్ (Git Installation - "command not found" వస్తే)
+
+మీరు `git init` టైప్ చేసినప్పుడు "command not found" అని వస్తే, మీ కంప్యూటర్‌లో Git సాఫ్ట్‌వేర్ లేదని అర్థం. దీన్ని ఇలా ఇన్‌స్టాల్ చేయండి:
+
+1. **డౌన్‌లోడ్ చేయండి:** [https://git-scm.com/downloads](https://git-scm.com/downloads) కు వెళ్లి మీ కంప్యూటర్ (Windows/Mac) కి తగ్గట్టుగా డౌన్‌లోడ్ చేయండి.
+2. **ఇన్‌స్టాల్ చేయండి:** డౌన్‌లోడ్ అయిన ఫైల్‌ను ఓపెన్ చేసి, అన్నింటికీ 'Next' నొక్కుతూ ఇన్‌స్టాల్ పూర్తి చేయండి.
+3. **టెర్మినల్ రీస్టార్ట్ చేయండి:** ఇన్‌స్టాలేషన్ అయ్యాక, ఇప్పుడు వాడుతున్న టెర్మినల్ లేదా VS Code ని క్లోజ్ చేసి మళ్లీ ఓపెన్ చేయండి.
+4. **చెక్ చేయండి:** ఇప్పుడు టెర్మినల్‌లో `git --version` అని టైప్ చేయండి. వెర్షన్ నంబర్ కనిపిస్తే Git సిద్ధంగా ఉన్నట్లు.
+
+---
 
 ## GitHub కి అప్‌లోడ్ చేసే విధానం (How to push to GitHub)
 
-మీ కోడ్‌ను GitHub లోకి పంపడానికి ఈ క్రింది కమాండ్లను మీ టెర్మినల్ (Terminal) లో టైప్ చేయండి:
+Git ఇన్‌స్టాల్ అయిన తర్వాత, మీ కోడ్‌ను GitHub లోకి పంపడానికి ఈ క్రింది కమాండ్లను వరుసగా టైప్ చేయండి:
 
 1. **Git ప్రారంభించండి:**
    ```bash
