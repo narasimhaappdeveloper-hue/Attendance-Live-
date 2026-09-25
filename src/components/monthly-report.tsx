@@ -3,7 +3,6 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '@/hooks/use-app';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -112,13 +111,13 @@ export default function MonthlyReport() {
           dateStr, 
           status, 
           ot: finalOT, 
-          cOffCredit,
-          extraShiftBenefit: assignedBenefit,
-          late: dailyLate,
-          lateIn: effectiveLateIn,
-          earlyOut: extra?.earlyOutHours || 0,
-          autoLateIn,
-          punches: dayRecords.length
+          cOffCredit, 
+          extraShiftBenefit: assignedBenefit, 
+          late: dailyLate, 
+          lateIn: effectiveLateIn, 
+          earlyOut: extra?.earlyOutHours || 0, 
+          autoLateIn, 
+          punches: dayRecords.length 
         };
       });
 
@@ -152,9 +151,9 @@ export default function MonthlyReport() {
         stats, 
         salary: finalNetSalary, 
         paidWorkingDays: totalEffectivePaidDays, 
-        totalDays: daysInMonth.length,
-        totalLateHoursCut: monthlyCustomLateHoursCut,
-        totalCoffsEarned: monthlyCoffsEarned
+        totalDays: daysInMonth.length, 
+        totalLateHoursCut: monthlyCustomLateHoursCut, 
+        totalCoffsEarned: monthlyCoffsEarned 
       };
     });
   }, [employees, attendanceRecords, extraStatuses, daysInMonth, selectedMonth, shiftSettings]);
@@ -185,10 +184,10 @@ export default function MonthlyReport() {
 
     setEditForm({ 
       status: current?.status || 'None', 
-      ot: (current?.otHours || 0).toString(),
-      lateIn: current?.lateInHours !== undefined ? current.lateInHours.toString() : '',
-      earlyOut: (current?.earlyOutHours || 0).toString(),
-      extraShiftBenefit: current?.extraShiftBenefit || 'OT'
+      ot: (current?.otHours || 0).toString(), 
+      lateIn: current?.lateInHours !== undefined ? current.lateInHours.toString() : '', 
+      earlyOut: (current?.earlyOutHours || 0).toString(), 
+      extraShiftBenefit: current?.extraShiftBenefit || 'OT' 
     });
     setEditingDay({ empId, date: dateStr, autoLate });
   };
@@ -201,8 +200,8 @@ export default function MonthlyReport() {
       date, 
       editForm.status as any, 
       parseFloat(editForm.ot) || 0, 
-      editForm.lateIn === '' ? 0 : parseFloat(editForm.lateIn),
-      parseFloat(editForm.earlyOut) || 0,
+      editForm.lateIn === '' ? 0 : parseFloat(editForm.lateIn), 
+      parseFloat(editForm.earlyOut) || 0, 
       editForm.extraShiftBenefit
     );
     setEditingDay(null);
@@ -213,6 +212,7 @@ export default function MonthlyReport() {
 
   return (
     <div className="space-y-6">
+      {/* టాప్ సమ్మరీ కార్డ్స్ */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card className="bg-primary/5">
           <CardContent className="p-3 sm:pt-6 flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-4 text-center sm:text-left">
@@ -236,8 +236,8 @@ export default function MonthlyReport() {
           <CardContent className="p-3 sm:pt-6 flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-4 text-center sm:text-left">
             <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600" />
             <div>
-              <p className="text-[10px] sm:text-sm font-medium uppercase tracking-wider">OT (Hrs)</p>
-              <h3 className="text-lg sm:text-2xl font-bold">{reportData.reduce((acc, r) => acc + r.stats.totalOT, 0)}</h3>
+              <p className="text-[10px] sm:text-sm font-medium uppercase tracking-wider">Total OT</p>
+              <h3 className="text-lg sm:text-2xl font-bold">{grandTotals.ot}h</h3>
             </div>
           </CardContent>
         </Card>
@@ -252,12 +252,12 @@ export default function MonthlyReport() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="border border-border/80 shadow-md">
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0 px-4 sm:px-6">
           <div className="w-full">
-            <CardTitle>Master Attendance Report</CardTitle>
-            <CardDescription className="hidden sm:block">
-                ఒక రోజుపై క్లిక్ చేసి వివరాలను మార్చుకోవచ్చు.
+            <CardTitle className="text-xl sm:text-2xl font-bold">Master Attendance Report</CardTitle>
+            <CardDescription className="text-xs sm:text-sm mt-1">
+              👉 1 నుండి 30/31 వరకు మరియు P, A, W, H, C-off, OT సమ్మరీ చూడటానికి కుడివైపుకి స్క్రోల్ చేయండి.
             </CardDescription>
           </div>
           <div className="flex gap-2 w-full md:w-auto">
@@ -266,7 +266,7 @@ export default function MonthlyReport() {
               d.setFullYear(parseInt(v));
               setSelectedMonth(d);
             }}>
-              <SelectTrigger className="w-full sm:w-[100px]">
+              <SelectTrigger className="w-full sm:w-[110px]">
                 <SelectValue placeholder="Year" />
               </SelectTrigger>
               <SelectContent>
@@ -281,7 +281,7 @@ export default function MonthlyReport() {
               d.setMonth(parseInt(v));
               setSelectedMonth(d);
             }}>
-              <SelectTrigger className="w-full sm:w-[130px]">
+              <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue placeholder="Month" />
               </SelectTrigger>
               <SelectContent>
@@ -292,71 +292,120 @@ export default function MonthlyReport() {
             </Select>
           </div>
         </CardHeader>
-        <CardContent className="px-0 sm:px-6">
-          <div className="overflow-x-auto border-y sm:border rounded-none sm:rounded-xl">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 text-[9px] sm:text-[10px]">
-                  <TableHead className="sticky left-0 bg-muted z-30 min-w-[120px] border-r shadow-[2px_0_5px_rgba(0,0,0,0.05)]">Employee Name</TableHead>
+
+        <CardContent className="p-0 sm:p-4">
+          <div 
+            style={{
+              width: '100%',
+              maxWidth: '100%',
+              overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px'
+            }}
+          >
+            {/* అన్ని కొత్త కాలమ్స్‌కు సరిపోయేలా 2350px వెడల్పు */}
+            <table 
+              style={{
+                width: '2350px',
+                minWidth: '2350px',
+                borderCollapse: 'collapse',
+                textAlign: 'center',
+                backgroundColor: '#ffffff'
+              }}
+            >
+              <thead>
+                <tr style={{ backgroundColor: '#f8fafc', height: '50px', borderBottom: '2px solid #cbd5e1' }}>
+                  <th style={{ width: '180px', padding: '10px', textAlign: 'left', fontWeight: 'bold', fontSize: '13px', borderRight: '2px solid #cbd5e1', whiteSpace: 'nowrap' }}>
+                    Employee Name
+                  </th>
                   
+                  {/* 1 నుండి 30/31 వరకు తేదీలు */}
                   {daysInMonth.map(day => {
                     const isSun = isSunday(day);
                     const isSat = isSaturday(day);
                     return (
-                      <TableHead 
+                      <th 
                         key={day.toISOString()} 
-                        className={`text-center min-w-[40px] border-l p-1 ${
-                          isSun ? 'bg-red-50 text-red-600 font-black' : 
-                          isSat ? 'bg-amber-50 text-amber-600 font-bold' : ''
-                        }`}
+                        style={{
+                          width: '46px',
+                          minWidth: '46px',
+                          padding: '4px',
+                          borderRight: '1px solid #e2e8f0',
+                          backgroundColor: isSun ? '#fee2e2' : isSat ? '#fef3c7' : '#f8fafc',
+                          color: isSun ? '#b91c1c' : isSat ? '#b45309' : '#334155',
+                          whiteSpace: 'nowrap'
+                        }}
                       >
-                        <div className="flex flex-col items-center leading-tight">
-                          <span>{format(day, 'd')}</span>
-                          <span className="text-[7px] sm:text-[8px] uppercase">{format(day, 'EEE')}</span>
-                        </div>
-                      </TableHead>
+                        <div style={{ fontSize: '12px', fontWeight: 'bold' }}>{format(day, 'd')}</div>
+                        <div style={{ fontSize: '9px', textTransform: 'uppercase', opacity: 0.8 }}>{format(day, 'EEE')}</div>
+                      </th>
                     );
                   })}
 
-                  <TableHead className="text-center font-bold px-2 text-green-600 bg-slate-50 border-l border-r">P</TableHead>
-                  <TableHead className="text-center font-bold px-2 text-red-600 bg-slate-50 border-r">A</TableHead>
-                  <TableHead className="text-center font-bold px-2 text-teal-600 bg-slate-50 border-r">C-off</TableHead>
-                  <TableHead className="text-center font-bold px-2 text-red-500 bg-slate-50 border-r">Late</TableHead>
-                  <TableHead className="text-center font-bold px-2 bg-primary/10 text-primary border-r">Paid</TableHead>
-                  <TableHead className="sticky right-0 bg-primary/10 z-30 min-w-[80px] text-primary font-bold text-center border-l shadow-[-2px_0_5px_rgba(0,0,0,0.05)]">Net Sal</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody className="text-[10px] sm:text-[11px]">
+                  {/* మీరడిగిన అన్ని కాలమ్స్ */}
+                  <th title="Present" style={{ width: '48px', fontWeight: 'bold', color: '#15803d', backgroundColor: '#dcfce7', borderRight: '1px solid #cbd5e1' }}>P</th>
+                  <th title="Absent" style={{ width: '48px', fontWeight: 'bold', color: '#b91c1c', backgroundColor: '#fee2e2', borderRight: '1px solid #cbd5e1' }}>A</th>
+                  <th title="Week-off" style={{ width: '48px', fontWeight: 'bold', color: '#b45309', backgroundColor: '#fef3c7', borderRight: '1px solid #cbd5e1' }}>W</th>
+                  <th title="Holiday" style={{ width: '48px', fontWeight: 'bold', color: '#7e22ce', backgroundColor: '#f3e8ff', borderRight: '1px solid #cbd5e1' }}>H</th>
+                  <th title="C-off" style={{ width: '52px', fontWeight: 'bold', color: '#0f766e', backgroundColor: '#ccfbf1', borderRight: '1px solid #cbd5e1' }}>C-off</th>
+                  <th title="OT Hours" style={{ width: '50px', fontWeight: 'bold', color: '#c2410c', backgroundColor: '#ffedd5', borderRight: '1px solid #cbd5e1' }}>OT</th>
+                  <th title="Late Hours" style={{ width: '50px', fontWeight: 'bold', color: '#dc2626', backgroundColor: '#f1f5f9', borderRight: '1px solid #cbd5e1' }}>Late</th>
+                  <th title="Paid Days" style={{ width: '55px', fontWeight: 'bold', color: '#1d4ed8', backgroundColor: '#eff6ff', borderRight: '1px solid #cbd5e1' }}>Paid</th>
+                  <th title="Net Salary" style={{ width: '120px', fontWeight: 'bold', color: '#1e3a8a', backgroundColor: '#dbeafe', whiteSpace: 'nowrap' }}>Net Sal</th>
+                </tr>
+              </thead>
+
+              <tbody>
                 {reportData.map(row => (
-                  <TableRow key={row.id} className="hover:bg-slate-50/50">
-                    <TableCell className="sticky left-0 bg-white font-bold z-20 border-r shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
-                      <div className="flex items-center gap-1 truncate max-w-[100px]">
+                  <tr key={row.id} style={{ borderBottom: '1px solid #e2e8f0', height: '48px' }}>
+                    <td style={{ width: '180px', padding: '8px 12px', textAlign: 'left', borderRight: '2px solid #cbd5e1', backgroundColor: '#ffffff', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#0f172a' }}>
                         {row.name}
-                        {row.status === 'Resigned' && <span className="text-[7px] bg-amber-100 px-1 border border-amber-500 text-amber-600 rounded">F</span>}
                       </div>
-                      <div className="text-[8px] text-muted-foreground font-normal">{row.id}</div>
-                    </TableCell>
+                      <div style={{ fontSize: '10px', color: '#64748b' }}>{row.id}</div>
+                    </td>
 
                     {row.dailyStatus.map((s, i) => {
                       const isSun = isSunday(s.day);
                       const isSat = isSaturday(s.day);
                       return (
-                        <TableCell 
+                        <td 
                           key={i} 
-                          className={`p-1 text-center cursor-pointer border-l hover:bg-slate-100 transition-colors ${
-                            isSun ? 'bg-red-50/30' : isSat ? 'bg-amber-50/30' : ''
-                          }`} 
                           onClick={() => handleDayClick(row.id, s.dateStr)}
+                          style={{
+                            width: '46px',
+                            minWidth: '46px',
+                            padding: '2px',
+                            borderRight: '1px solid #f1f5f9',
+                            cursor: 'pointer',
+                            backgroundColor: isSun ? 'rgba(254, 226, 226, 0.3)' : isSat ? 'rgba(254, 243, 199, 0.3)' : '#ffffff'
+                          }}
                         >
-                          <div className={`h-6 w-6 rounded-md mx-auto flex items-center justify-center font-bold text-[10px] shadow-sm relative ${
-                            s.status === 'Present' ? 'bg-green-500 text-white' : 
-                            s.status === 'Half-Day' ? 'bg-orange-400 text-white' : 
-                            s.status === 'Holiday' ? 'bg-purple-500 text-white' :
-                            s.status === 'Leave' ? 'bg-blue-500 text-white' :
-                            s.status === 'C-off' ? 'bg-indigo-500 text-white' :
-                            s.status === 'Week-off' ? 'bg-amber-400 text-amber-900' : 
-                            s.status === 'Absent' ? 'bg-red-100 text-red-400' : 'bg-slate-100 text-slate-400'
-                          }`}>
+                          <div 
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '6px',
+                              margin: '0 auto',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '11px',
+                              fontWeight: 'bold',
+                              position: 'relative',
+                              backgroundColor: 
+                                s.status === 'Present' ? '#16a34a' : 
+                                s.status === 'Half-Day' ? '#f59e0b' : 
+                                s.status === 'Holiday' ? '#9333ea' :
+                                s.status === 'Leave' ? '#2563eb' :
+                                s.status === 'C-off' ? '#0d9488' :
+                                s.status === 'Week-off' ? '#fef08a' : '#fee2e2',
+                              color: 
+                                s.status === 'Week-off' ? '#854d0e' : 
+                                s.status === 'Absent' ? '#dc2626' : '#ffffff'
+                            }}
+                          >
                             {s.status === 'Present' ? 'P' : 
                              s.status === 'Half-Day' ? 'HD' : 
                              s.status === 'Holiday' ? 'H' : 
@@ -364,44 +413,67 @@ export default function MonthlyReport() {
                              s.status === 'C-off' ? 'C' : 
                              s.status === 'Week-off' ? 'W' : 'A'}
                              
-                             {s.punches > 1 && (
-                                <div className="absolute -top-1 -right-1 bg-primary text-white text-[7px] w-3 h-3 flex items-center justify-center rounded-full border border-white">
-                                    {s.punches}
-                                </div>
-                             )}
+                            {s.punches > 1 && (
+                              <div style={{
+                                position: 'absolute',
+                                top: '-3px',
+                                right: '-3px',
+                                backgroundColor: '#1d4ed8',
+                                color: '#ffffff',
+                                fontSize: '8px',
+                                width: '14px',
+                                height: '14px',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: '1px solid #ffffff'
+                              }}>
+                                {s.punches}
+                              </div>
+                            )}
                           </div>
-                        </TableCell>
+                        </td>
                       );
                     })}
 
-                    <TableCell className="text-center font-bold text-green-600 border-l border-r">{row.stats.Present || 0}</TableCell>
-                    <TableCell className="text-center font-bold text-red-600 border-r">{row.stats.Absent || 0}</TableCell>
-                    <TableCell className="text-center text-teal-600 font-bold border-r">{row.totalCoffsEarned.toFixed(1)}</TableCell>
-                    <TableCell className="text-center border-r text-red-500 font-bold">{row.totalLateHoursCut.toFixed(1)}</TableCell>
-                    <TableCell className="text-center bg-primary/5 font-black text-primary border-r">{row.paidWorkingDays}</TableCell>
-                    <TableCell className="sticky right-0 bg-white z-20 font-black text-primary text-center border-l shadow-[-2px_0_5px_rgba(0,0,0,0.02)]">
+                    {/* ఎంప్లాయ్ వైస్ టోటల్స్ */}
+                    <td style={{ width: '48px', fontWeight: 'bold', color: '#15803d', borderRight: '1px solid #cbd5e1' }}>{row.stats.Present || 0}</td>
+                    <td style={{ width: '48px', fontWeight: 'bold', color: '#dc2626', borderRight: '1px solid #cbd5e1' }}>{row.stats.Absent || 0}</td>
+                    <td style={{ width: '48px', fontWeight: 'bold', color: '#b45309', borderRight: '1px solid #cbd5e1' }}>{row.stats['Week-off'] || 0}</td>
+                    <td style={{ width: '48px', fontWeight: 'bold', color: '#7e22ce', borderRight: '1px solid #cbd5e1' }}>{row.stats.Holiday || 0}</td>
+                    <td style={{ width: '52px', fontWeight: 'bold', color: '#0f766e', borderRight: '1px solid #cbd5e1' }}>{row.totalCoffsEarned.toFixed(1)}</td>
+                    <td style={{ width: '50px', fontWeight: 'bold', color: '#c2410c', borderRight: '1px solid #cbd5e1' }}>{row.stats.totalOT}h</td>
+                    <td style={{ width: '50px', fontWeight: 'bold', color: '#ef4444', borderRight: '1px solid #cbd5e1' }}>{row.totalLateHoursCut.toFixed(1)}</td>
+                    <td style={{ width: '55px', fontWeight: '900', color: '#1d4ed8', backgroundColor: '#f8fafc', borderRight: '1px solid #cbd5e1' }}>{row.paidWorkingDays}</td>
+                    <td style={{ width: '120px', fontWeight: 'bold', color: '#1e3a8a', backgroundColor: '#ffffff', whiteSpace: 'nowrap' }}>
                       ₹{Math.round(row.salary).toLocaleString()}
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 ))}
-              </TableBody>
-              <TableFooter className="bg-muted/80 text-[10px] font-black text-slate-900">
-                <TableRow>
-                  <TableCell className="sticky left-0 bg-slate-100 font-black z-20 border-r shadow-[2px_0_5px_rgba(0,0,0,0.05)]">Grand Total</TableCell>
+              </tbody>
+
+              {/* గ్రాండ్ టోటల్ రో - అన్నింటికీ సపరేట్ కౌంటింగ్ */}
+              <tfoot>
+                <tr style={{ backgroundColor: '#f8fafc', height: '48px', fontWeight: 'bold', borderTop: '2px solid #cbd5e1' }}>
+                  <td style={{ width: '180px', padding: '8px 12px', textAlign: 'left', borderRight: '2px solid #cbd5e1', fontWeight: '900', whiteSpace: 'nowrap' }}>Grand Total</td>
                   
                   {daysInMonth.map((_, i) => (
-                    <TableCell key={`ft-date-${i}`} className="border-l"></TableCell>
+                    <td key={`ft-date-${i}`} style={{ width: '46px', minWidth: '46px', color: '#94a3b8', borderRight: '1px solid #f1f5f9' }}>-</td>
                   ))}
 
-                  <TableCell className="text-center text-green-700 font-black border-l border-r bg-slate-100">{grandTotals.present}</TableCell>
-                  <TableCell className="text-center text-red-600 font-black border-r bg-slate-100">{grandTotals.absent}</TableCell>
-                  <TableCell className="text-center text-teal-600 font-black border-r bg-slate-100">{grandTotals.coffsEarned.toFixed(1)}</TableCell>
-                  <TableCell className="text-center border-r bg-slate-100 text-red-50">{reportData.reduce((acc, r) => acc + r.totalLateHoursCut, 0).toFixed(1)}</TableCell>
-                  <TableCell className="text-center text-primary font-black border-r bg-primary/5">{grandTotals.paidWorkingDays}</TableCell>
-                  <TableCell className="sticky right-0 bg-primary/20 z-20 font-black text-primary text-center border-l">₹{Math.round(grandTotals.salary).toLocaleString()}</TableCell>
-                </TableRow>
-              </TableFooter>
-            </Table>
+                  <td title="Total Present" style={{ width: '48px', color: '#15803d', borderRight: '1px solid #cbd5e1', backgroundColor: '#dcfce7' }}>{grandTotals.present}</td>
+                  <td title="Total Absent" style={{ width: '48px', color: '#b91c1c', borderRight: '1px solid #cbd5e1', backgroundColor: '#fee2e2' }}>{grandTotals.absent}</td>
+                  <td title="Total Week-offs" style={{ width: '48px', color: '#b45309', borderRight: '1px solid #cbd5e1', backgroundColor: '#fef3c7' }}>{grandTotals.weekoff}</td>
+                  <td title="Total Holidays" style={{ width: '48px', color: '#7e22ce', borderRight: '1px solid #cbd5e1', backgroundColor: '#f3e8ff' }}>{grandTotals.holiday}</td>
+                  <td title="Total C-offs" style={{ width: '52px', color: '#0f766e', borderRight: '1px solid #cbd5e1', backgroundColor: '#ccfbf1' }}>{grandTotals.coffsEarned.toFixed(1)}</td>
+                  <td title="Total Overtime" style={{ width: '50px', color: '#c2410c', borderRight: '1px solid #cbd5e1', backgroundColor: '#ffedd5' }}>{grandTotals.ot}h</td>
+                  <td title="Total Late Hours" style={{ width: '50px', color: '#dc2626', borderRight: '1px solid #cbd5e1' }}>{reportData.reduce((acc, r) => acc + r.totalLateHoursCut, 0).toFixed(1)}</td>
+                  <td title="Total Paid Days" style={{ width: '55px', color: '#1d4ed8', backgroundColor: '#eff6ff', borderRight: '1px solid #cbd5e1' }}>{grandTotals.paidWorkingDays}</td>
+                  <td title="Total Net Salary" style={{ width: '120px', color: '#1e3a8a', backgroundColor: '#dbeafe', whiteSpace: 'nowrap' }}>₹{Math.round(grandTotals.salary).toLocaleString()}</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         </CardContent>
       </Card>
@@ -430,7 +502,7 @@ export default function MonthlyReport() {
               </Select>
             </div>
             
-            <div className="p-3 bg-blue-50 text-blue-900 border border-blue-200 text-[10px] sm:text-xs rounded-xl flex items-start gap-2">
+            <div className="p-3 bg-blue-50 text-blue-900 border border-blue-200 text-xs rounded-xl flex items-start gap-2">
               <Calculator className="h-4 w-4 shrink-0 mt-0.5 text-blue-600" />
               <div>
                 <p className="font-bold">Note:</p>
@@ -460,7 +532,7 @@ export default function MonthlyReport() {
                 <Input 
                   type="number" 
                   step="0.1" 
-                  className="h-10 rounded-lg"
+                  className="h-10 rounded-lg" 
                   placeholder={editingDay?.autoLate.toFixed(2) || "0"} 
                   value={editForm.lateIn} 
                   onChange={(e) => setEditForm(p => ({ ...p, lateIn: e.target.value }))} 
@@ -471,7 +543,7 @@ export default function MonthlyReport() {
                 <Input 
                   type="number" 
                   step="0.1" 
-                  className="h-10 rounded-lg"
+                  className="h-10 rounded-lg" 
                   placeholder="0" 
                   value={editForm.earlyOut} 
                   onChange={(e) => setEditForm(p => ({ ...p, earlyOut: e.target.value }))} 
