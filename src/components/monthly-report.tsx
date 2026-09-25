@@ -3,14 +3,13 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '@/hooks/use-app';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, getDay, isSunday, isSaturday } from 'date-fns';
-import { Users, CheckCircle2, Clock, Calculator, Award } from 'lucide-react';
+import { format, eachDayOfInterval, startOfMonth, endOfMonth, startOfYear, endOfYear, isSameDay, getDay, isSunday, isSaturday } from 'date-fns';
+import { Users, CheckCircle2, Clock, Award, BarChart3 } from 'lucide-react';
 import type { ShiftSettings } from '@/lib/types';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -18,14 +17,31 @@ const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'F
 export default function MonthlyReport() {
   const { employees, attendanceRecords, extraStatuses, markExtraStatus, shiftSettings } = useApp();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [viewMode, setViewMode] = useState<'month' | 'year'>('month');
+  
   const [editingDay, setEditingDay] = useState<{ empId: string, date: string, autoLate: number } | null>(null);
-  const [editForm, setEditForm] = useState<{ status: string, ot: string, lateIn: string, earlyOut: string, extraShiftBenefit: 'OT' | 'C-off' }>({ 
+  
+  const [editForm, setEditForm] = useState<{ 
+    status: string, 
+    inTime: string,
+    outTime: string,
+    ot: string, 
+    lateIn: string, 
+    earlyOut: string, 
+    extraShiftBenefit: 'C-off Earned' | 'C-off Used' | 'OT',
+    coffQty: string
+  }>({ 
     status: 'None', 
+    inTime: '09:00',
+    outTime: '18:00',
     ot: '0', 
     lateIn: '',
     earlyOut: '0',
-    extraShiftBenefit: 'OT'
+    extraShiftBenefit: 'OT',
+    coffQty: '1'
   });
+
+  const selectedYear = selectedMonth.getFullYear();
 
   const daysInMonth = useMemo(() => {
     return eachDayOfInterval({
@@ -34,6 +50,7 @@ export default function MonthlyReport() {
     });
   }, [selectedMonth]);
 
+  // 1. నెలవారీ డేటా & C-off Earned vs C-off Used ఖచ్చితమైన లెక్కింపు
   const reportData = useMemo(() => {
     return employees.filter(e => {
         if (e.status === 'Approved') return true;
@@ -51,6 +68,7 @@ export default function MonthlyReport() {
     }).map(employee => {
       let monthlyCustomLateHoursCut = 0;
       let monthlyCoffsEarned = 0;
+      let monthlyCoffsUsed = 0;
 
       const dailyStatus = daysInMonth.map(day => {
         const dateStr = format(day, 'yyyy-MM-dd');
@@ -58,7 +76,7 @@ export default function MonthlyReport() {
           r.employeeId.toUpperCase() === employee.id.toUpperCase() &&
           isSameDay(new Date(r.dateTime), day)
         );
-        const extra = extraStatuses.find(ex => ex.employeeId === employee.id && ex.date === dateStr);
+        const extra = extraStatuses.find(ex => ex.employeeId.toUpperCase() === employee.id.toUpperCase() && ex.date === dateStr);
 
         const primaryRecord = dayRecords.length > 0 ? dayRecords[dayRecords.length - 1] : null; 
         const shiftType = primaryRecord?.shift || 'General';
@@ -70,9 +88,9 @@ export default function MonthlyReport() {
           autoLateIn = Math.max(0, actualHours - shiftStartHour);
         }
 
-        let status: 'Present' | 'Absent' | 'Week-off' | 'Leave' | 'Holiday' | 'C-off' | 'Half-Day' = 'Absent';
+        let status: 'Present' | 'Absent' | 'Week-off' | 'Leave' | 'Holiday' | 'C-off' | 'Half-Day' | 'OT' = 'Absent';
         
-        if (extra && extra.status !== 'None') {
+        if (extra && extra.status && extra.status !== 'None') {
           status = extra.status as any;
         } else if (dayRecords.length > 0) {
           status = 'Present';
@@ -94,16 +112,28 @@ export default function MonthlyReport() {
             });
         }
 
-        const assignedBenefit = extra?.extraShiftBenefit || 'OT';
+        const rawBenefit = extra?.extraShiftBenefit as string;
         let finalOT = 0;
-        let cOffCredit = 0;
+        let dayCoffEarned = 0;
+        let dayCoffUsed = 0;
 
-        const rawExtraHours = extra?.otHours || autoExtraHours;
+        let rawExtraHours = extra?.otHours ?? autoExtraHours;
+        if (status === 'OT' && rawExtraHours === 0) {
+          rawExtraHours = 8;
+        }
 
-        if (assignedBenefit === 'C-off') {
-          cOffCredit = rawExtraHours > 0 ? Number((rawExtraHours / 8).toFixed(2)) : 0;
-          monthlyCoffsEarned += cOffCredit;
-        } else {
+        // C-off Used నిర్ధారణ: Benefit Type 'C-off Used' అయినా లేదా Day Status 'C-off' అయినా
+        if (rawBenefit === 'C-off Used' || status === 'C-off') {
+          dayCoffUsed = rawExtraHours > 0 ? Number((rawExtraHours / 8).toFixed(2)) : 1;
+          monthlyCoffsUsed += dayCoffUsed;
+        } 
+        // C-off Earned నిర్ధారణ: Benefit Type 'C-off Earned' లేదా 'C-off' (పాతది)
+        else if (rawBenefit === 'C-off Earned' || rawBenefit === 'C-off') {
+          dayCoffEarned = rawExtraHours > 0 ? Number((rawExtraHours / 8).toFixed(2)) : 1;
+          monthlyCoffsEarned += dayCoffEarned;
+        } 
+        // సాధారణ OT
+        else {
           finalOT = rawExtraHours;
         }
 
@@ -112,13 +142,14 @@ export default function MonthlyReport() {
           dateStr, 
           status, 
           ot: finalOT, 
-          cOffCredit,
-          extraShiftBenefit: assignedBenefit,
-          late: dailyLate,
-          lateIn: effectiveLateIn,
-          earlyOut: extra?.earlyOutHours || 0,
-          autoLateIn,
-          punches: dayRecords.length
+          dayCoffEarned,
+          dayCoffUsed,
+          extraShiftBenefit: rawBenefit, 
+          late: dailyLate, 
+          lateIn: effectiveLateIn, 
+          earlyOut: extra?.earlyOutHours || 0, 
+          autoLateIn, 
+          punches: dayRecords.length 
         };
       });
 
@@ -126,15 +157,15 @@ export default function MonthlyReport() {
         acc[curr.status] = (acc[curr.status] || 0) + 1;
         acc.totalOT += curr.ot;
         return acc;
-      }, { Present: 0, Absent: 0, 'Week-off': 0, Leave: 0, Holiday: 0, 'C-off': 0, 'Half-Day': 0, totalOT: 0 });
+      }, { Present: 0, Absent: 0, 'Week-off': 0, Leave: 0, Holiday: 0, 'C-off': 0, 'Half-Day': 0, OT: 0, totalOT: 0 });
 
-      const presentsCount = stats.Present || 0;
+      const presentsCount = (stats.Present || 0) + (stats.OT || 0);
       const weekOffCount = stats['Week-off'] || 0;
       const holidayCount = stats.Holiday || 0;
-      const coffCount = stats['C-off'] || 0;
+      const coffPaidCount = monthlyCoffsUsed; // వాడిన C-off లను పెయిడ్ డేస్ గా లెక్కిస్తాం
       const halfDaysCount = stats['Half-Day'] || 0;
 
-      const totalEffectivePaidDays = presentsCount + weekOffCount + holidayCount + coffCount + (halfDaysCount * 0.5);
+      const totalEffectivePaidDays = presentsCount + weekOffCount + holidayCount + coffPaidCount + (halfDaysCount * 0.5);
       const effectiveDailyRate = employee.dailyRate || 0;
       
       const earnedBasicAmount = totalEffectivePaidDays * effectiveDailyRate;
@@ -152,58 +183,204 @@ export default function MonthlyReport() {
         stats, 
         salary: finalNetSalary, 
         paidWorkingDays: totalEffectivePaidDays, 
-        totalDays: daysInMonth.length,
-        totalLateHoursCut: monthlyCustomLateHoursCut,
-        totalCoffsEarned: monthlyCoffsEarned
+        totalDays: daysInMonth.length, 
+        totalLateHoursCut: monthlyCustomLateHoursCut, 
+        totalCoffsEarned: Number(monthlyCoffsEarned.toFixed(2)),
+        totalCoffsUsed: Number(monthlyCoffsUsed.toFixed(2)),
+        coffBalance: Number((monthlyCoffsEarned - monthlyCoffsUsed).toFixed(2))
       };
     });
   }, [employees, attendanceRecords, extraStatuses, daysInMonth, selectedMonth, shiftSettings]);
 
+  // 2. పూర్తి సంవత్సరానికి C-off Earned & C-off Used లెక్కింపు
+  const yearlyReportData = useMemo(() => {
+    const daysInYear = eachDayOfInterval({
+      start: startOfYear(new Date(selectedYear, 0, 1)),
+      end: endOfYear(new Date(selectedYear, 0, 1)),
+    });
+
+    return employees.filter(e => e.status === 'Approved' || e.status === 'Resigned').map(employee => {
+      let pCount = 0;
+      let otCount = 0;
+      let totalOtHours = 0;
+      let aCount = 0;
+      let wCount = 0;
+      let hCount = 0;
+      let hdCount = 0;
+      let totalCoffsEarned = 0;
+      let totalCoffsUsed = 0;
+
+      daysInYear.forEach(day => {
+        const dateStr = format(day, 'yyyy-MM-dd');
+        const dayRecords = attendanceRecords.filter(r => 
+          r.employeeId.toUpperCase() === employee.id.toUpperCase() &&
+          isSameDay(new Date(r.dateTime), day)
+        );
+        const extra = extraStatuses.find(ex => ex.employeeId.toUpperCase() === employee.id.toUpperCase() && ex.date === dateStr);
+
+        let status = 'Absent';
+        if (extra && extra.status && extra.status !== 'None') {
+          status = extra.status;
+        } else if (dayRecords.length > 0) {
+          status = 'Present';
+        } else if (employee.weekOffDay === DAYS_OF_WEEK[getDay(day)]) {
+          status = 'Week-off';
+        }
+
+        if (status === 'Present') pCount++;
+        else if (status === 'OT') { otCount++; pCount++; }
+        else if (status === 'Absent') aCount++;
+        else if (status === 'Week-off') wCount++;
+        else if (status === 'Holiday') hCount++;
+        else if (status === 'Half-Day') hdCount++;
+
+        let autoExtra = 0;
+        if (dayRecords.length > 1) {
+          dayRecords.slice(0, dayRecords.length - 1).forEach(r => {
+            autoExtra += shiftSettings[r.shift as keyof ShiftSettings]?.dutyHours || 8;
+          });
+        }
+        let rawExtra = extra?.otHours ?? autoExtra;
+        if (status === 'OT' && rawExtra === 0) rawExtra = 8;
+
+        const rawBenefit = extra?.extraShiftBenefit as string;
+        
+        if (rawBenefit === 'C-off Used' || status === 'C-off') {
+          totalCoffsUsed += (rawExtra > 0 ? Number((rawExtra / 8).toFixed(2)) : 1);
+        } else if (rawBenefit === 'C-off Earned' || rawBenefit === 'C-off') {
+          totalCoffsEarned += (rawExtra > 0 ? Number((rawExtra / 8).toFixed(2)) : 1);
+        } else {
+          totalOtHours += rawExtra;
+        }
+      });
+
+      const coffPending = Math.max(0, totalCoffsEarned - totalCoffsUsed);
+
+      return {
+        id: employee.id,
+        name: employee.name,
+        p: pCount,
+        otHours: totalOtHours,
+        a: aCount,
+        w: wCount,
+        h: hCount,
+        hd: hdCount,
+        coffEarned: Number(totalCoffsEarned.toFixed(2)),
+        coffUsed: Number(totalCoffsUsed.toFixed(2)),
+        coffPending: Number(coffPending.toFixed(2))
+      };
+    });
+  }, [employees, attendanceRecords, extraStatuses, selectedYear, shiftSettings]);
+
+  const yearlyGrandTotals = useMemo(() => {
+    return yearlyReportData.reduce((acc, curr) => {
+      acc.p += curr.p;
+      acc.otHours += curr.otHours;
+      acc.a += curr.a;
+      acc.w += curr.w;
+      acc.h += curr.h;
+      acc.coffEarned += curr.coffEarned;
+      acc.coffUsed += curr.coffUsed;
+      acc.coffPending += curr.coffPending;
+      return acc;
+    }, { p: 0, otHours: 0, a: 0, w: 0, h: 0, coffEarned: 0, coffUsed: 0, coffPending: 0 });
+  }, [yearlyReportData]);
+
   const grandTotals = useMemo(() => {
     return reportData.reduce((acc, curr) => {
       acc.totalDays += curr.totalDays;
-      acc.present += (curr.stats.Present || 0);
+      acc.present += ((curr.stats.Present || 0) + (curr.stats.OT || 0));
       acc.absent += (curr.stats.Absent || 0);
       acc.leave += (curr.stats.Leave || 0);
       acc.holiday += (curr.stats.Holiday || 0);
-      acc.coff += (curr.stats['C-off'] || 0);
       acc.halfday += (curr.stats['Half-Day'] || 0);
       acc.weekoff += (curr.stats['Week-off'] || 0);
       acc.ot += curr.stats.totalOT;
       acc.coffsEarned += curr.totalCoffsEarned;
+      acc.coffsUsed += curr.totalCoffsUsed;
       acc.paidWorkingDays += curr.paidWorkingDays;
       acc.salary += curr.salary;
       return acc;
-    }, { totalDays: 0, present: 0, absent: 0, leave: 0, holiday: 0, coff: 0, halfday: 0, weekoff: 0, ot: 0, coffsEarned: 0, paidWorkingDays: 0, salary: 0 });
+    }, { totalDays: 0, present: 0, absent: 0, leave: 0, holiday: 0, halfday: 0, weekoff: 0, ot: 0, coffsEarned: 0, coffsUsed: 0, paidWorkingDays: 0, salary: 0 });
   }, [reportData]);
 
   const handleDayClick = (empId: string, dateStr: string) => {
-    const current = extraStatuses.find(e => e.employeeId === empId && e.date === dateStr);
+    const current = extraStatuses.find(e => e.employeeId.toUpperCase() === empId.toUpperCase() && e.date === dateStr);
     const empData = reportData.find(d => d.id === empId);
     const dayData = empData?.dailyStatus.find(s => s.dateStr === dateStr);
     const autoLate = dayData?.autoLateIn || 0;
 
+    let initialStatus = current?.status || 'None';
+    const rawBenefit = current?.extraShiftBenefit as string;
+    
+    let initialBenefit: 'C-off Earned' | 'C-off Used' | 'OT' = 'OT';
+    if (rawBenefit === 'C-off Earned' || rawBenefit === 'C-off') {
+      initialBenefit = 'C-off Earned';
+    } else if (rawBenefit === 'C-off Used' || initialStatus === 'C-off') {
+      initialBenefit = 'C-off Used';
+    }
+
     setEditForm({ 
-      status: current?.status || 'None', 
-      ot: (current?.otHours || 0).toString(),
-      lateIn: current?.lateInHours !== undefined ? current.lateInHours.toString() : '',
-      earlyOut: (current?.earlyOutHours || 0).toString(),
-      extraShiftBenefit: current?.extraShiftBenefit || 'OT'
+      status: initialStatus, 
+      inTime: '09:00',
+      outTime: (current?.otHours && current.otHours > 0) ? `${18 + Math.floor(current.otHours)}:00` : '18:00',
+      ot: (current?.otHours || 0).toString(), 
+      lateIn: current?.lateInHours !== undefined ? current.lateInHours.toString() : '', 
+      earlyOut: (current?.earlyOutHours || 0).toString(), 
+      extraShiftBenefit: initialBenefit,
+      coffQty: '1'
     });
     setEditingDay({ empId, date: dateStr, autoLate });
+  };
+
+  const handleTimingChange = (inT: string, outT: string) => {
+    setEditForm(prev => {
+      const [inH, inM] = inT.split(':').map(Number);
+      const [outH, outM] = outT.split(':').map(Number);
+      
+      const inHours = inH + (inM / 60);
+      let outHours = outH + (outM / 60);
+      if (outHours < inHours) outHours += 24;
+
+      const totalDuty = Math.max(0, outHours - inHours);
+      const autoOT = totalDuty > 8 ? Number((totalDuty - 8).toFixed(1)) : 0;
+      const autoLate = inHours > 9.25 ? Number((inHours - 9).toFixed(1)) : 0;
+
+      return {
+        ...prev,
+        inTime: inT,
+        outTime: outT,
+        ot: autoOT.toString(),
+        lateIn: autoLate > 0 ? autoLate.toString() : prev.lateIn
+      };
+    });
   };
 
   const saveDayStatus = () => {
     if (!editingDay) return;
     const { empId, date } = editingDay;
+    
+    let hoursToSave = parseFloat(editForm.ot) || 0;
+    let finalStatus = editForm.status;
+
+    // C-off Used ఎంచుకుంటే స్టేటస్ ఆటోమేటిక్‌గా C-off అవుతుంది
+    if (editForm.extraShiftBenefit === 'C-off Used') {
+      finalStatus = 'C-off';
+      if (hoursToSave === 0) hoursToSave = parseFloat(editForm.coffQty) * 8;
+    } 
+    // C-off Earned ఎంచుకుంటే 1 C-off = 8 గంటలు
+    else if (editForm.extraShiftBenefit === 'C-off Earned' && hoursToSave === 0) {
+      hoursToSave = parseFloat(editForm.coffQty) * 8;
+    }
+
     markExtraStatus(
       empId, 
       date, 
-      editForm.status as any, 
-      parseFloat(editForm.ot) || 0, 
-      editForm.lateIn === '' ? 0 : parseFloat(editForm.lateIn),
-      parseFloat(editForm.earlyOut) || 0,
-      editForm.extraShiftBenefit
+      finalStatus as any, 
+      hoursToSave, 
+      editForm.lateIn === '' ? 0 : parseFloat(editForm.lateIn), 
+      parseFloat(editForm.earlyOut) || 0, 
+      editForm.extraShiftBenefit as any
     );
     setEditingDay(null);
   };
@@ -213,6 +390,7 @@ export default function MonthlyReport() {
 
   return (
     <div className="space-y-6">
+      {/* టాప్ సమ్మరీ కార్డ్స్ */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card className="bg-primary/5">
           <CardContent className="p-3 sm:pt-6 flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-4 text-center sm:text-left">
@@ -236,8 +414,8 @@ export default function MonthlyReport() {
           <CardContent className="p-3 sm:pt-6 flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-4 text-center sm:text-left">
             <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600" />
             <div>
-              <p className="text-[10px] sm:text-sm font-medium uppercase tracking-wider">OT (Hrs)</p>
-              <h3 className="text-lg sm:text-2xl font-bold">{reportData.reduce((acc, r) => acc + r.stats.totalOT, 0)}</h3>
+              <p className="text-[10px] sm:text-sm font-medium uppercase tracking-wider">{viewMode === 'year' ? `${selectedYear} OT` : 'Month OT'}</p>
+              <h3 className="text-lg sm:text-2xl font-bold">{viewMode === 'year' ? `${yearlyGrandTotals.otHours}h` : `${grandTotals.ot}h`}</h3>
             </div>
           </CardContent>
         </Card>
@@ -245,28 +423,39 @@ export default function MonthlyReport() {
           <CardContent className="p-3 sm:pt-6 flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-4 text-center sm:text-left">
             <Award className="h-5 w-5 sm:h-6 sm:w-6 text-teal-600" />
             <div>
-              <p className="text-[10px] sm:text-sm font-medium uppercase tracking-wider">C-offs</p>
-              <h3 className="text-lg sm:text-2xl font-bold">{grandTotals.coffsEarned.toFixed(1)}</h3>
+              <p className="text-[10px] sm:text-sm font-medium uppercase tracking-wider">{viewMode === 'year' ? `${selectedYear} C-off Bal` : 'C-offs (Used / Earned)'}</p>
+              <h3 className="text-lg sm:text-2xl font-bold">
+                {viewMode === 'year' 
+                  ? `${yearlyGrandTotals.coffPending.toFixed(1)} Bal` 
+                  : `${grandTotals.coffsUsed.toFixed(1)} U / ${grandTotals.coffsEarned.toFixed(1)} E`}
+              </h3>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
+      <Card className="border border-border/80 shadow-md">
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0 px-4 sm:px-6">
           <div className="w-full">
-            <CardTitle>Master Attendance Report</CardTitle>
-            <CardDescription className="hidden sm:block">
-                ఒక రోజుపై క్లిక్ చేసి వివరాలను మార్చుకోవచ్చు.
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-xl sm:text-2xl font-bold">
+                {viewMode === 'month' ? 'Master Attendance Report' : `${selectedYear} Full Year Attendance & C-off Ledger`}
+              </CardTitle>
+            </div>
+            <CardDescription className="text-xs sm:text-sm mt-1">
+              {viewMode === 'month' 
+                ? '👉 1 నుండి 30/31 వరకు రోజులను చూడండి లేదా "Full Year Summary" బాక్స్ నొక్కి సంవత్సరం మొత్తం లెక్కలు చూడండి.' 
+                : `👉 ${selectedYear} సంవత్సరానికి సంబంధించిన మొత్తం P, OT, A, W, H మరియు C-off Earned / Used లెక్కలు.`}
             </CardDescription>
           </div>
-          <div className="flex gap-2 w-full md:w-auto">
+
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
             <Select value={currentYear.toString()} onValueChange={(v) => {
               const d = new Date(selectedMonth);
               d.setFullYear(parseInt(v));
               setSelectedMonth(d);
             }}>
-              <SelectTrigger className="w-full sm:w-[100px]">
+              <SelectTrigger className="w-[100px] h-10 font-bold bg-slate-50 border-slate-300">
                 <SelectValue placeholder="Year" />
               </SelectTrigger>
               <SelectContent>
@@ -276,202 +465,501 @@ export default function MonthlyReport() {
                 })}
               </SelectContent>
             </Select>
-            <Select value={currentMonth.toString()} onValueChange={(v) => {
-              const d = new Date(selectedMonth);
-              d.setMonth(parseInt(v));
-              setSelectedMonth(d);
-            }}>
-              <SelectTrigger className="w-full sm:w-[130px]">
-                <SelectValue placeholder="Month" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 12 }).map((_, i) => (
-                  <SelectItem key={i} value={i.toString()}>{format(new Date(2000, i, 1), 'MMMM')}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+
+            {viewMode === 'month' && (
+              <Select value={currentMonth.toString()} onValueChange={(v) => {
+                const d = new Date(selectedMonth);
+                d.setMonth(parseInt(v));
+                setSelectedMonth(d);
+              }}>
+                <SelectTrigger className="w-[130px] h-10 font-bold bg-slate-50 border-slate-300">
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <SelectItem key={i} value={i.toString()}>{format(new Date(2000, i, 1), 'MMMM')}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            <Button
+              variant={viewMode === 'year' ? "default" : "outline"}
+              className={`h-10 px-3.5 rounded-xl font-bold flex items-center gap-1.5 transition-all ${
+                viewMode === 'year' 
+                  ? 'bg-primary text-white shadow-md' 
+                  : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300'
+              }`}
+              onClick={() => setViewMode(prev => prev === 'month' ? 'year' : 'month')}
+            >
+              <BarChart3 className="w-4 h-4 text-amber-600" />
+              <span>{viewMode === 'year' ? 'Back to Monthly' : `${selectedYear} Full Year Summary`}</span>
+            </Button>
           </div>
         </CardHeader>
-        <CardContent className="px-0 sm:px-6">
-          <div className="overflow-x-auto border-y sm:border rounded-none sm:rounded-xl">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 text-[9px] sm:text-[10px]">
-                  <TableHead className="sticky left-0 bg-muted z-30 min-w-[120px] border-r shadow-[2px_0_5px_rgba(0,0,0,0.05)]">Employee Name</TableHead>
-                  
-                  {daysInMonth.map(day => {
-                    const isSun = isSunday(day);
-                    const isSat = isSaturday(day);
-                    return (
-                      <TableHead 
-                        key={day.toISOString()} 
-                        className={`text-center min-w-[40px] border-l p-1 ${
-                          isSun ? 'bg-red-50 text-red-600 font-black' : 
-                          isSat ? 'bg-amber-50 text-amber-600 font-bold' : ''
-                        }`}
-                      >
-                        <div className="flex flex-col items-center leading-tight">
-                          <span>{format(day, 'd')}</span>
-                          <span className="text-[7px] sm:text-[8px] uppercase">{format(day, 'EEE')}</span>
-                        </div>
-                      </TableHead>
-                    );
-                  })}
 
-                  <TableHead className="text-center font-bold px-2 text-green-600 bg-slate-50 border-l border-r">P</TableHead>
-                  <TableHead className="text-center font-bold px-2 text-red-600 bg-slate-50 border-r">A</TableHead>
-                  <TableHead className="text-center font-bold px-2 text-teal-600 bg-slate-50 border-r">C-off</TableHead>
-                  <TableHead className="text-center font-bold px-2 text-red-500 bg-slate-50 border-r">Late</TableHead>
-                  <TableHead className="text-center font-bold px-2 bg-primary/10 text-primary border-r">Paid</TableHead>
-                  <TableHead className="sticky right-0 bg-primary/10 z-30 min-w-[80px] text-primary font-bold text-center border-l shadow-[-2px_0_5px_rgba(0,0,0,0.05)]">Net Sal</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody className="text-[10px] sm:text-[11px]">
-                {reportData.map(row => (
-                  <TableRow key={row.id} className="hover:bg-slate-50/50">
-                    <TableCell className="sticky left-0 bg-white font-bold z-20 border-r shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
-                      <div className="flex items-center gap-1 truncate max-w-[100px]">
-                        {row.name}
-                        {row.status === 'Resigned' && <span className="text-[7px] bg-amber-100 px-1 border border-amber-500 text-amber-600 rounded">F</span>}
-                      </div>
-                      <div className="text-[8px] text-muted-foreground font-normal">{row.id}</div>
-                    </TableCell>
+        <CardContent className="p-0 sm:p-4">
+          {viewMode === 'year' ? (
+            /* ===================== VIEW 1: YEARLY SUMMARY TABLE ===================== */
+            <div className="space-y-4">
+              <div className="mx-2 sm:mx-0 p-4 bg-gradient-to-r from-teal-50 to-blue-50 border border-teal-200 rounded-xl flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Award className="w-6 h-6 text-teal-700" />
+                  <div>
+                    <h4 className="text-sm font-bold text-teal-950">{selectedYear} C-off Balance Overview</h4>
+                    <p className="text-xs text-teal-800">C-off Earned (సంపాదించినవి) - C-off Used (వాడినవి) = C-off Pending (మిగిలిన బ్యాలెన్స్)</p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className="bg-white px-3 py-1.5 rounded-lg border border-teal-200 text-center">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 block">Total Earned</span>
+                    <span className="text-sm font-black text-teal-700">{yearlyGrandTotals.coffEarned.toFixed(1)}</span>
+                  </div>
+                  <div className="bg-white px-3 py-1.5 rounded-lg border border-purple-200 text-center">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 block">Total Used</span>
+                    <span className="text-sm font-black text-purple-700">{yearlyGrandTotals.coffUsed.toFixed(1)}</span>
+                  </div>
+                  <div className="bg-white px-3 py-1.5 rounded-lg border border-amber-300 text-center shadow-sm">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 block">Balance Pending</span>
+                    <span className="text-sm font-black text-amber-600">{yearlyGrandTotals.coffPending.toFixed(1)}</span>
+                  </div>
+                </div>
+              </div>
 
-                    {row.dailyStatus.map((s, i) => {
-                      const isSun = isSunday(s.day);
-                      const isSat = isSaturday(s.day);
+              <div 
+                style={{
+                  width: '100%',
+                  overflowX: 'auto',
+                  WebkitOverflowScrolling: 'touch',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px'
+                }}
+              >
+                <table 
+                  style={{
+                    width: '100%',
+                    minWidth: '1050px',
+                    borderCollapse: 'collapse',
+                    textAlign: 'center',
+                    backgroundColor: '#ffffff'
+                  }}
+                >
+                  <thead>
+                    <tr style={{ backgroundColor: '#f1f5f9', height: '48px', borderBottom: '2px solid #cbd5e1' }}>
+                      <th style={{ width: '220px', padding: '10px 14px', textAlign: 'left', fontWeight: 'bold', fontSize: '13px', borderRight: '2px solid #cbd5e1' }}>Employee Name</th>
+                      <th title="Total Present" style={{ width: '80px', fontWeight: 'bold', color: '#15803d', backgroundColor: '#dcfce7', borderRight: '1px solid #cbd5e1' }}>P (Present)</th>
+                      <th title="Total OT Hours" style={{ width: '90px', fontWeight: 'bold', color: '#c2410c', backgroundColor: '#ffedd5', borderRight: '1px solid #cbd5e1' }}>OT (Hours)</th>
+                      <th title="Total Absent" style={{ width: '80px', fontWeight: 'bold', color: '#b91c1c', backgroundColor: '#fee2e2', borderRight: '1px solid #cbd5e1' }}>A (Absent)</th>
+                      <th title="Total Week-off" style={{ width: '85px', fontWeight: 'bold', color: '#b45309', backgroundColor: '#fef3c7', borderRight: '1px solid #cbd5e1' }}>W (Week-off)</th>
+                      <th title="Total Company Holiday" style={{ width: '85px', fontWeight: 'bold', color: '#7e22ce', backgroundColor: '#f3e8ff', borderRight: '1px solid #cbd5e1' }}>H (Holiday)</th>
+                      <th style={{ width: '110px', fontWeight: 'bold', color: '#0f766e', backgroundColor: '#ccfbf1', borderRight: '1px solid #cbd5e1' }}>C-off Earned</th>
+                      <th style={{ width: '100px', fontWeight: 'bold', color: '#6b21a8', backgroundColor: '#fae8ff', borderRight: '1px solid #cbd5e1' }}>C-off Used</th>
+                      <th style={{ width: '120px', fontWeight: '900', color: '#b45309', backgroundColor: '#fef3c7' }}>C-off Pending</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {yearlyReportData.map(emp => (
+                      <tr key={emp.id} style={{ borderBottom: '1px solid #e2e8f0', height: '48px' }}>
+                        <td style={{ width: '220px', padding: '8px 14px', textAlign: 'left', borderRight: '2px solid #cbd5e1', fontWeight: 'bold' }}>
+                          <div style={{ fontSize: '13px', color: '#0f172a' }}>{emp.name}</div>
+                          <div style={{ fontSize: '10px', color: '#64748b' }}>{emp.id}</div>
+                        </td>
+                        <td style={{ fontWeight: 'bold', color: '#15803d', borderRight: '1px solid #cbd5e1' }}>{emp.p}</td>
+                        <td style={{ fontWeight: 'bold', color: '#c2410c', borderRight: '1px solid #cbd5e1' }}>{emp.otHours}h</td>
+                        <td style={{ fontWeight: 'bold', color: '#dc2626', borderRight: '1px solid #cbd5e1' }}>{emp.a}</td>
+                        <td style={{ fontWeight: 'bold', color: '#b45309', borderRight: '1px solid #cbd5e1' }}>{emp.w}</td>
+                        <td style={{ fontWeight: 'bold', color: '#7e22ce', borderRight: '1px solid #cbd5e1' }}>{emp.h}</td>
+                        <td style={{ fontWeight: 'bold', color: '#0f766e', borderRight: '1px solid #cbd5e1' }}>{emp.coffEarned.toFixed(1)}</td>
+                        <td style={{ fontWeight: 'bold', color: '#7e22ce', borderRight: '1px solid #cbd5e1' }}>{emp.coffUsed.toFixed(1)}</td>
+                        <td style={{ fontWeight: '900', color: emp.coffPending > 0 ? '#b45309' : '#64748b', backgroundColor: emp.coffPending > 0 ? '#fffbeb' : '#fff' }}>
+                          <span className={`px-2.5 py-1 rounded-md text-xs font-black ${emp.coffPending > 0 ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'text-slate-400'}`}>
+                            {emp.coffPending.toFixed(1)} Bal
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ backgroundColor: '#f8fafc', height: '48px', fontWeight: '900', borderTop: '2px solid #cbd5e1' }}>
+                      <td style={{ padding: '8px 14px', textAlign: 'left', borderRight: '2px solid #cbd5e1' }}>Grand Total ({selectedYear})</td>
+                      <td style={{ color: '#15803d', borderRight: '1px solid #cbd5e1', backgroundColor: '#dcfce7' }}>{yearlyGrandTotals.p}</td>
+                      <td style={{ color: '#c2410c', borderRight: '1px solid #cbd5e1', backgroundColor: '#ffedd5' }}>{yearlyGrandTotals.otHours}h</td>
+                      <td style={{ color: '#b91c1c', borderRight: '1px solid #cbd5e1', backgroundColor: '#fee2e2' }}>{yearlyGrandTotals.a}</td>
+                      <td style={{ color: '#b45309', borderRight: '1px solid #cbd5e1', backgroundColor: '#fef3c7' }}>{yearlyGrandTotals.w}</td>
+                      <td style={{ color: '#7e22ce', borderRight: '1px solid #cbd5e1', backgroundColor: '#f3e8ff' }}>{yearlyGrandTotals.h}</td>
+                      <td style={{ color: '#0f766e', borderRight: '1px solid #cbd5e1', backgroundColor: '#ccfbf1' }}>{yearlyGrandTotals.coffEarned.toFixed(1)}</td>
+                      <td style={{ color: '#7e22ce', borderRight: '1px solid #cbd5e1', backgroundColor: '#fae8ff' }}>{yearlyGrandTotals.coffUsed.toFixed(1)}</td>
+                      <td style={{ color: '#b45309', backgroundColor: '#fef3c7' }}>{yearlyGrandTotals.coffPending.toFixed(1)} Pending</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          ) : (
+            /* ===================== VIEW 2: MONTHLY TABLE (C-off Earned & C-off Used విడివిడిగా) ===================== */
+            <div 
+              style={{
+                width: '100%',
+                maxWidth: '100%',
+                overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px'
+              }}
+            >
+              <table 
+                style={{
+                  width: '2450px',
+                  minWidth: '2450px',
+                  borderCollapse: 'collapse',
+                  textAlign: 'center',
+                  backgroundColor: '#ffffff'
+                }}
+              >
+                <thead>
+                  <tr style={{ backgroundColor: '#f8fafc', height: '50px', borderBottom: '2px solid #cbd5e1' }}>
+                    <th style={{ width: '180px', padding: '10px', textAlign: 'left', fontWeight: 'bold', fontSize: '13px', borderRight: '2px solid #cbd5e1', whiteSpace: 'nowrap' }}>
+                      Employee Name
+                    </th>
+                    
+                    {daysInMonth.map(day => {
+                      const isSun = isSunday(day);
+                      const isSat = isSaturday(day);
                       return (
-                        <TableCell 
-                          key={i} 
-                          className={`p-1 text-center cursor-pointer border-l hover:bg-slate-100 transition-colors ${
-                            isSun ? 'bg-red-50/30' : isSat ? 'bg-amber-50/30' : ''
-                          }`} 
-                          onClick={() => handleDayClick(row.id, s.dateStr)}
+                        <th 
+                          key={day.toISOString()} 
+                          style={{
+                            width: '46px',
+                            minWidth: '46px',
+                            padding: '4px',
+                            borderRight: '1px solid #e2e8f0',
+                            backgroundColor: isSun ? '#fee2e2' : isSat ? '#fef3c7' : '#f8fafc',
+                            color: isSun ? '#b91c1c' : isSat ? '#b45309' : '#334155',
+                            whiteSpace: 'nowrap'
+                          }}
                         >
-                          <div className={`h-6 w-6 rounded-md mx-auto flex items-center justify-center font-bold text-[10px] shadow-sm relative ${
-                            s.status === 'Present' ? 'bg-green-500 text-white' : 
-                            s.status === 'Half-Day' ? 'bg-orange-400 text-white' : 
-                            s.status === 'Holiday' ? 'bg-purple-500 text-white' :
-                            s.status === 'Leave' ? 'bg-blue-500 text-white' :
-                            s.status === 'C-off' ? 'bg-indigo-500 text-white' :
-                            s.status === 'Week-off' ? 'bg-amber-400 text-amber-900' : 
-                            s.status === 'Absent' ? 'bg-red-100 text-red-400' : 'bg-slate-100 text-slate-400'
-                          }`}>
-                            {s.status === 'Present' ? 'P' : 
-                             s.status === 'Half-Day' ? 'HD' : 
-                             s.status === 'Holiday' ? 'H' : 
-                             s.status === 'Leave' ? 'L' : 
-                             s.status === 'C-off' ? 'C' : 
-                             s.status === 'Week-off' ? 'W' : 'A'}
-                             
-                             {s.punches > 1 && (
-                                <div className="absolute -top-1 -right-1 bg-primary text-white text-[7px] w-3 h-3 flex items-center justify-center rounded-full border border-white">
-                                    {s.punches}
-                                </div>
-                             )}
-                          </div>
-                        </TableCell>
+                          <div style={{ fontSize: '12px', fontWeight: 'bold' }}>{format(day, 'd')}</div>
+                          <div style={{ fontSize: '9px', textTransform: 'uppercase', opacity: 0.8 }}>{format(day, 'EEE')}</div>
+                        </th>
                       );
                     })}
 
-                    <TableCell className="text-center font-bold text-green-600 border-l border-r">{row.stats.Present || 0}</TableCell>
-                    <TableCell className="text-center font-bold text-red-600 border-r">{row.stats.Absent || 0}</TableCell>
-                    <TableCell className="text-center text-teal-600 font-bold border-r">{row.totalCoffsEarned.toFixed(1)}</TableCell>
-                    <TableCell className="text-center border-r text-red-500 font-bold">{row.totalLateHoursCut.toFixed(1)}</TableCell>
-                    <TableCell className="text-center bg-primary/5 font-black text-primary border-r">{row.paidWorkingDays}</TableCell>
-                    <TableCell className="sticky right-0 bg-white z-20 font-black text-primary text-center border-l shadow-[-2px_0_5px_rgba(0,0,0,0.02)]">
-                      ₹{Math.round(row.salary).toLocaleString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-              <TableFooter className="bg-muted/80 text-[10px] font-black text-slate-900">
-                <TableRow>
-                  <TableCell className="sticky left-0 bg-slate-100 font-black z-20 border-r shadow-[2px_0_5px_rgba(0,0,0,0.05)]">Grand Total</TableCell>
-                  
-                  {daysInMonth.map((_, i) => (
-                    <TableCell key={`ft-date-${i}`} className="border-l"></TableCell>
-                  ))}
+                    <th title="Present" style={{ width: '48px', fontWeight: 'bold', color: '#15803d', backgroundColor: '#dcfce7', borderRight: '1px solid #cbd5e1' }}>P</th>
+                    <th title="Absent" style={{ width: '48px', fontWeight: 'bold', color: '#b91c1c', backgroundColor: '#fee2e2', borderRight: '1px solid #cbd5e1' }}>A</th>
+                    <th title="Week-off" style={{ width: '48px', fontWeight: 'bold', color: '#b45309', backgroundColor: '#fef3c7', borderRight: '1px solid #cbd5e1' }}>W</th>
+                    <th title="Holiday" style={{ width: '48px', fontWeight: 'bold', color: '#7e22ce', backgroundColor: '#f3e8ff', borderRight: '1px solid #cbd5e1' }}>H</th>
+                    
+                    {/* C-off Earned మరియు C-off Used విడివిడి కాలమ్స్ */}
+                    <th title="C-off Earned" style={{ width: '70px', fontWeight: 'bold', color: '#0f766e', backgroundColor: '#ccfbf1', borderRight: '1px solid #cbd5e1' }}>C-Earned</th>
+                    <th title="C-off Used" style={{ width: '65px', fontWeight: 'bold', color: '#6b21a8', backgroundColor: '#fae8ff', borderRight: '1px solid #cbd5e1' }}>C-Used</th>
+                    
+                    <th title="OT Hours" style={{ width: '50px', fontWeight: 'bold', color: '#c2410c', backgroundColor: '#ffedd5', borderRight: '1px solid #cbd5e1' }}>OT</th>
+                    <th title="Late Hours" style={{ width: '50px', fontWeight: 'bold', color: '#dc2626', backgroundColor: '#f1f5f9', borderRight: '1px solid #cbd5e1' }}>Late</th>
+                    <th title="Paid Days" style={{ width: '55px', fontWeight: 'bold', color: '#1d4ed8', backgroundColor: '#eff6ff', borderRight: '1px solid #cbd5e1' }}>Paid</th>
+                    <th title="Net Salary" style={{ width: '120px', fontWeight: 'bold', color: '#1e3a8a', backgroundColor: '#dbeafe', whiteSpace: 'nowrap' }}>Net Sal</th>
+                  </tr>
+                </thead>
 
-                  <TableCell className="text-center text-green-700 font-black border-l border-r bg-slate-100">{grandTotals.present}</TableCell>
-                  <TableCell className="text-center text-red-600 font-black border-r bg-slate-100">{grandTotals.absent}</TableCell>
-                  <TableCell className="text-center text-teal-600 font-black border-r bg-slate-100">{grandTotals.coffsEarned.toFixed(1)}</TableCell>
-                  <TableCell className="text-center border-r bg-slate-100 text-red-50">{reportData.reduce((acc, r) => acc + r.totalLateHoursCut, 0).toFixed(1)}</TableCell>
-                  <TableCell className="text-center text-primary font-black border-r bg-primary/5">{grandTotals.paidWorkingDays}</TableCell>
-                  <TableCell className="sticky right-0 bg-primary/20 z-20 font-black text-primary text-center border-l">₹{Math.round(grandTotals.salary).toLocaleString()}</TableCell>
-                </TableRow>
-              </TableFooter>
-            </Table>
-          </div>
+                <tbody>
+                  {reportData.map(row => (
+                    <tr key={row.id} style={{ borderBottom: '1px solid #e2e8f0', height: '48px' }}>
+                      <td style={{ width: '180px', padding: '8px 12px', textAlign: 'left', borderRight: '2px solid #cbd5e1', backgroundColor: '#ffffff', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#0f172a' }}>
+                          {row.name}
+                        </div>
+                        <div style={{ fontSize: '10px', color: '#64748b' }}>{row.id}</div>
+                      </td>
+
+                      {row.dailyStatus.map((s, i) => {
+                        const isSun = isSunday(s.day);
+                        const isSat = isSaturday(s.day);
+                        return (
+                          <td 
+                            key={i} 
+                            onClick={() => handleDayClick(row.id, s.dateStr)}
+                            style={{
+                              width: '46px',
+                              minWidth: '46px',
+                              padding: '2px',
+                              borderRight: '1px solid #f1f5f9',
+                              cursor: 'pointer',
+                              backgroundColor: isSun ? 'rgba(254, 226, 226, 0.3)' : isSat ? 'rgba(254, 243, 199, 0.3)' : '#ffffff'
+                            }}
+                          >
+                            <div 
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '6px',
+                                margin: '0 auto',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                                position: 'relative',
+                                backgroundColor: 
+                                  s.status === 'Present' ? '#16a34a' : 
+                                  s.status === 'OT' ? '#ea580c' : 
+                                  s.status === 'Half-Day' ? '#f59e0b' : 
+                                  s.status === 'Holiday' ? '#9333ea' : 
+                                  s.status === 'Leave' ? '#2563eb' : 
+                                  s.status === 'C-off' ? '#7e22ce' : 
+                                  s.status === 'Week-off' ? '#fef08a' : '#fee2e2',
+                                color: 
+                                  s.status === 'Week-off' ? '#854d0e' : 
+                                  s.status === 'Absent' ? '#dc2626' : '#ffffff'
+                              }}
+                            >
+                              {s.status === 'Present' ? 'P' : 
+                               s.status === 'OT' ? 'OT' : 
+                               s.status === 'Half-Day' ? 'HD' : 
+                               s.status === 'Holiday' ? 'H' : 
+                               s.status === 'Leave' ? 'L' : 
+                               s.status === 'C-off' ? 'C' : 
+                               s.status === 'Week-off' ? 'W' : 'A'}
+                               
+                              {s.punches > 1 && (
+                                <div style={{
+                                  position: 'absolute',
+                                  top: '-3px',
+                                  right: '-3px',
+                                  backgroundColor: '#1d4ed8',
+                                  color: '#ffffff',
+                                  fontSize: '8px',
+                                  width: '14px',
+                                  height: '14px',
+                                  borderRadius: '50%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  border: '1px solid #ffffff'
+                                }}>
+                                  {s.punches}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        );
+                      })}
+
+                      <td style={{ width: '48px', fontWeight: 'bold', color: '#15803d', borderRight: '1px solid #cbd5e1' }}>{row.stats.Present || 0}</td>
+                      <td style={{ width: '48px', fontWeight: 'bold', color: '#dc2626', borderRight: '1px solid #cbd5e1' }}>{row.stats.Absent || 0}</td>
+                      <td style={{ width: '48px', fontWeight: 'bold', color: '#b45309', borderRight: '1px solid #cbd5e1' }}>{row.stats['Week-off'] || 0}</td>
+                      <td style={{ width: '48px', fontWeight: 'bold', color: '#7e22ce', borderRight: '1px solid #cbd5e1' }}>{row.stats.Holiday || 0}</td>
+                      
+                      {/* C-off Earned & Used విడివిడిగా లెక్కింపు */}
+                      <td style={{ width: '70px', fontWeight: 'bold', color: '#0f766e', borderRight: '1px solid #cbd5e1' }}>
+                        {row.totalCoffsEarned.toFixed(1)}
+                      </td>
+                      <td style={{ width: '65px', fontWeight: 'bold', color: '#6b21a8', borderRight: '1px solid #cbd5e1' }}>
+                        {row.totalCoffsUsed.toFixed(1)}
+                      </td>
+                      
+                      <td style={{ width: '50px', fontWeight: 'bold', color: '#c2410c', borderRight: '1px solid #cbd5e1' }}>{row.stats.totalOT}h</td>
+                      <td style={{ width: '50px', fontWeight: 'bold', color: '#ef4444', borderRight: '1px solid #cbd5e1' }}>{row.totalLateHoursCut.toFixed(1)}</td>
+                      <td style={{ width: '55px', fontWeight: '900', color: '#1d4ed8', backgroundColor: '#f8fafc', borderRight: '1px solid #cbd5e1' }}>{row.paidWorkingDays}</td>
+                      <td style={{ width: '120px', fontWeight: 'bold', color: '#1e3a8a', backgroundColor: '#ffffff', whiteSpace: 'nowrap' }}>
+                        ₹{Math.round(row.salary).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+
+                <tfoot>
+                  <tr style={{ backgroundColor: '#f8fafc', height: '48px', fontWeight: 'bold', borderTop: '2px solid #cbd5e1' }}>
+                    <td style={{ width: '180px', padding: '8px 12px', textAlign: 'left', borderRight: '2px solid #cbd5e1', fontWeight: '900', whiteSpace: 'nowrap' }}>Grand Total</td>
+                    
+                    {daysInMonth.map((_, i) => (
+                      <td key={`ft-date-${i}`} style={{ width: '46px', minWidth: '46px', color: '#94a3b8', borderRight: '1px solid #f1f5f9' }}>-</td>
+                    ))}
+
+                    <td title="Total Present" style={{ width: '48px', color: '#15803d', borderRight: '1px solid #cbd5e1', backgroundColor: '#dcfce7' }}>{grandTotals.present}</td>
+                    <td title="Total Absent" style={{ width: '48px', color: '#b91c1c', borderRight: '1px solid #cbd5e1', backgroundColor: '#fee2e2' }}>{grandTotals.absent}</td>
+                    <td title="Total Week-offs" style={{ width: '48px', color: '#b45309', borderRight: '1px solid #cbd5e1', backgroundColor: '#fef3c7' }}>{grandTotals.weekoff}</td>
+                    <td title="Total Holidays" style={{ width: '48px', color: '#7e22ce', borderRight: '1px solid #cbd5e1', backgroundColor: '#f3e8ff' }}>{grandTotals.holiday}</td>
+                    
+                    {/* C-off Earned & Used గ్రాండ్ టోటల్స్ */}
+                    <td title="Total C-offs Earned" style={{ width: '70px', color: '#0f766e', borderRight: '1px solid #cbd5e1', backgroundColor: '#ccfbf1' }}>{grandTotals.coffsEarned.toFixed(1)}</td>
+                    <td title="Total C-offs Used" style={{ width: '65px', color: '#6b21a8', borderRight: '1px solid #cbd5e1', backgroundColor: '#fae8ff' }}>{grandTotals.coffsUsed.toFixed(1)}</td>
+                    
+                    <td title="Total Overtime" style={{ width: '50px', color: '#c2410c', borderRight: '1px solid #cbd5e1', backgroundColor: '#ffedd5' }}>{grandTotals.ot}h</td>
+                    <td title="Total Late Hours" style={{ width: '50px', color: '#dc2626', borderRight: '1px solid #cbd5e1' }}>{reportData.reduce((acc, r) => acc + r.totalLateHoursCut, 0).toFixed(1)}</td>
+                    <td title="Total Paid Days" style={{ width: '55px', color: '#1d4ed8', backgroundColor: '#eff6ff', borderRight: '1px solid #cbd5e1' }}>{grandTotals.paidWorkingDays}</td>
+                    <td title="Total Net Salary" style={{ width: '120px', color: '#1e3a8a', backgroundColor: '#dbeafe', whiteSpace: 'nowrap' }}>₹{Math.round(grandTotals.salary).toLocaleString()}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
+      {/* మోడల్ డైలాగ్ - C-off Earned & C-off Used స్పష్టమైన Benefit Type ఆప్షన్లతో */}
       <Dialog open={!!editingDay} onOpenChange={() => setEditingDay(null)}>
-        <DialogContent className="w-[95%] max-w-[425px] rounded-2xl sm:rounded-lg overflow-hidden p-0 border-none shadow-2xl">
-          <DialogHeader className="p-6 bg-primary text-primary-foreground">
-            <DialogTitle>Update Attendance - {editingDay?.date}</DialogTitle>
+        <DialogContent className="w-[95%] max-w-[450px] rounded-2xl sm:rounded-lg overflow-hidden p-0 border-none shadow-2xl">
+          <DialogHeader className="p-5 bg-primary text-primary-foreground">
+            <DialogTitle className="text-lg">Update Attendance & Benefit - {editingDay?.date}</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 p-6 bg-white">
+          <div className="grid gap-4 p-5 bg-white max-h-[80vh] overflow-y-auto">
+            
+            {/* 1. డే స్టేటస్ */}
             <div className="grid gap-2">
-              <Label>Day Status</Label>
-              <Select value={editForm.status} onValueChange={(v) => setEditForm(p => ({ ...p, status: v }))}>
-                <SelectTrigger className="h-12 rounded-xl">
+              <Label className="text-xs font-bold text-slate-700">Day Status (హాజరు రకం)</Label>
+              <Select value={editForm.status} onValueChange={(v) => {
+                setEditForm(p => ({ 
+                  ...p, 
+                  status: v, 
+                  ot: (v === 'OT' && (p.ot === '0' || !p.ot)) ? '8' : p.ot,
+                  extraShiftBenefit: v === 'C-off' ? 'C-off Used' : p.extraShiftBenefit
+                }));
+              }}>
+                <SelectTrigger className="h-11 rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="None">Reset (Auto Mode)</SelectItem>
-                  <SelectItem value="Present">Present</SelectItem>
-                  <SelectItem value="Half-Day">Half-Day</SelectItem>
-                  <SelectItem value="Leave">Leave (Unpaid)</SelectItem>
-                  <SelectItem value="Holiday">Company Holiday</SelectItem>
-                  <SelectItem value="C-off">C-off</SelectItem>
-                  <SelectItem value="Absent">Absent</SelectItem>
+                  <SelectItem value="Present">Present (హాజరు - P)</SelectItem>
+                  <SelectItem value="C-off">C-off (కాంప్‌-ఆఫ్ సెలవు - C)</SelectItem>
+                  <SelectItem value="OT">OT (ఓవర్‌టైమ్ / డబుల్ డ్యూటీ - OT)</SelectItem>
+                  <SelectItem value="Half-Day">Half-Day (సగం రోజు - HD)</SelectItem>
+                  <SelectItem value="Week-off">Week-off (వారపు సెలవు - W)</SelectItem>
+                  <SelectItem value="Holiday">Company Holiday (కంపెనీ సెలవు - H)</SelectItem>
+                  <SelectItem value="Leave">Leave (సెలవు / Unpaid - L)</SelectItem>
+                  <SelectItem value="Absent">Absent (గైర్హాజరు - A)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            
-            <div className="p-3 bg-blue-50 text-blue-900 border border-blue-200 text-[10px] sm:text-xs rounded-xl flex items-start gap-2">
-              <Calculator className="h-4 w-4 shrink-0 mt-0.5 text-blue-600" />
-              <div>
-                <p className="font-bold">Note:</p>
-                <p>ఎక్కువ షిఫ్టులు (Double Shift) చేసినప్పుడు వచ్చే అదనపు డ్యూటీ గంటలను కింద నియంత్రించవచ్చు.</p>
-              </div>
-            </div>
 
-            <div className="grid gap-2 border p-3 rounded-xl bg-slate-50/50">
-              <Label className="text-xs font-bold text-primary">అదనపు షిఫ్ట్ ప్రయోజనం</Label>
+            {/* 2. Benefit Type - మీరడిగినట్లుగా C-off Earned & C-off Used ఆప్షన్లతో */}
+            <div className="p-3.5 border rounded-xl bg-teal-50/60 border-teal-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-teal-950 flex items-center gap-1.5">
+                  <Award className="w-4 h-4 text-teal-700" /> Benefit Type (ప్రయోజనం రకం)
+                </Label>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border border-teal-300 text-teal-800">
+                  {editForm.extraShiftBenefit}
+                </span>
+              </div>
+
               <Select 
                 value={editForm.extraShiftBenefit} 
-                onValueChange={(v: 'OT' | 'C-off') => setEditForm(p => ({ ...p, extraShiftBenefit: v }))}
+                onValueChange={(v: 'C-off Earned' | 'C-off Used' | 'OT') => {
+                  setEditForm(p => ({ 
+                    ...p, 
+                    extraShiftBenefit: v,
+                    status: v === 'C-off Used' ? 'C-off' : p.status
+                  }));
+                }}
               >
-                <SelectTrigger className="bg-white h-10 rounded-lg">
+                <SelectTrigger className="bg-white h-10 rounded-lg text-xs font-bold border-teal-300">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="OT">Overtime Pay (OT)</SelectItem>
-                  <SelectItem value="C-off">C-off Credit (సెలవు)</SelectItem>
+                  <SelectItem value="C-off Earned">C-off Earned (ఖాతాలో C-off క్రెడిట్ కలపండి)</SelectItem>
+                  <SelectItem value="C-off Used">C-off Used (సెలవు వాడుకున్నారు)</SelectItem>
+                  <SelectItem value="OT">Overtime Pay (డబ్బుల రూపంలో OT Pay)</SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* C-off Earned లేదా Used సెలెక్ట్ చేస్తే ఎన్ని C-off లో ఎంచుకోవచ్చు */}
+              {(editForm.extraShiftBenefit === 'C-off Earned' || editForm.extraShiftBenefit === 'C-off Used') && (
+                <div className="pt-1 space-y-1.5">
+                  <span className="text-[10px] uppercase font-bold text-teal-800 block">
+                    {editForm.extraShiftBenefit === 'C-off Earned' ? 'ఎన్ని C-off సంపాదించారు?' : 'ఎన్ని C-off వాడుకున్నారు?'}
+                  </span>
+                  <div className="flex gap-2">
+                    {['0.5', '1', '1.5', '2'].map(qty => (
+                      <Button 
+                        key={qty} 
+                        type="button" 
+                        variant={editForm.coffQty === qty ? "default" : "outline"}
+                        className={`h-8 flex-1 text-xs rounded-lg font-bold ${
+                          editForm.coffQty === qty 
+                            ? (editForm.extraShiftBenefit === 'C-off Earned' ? 'bg-teal-700 text-white' : 'bg-purple-700 text-white')
+                            : 'bg-white text-slate-700 border-teal-200'
+                        }`}
+                        onClick={() => setEditForm(p => ({ ...p, coffQty: qty, ot: (parseFloat(qty) * 8).toString() }))}
+                      >
+                        {qty} C-off
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label className="text-[10px] uppercase font-bold text-slate-500">Late-In (Hrs)</Label>
+            {/* 3. డ్యూటీ టైమింగ్స్ */}
+            {(editForm.status === 'Present' || editForm.status === 'OT' || editForm.status === 'None') && (
+              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2">
+                <Label className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-blue-700" /> HR Duty Timings
+                </Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1">
+                    <span className="text-[10px] uppercase font-bold text-slate-500">In Time</span>
+                    <Input 
+                      type="time" 
+                      className="h-9 bg-white rounded-lg border-blue-200 text-xs font-semibold"
+                      value={editForm.inTime} 
+                      onChange={(e) => handleTimingChange(e.target.value, editForm.outTime)} 
+                    />
+                  </div>
+                  <div className="grid gap-1">
+                    <span className="text-[10px] uppercase font-bold text-slate-500">Out Time</span>
+                    <Input 
+                      type="time" 
+                      className="h-9 bg-white rounded-lg border-blue-200 text-xs font-semibold"
+                      value={editForm.outTime} 
+                      onChange={(e) => handleTimingChange(editForm.inTime, e.target.value)} 
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 4. OT Hours (Overtime Pay ఉన్నప్పుడు) */}
+            {editForm.extraShiftBenefit === 'OT' && (
+              <div className="p-3 border rounded-xl bg-orange-50/50 border-orange-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-orange-950">OT Hours</Label>
+                  <span className="text-xs font-black text-orange-600 bg-orange-100 px-2 py-0.5 rounded-md">{editForm.ot}h OT</span>
+                </div>
+                <div className="flex gap-1.5 flex-wrap">
+                  {['0', '1', '2', '4', '8'].map(hrs => (
+                    <Button 
+                      key={hrs} 
+                      type="button" 
+                      variant={editForm.ot === hrs ? "default" : "outline"}
+                      className={`h-7 px-2.5 text-xs rounded-md ${editForm.ot === hrs ? 'bg-orange-600 text-white font-bold' : 'bg-white text-slate-700 border-orange-200'}`}
+                      onClick={() => setEditForm(p => ({ ...p, ot: hrs }))}
+                    >
+                      {hrs === '0' ? 'No OT' : hrs === '8' ? 'Full Shift (8h)' : `+${hrs}h`}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 5. లేట్-ఇన్ & ఎర్లీ-అవుట్ */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1">
+                <Label className="text-[10px] uppercase font-bold text-slate-500">Late-In (గంటలు)</Label>
                 <Input 
                   type="number" 
                   step="0.1" 
-                  className="h-10 rounded-lg"
+                  className="h-9 rounded-lg text-xs" 
                   placeholder={editingDay?.autoLate.toFixed(2) || "0"} 
                   value={editForm.lateIn} 
                   onChange={(e) => setEditForm(p => ({ ...p, lateIn: e.target.value }))} 
                 />
               </div>
-              <div className="grid gap-2">
-                <Label className="text-[10px] uppercase font-bold text-slate-500">Early Out (Hrs)</Label>
+              <div className="grid gap-1">
+                <Label className="text-[10px] uppercase font-bold text-slate-500">Early Out (గంటలు)</Label>
                 <Input 
                   type="number" 
                   step="0.1" 
-                  className="h-10 rounded-lg"
+                  className="h-9 rounded-lg text-xs" 
                   placeholder="0" 
                   value={editForm.earlyOut} 
                   onChange={(e) => setEditForm(p => ({ ...p, earlyOut: e.target.value }))} 
@@ -479,14 +967,11 @@ export default function MonthlyReport() {
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label className="text-[10px] uppercase font-bold text-slate-500">OT Hours (Manual Override)</Label>
-              <Input type="number" step="0.5" className="h-10 rounded-lg" value={editForm.ot} onChange={(e) => setEditForm(p => ({ ...p, ot: e.target.value }))} />
-            </div>
           </div>
+          
           <DialogFooter className="p-4 bg-slate-50 flex gap-2">
-            <Button variant="outline" className="flex-1 h-12 rounded-xl" onClick={() => setEditingDay(null)}>Cancel</Button>
-            <Button onClick={saveDayStatus} className="flex-1 h-12 rounded-xl bg-primary text-white">Save Changes</Button>
+            <Button variant="outline" className="flex-1 h-11 rounded-xl" onClick={() => setEditingDay(null)}>Cancel</Button>
+            <Button onClick={saveDayStatus} className="flex-1 h-11 rounded-xl bg-primary text-white font-bold">Save Attendance</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
