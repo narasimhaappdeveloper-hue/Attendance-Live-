@@ -112,13 +112,13 @@ export default function MonthlyReport() {
           dateStr, 
           status, 
           ot: finalOT, 
-          cOffCredit,
-          extraShiftBenefit: assignedBenefit,
-          late: dailyLate,
-          lateIn: effectiveLateIn,
-          earlyOut: extra?.earlyOutHours || 0,
-          autoLateIn,
-          punches: dayRecords.length
+          cOffCredit, 
+          extraShiftBenefit: assignedBenefit, 
+          late: dailyLate, 
+          lateIn: effectiveLateIn, 
+          earlyOut: extra?.earlyOutHours || 0, 
+          autoLateIn, 
+          punches: dayRecords.length 
         };
       });
 
@@ -152,9 +152,9 @@ export default function MonthlyReport() {
         stats, 
         salary: finalNetSalary, 
         paidWorkingDays: totalEffectivePaidDays, 
-        totalDays: daysInMonth.length,
-        totalLateHoursCut: monthlyCustomLateHoursCut,
-        totalCoffsEarned: monthlyCoffsEarned
+        totalDays: daysInMonth.length, 
+        totalLateHoursCut: monthlyCustomLateHoursCut, 
+        totalCoffsEarned: monthlyCoffsEarned 
       };
     });
   }, [employees, attendanceRecords, extraStatuses, daysInMonth, selectedMonth, shiftSettings]);
@@ -185,10 +185,10 @@ export default function MonthlyReport() {
 
     setEditForm({ 
       status: current?.status || 'None', 
-      ot: (current?.otHours || 0).toString(),
-      lateIn: current?.lateInHours !== undefined ? current.lateInHours.toString() : '',
-      earlyOut: (current?.earlyOutHours || 0).toString(),
-      extraShiftBenefit: current?.extraShiftBenefit || 'OT'
+      ot: (current?.otHours || 0).toString(), 
+      lateIn: current?.lateInHours !== undefined ? current.lateInHours.toString() : '', 
+      earlyOut: (current?.earlyOutHours || 0).toString(), 
+      extraShiftBenefit: current?.extraShiftBenefit || 'OT' 
     });
     setEditingDay({ empId, date: dateStr, autoLate });
   };
@@ -201,8 +201,8 @@ export default function MonthlyReport() {
       date, 
       editForm.status as any, 
       parseFloat(editForm.ot) || 0, 
-      editForm.lateIn === '' ? 0 : parseFloat(editForm.lateIn),
-      parseFloat(editForm.earlyOut) || 0,
+      editForm.lateIn === '' ? 0 : parseFloat(editForm.lateIn), 
+      parseFloat(editForm.earlyOut) || 0, 
       editForm.extraShiftBenefit
     );
     setEditingDay(null);
@@ -252,12 +252,12 @@ export default function MonthlyReport() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="border border-border/80 shadow-md">
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0 px-4 sm:px-6">
           <div className="w-full">
-            <CardTitle>Master Attendance Report</CardTitle>
-            <CardDescription className="hidden sm:block">
-                ఒక రోజుపై క్లిక్ చేసి వివరాలను మార్చుకోవచ్చు.
+            <CardTitle className="text-xl sm:text-2xl font-bold">Master Attendance Report</CardTitle>
+            <CardDescription className="text-xs sm:text-sm mt-1">
+              తేదీ 1 నుండి 30/31 వరకు అన్ని రోజులను చూడటానికి కుడివైపుకి స్క్రోల్ చేయండి.
             </CardDescription>
           </div>
           <div className="flex gap-2 w-full md:w-auto">
@@ -266,7 +266,7 @@ export default function MonthlyReport() {
               d.setFullYear(parseInt(v));
               setSelectedMonth(d);
             }}>
-              <SelectTrigger className="w-full sm:w-[100px]">
+              <SelectTrigger className="w-full sm:w-[110px]">
                 <SelectValue placeholder="Year" />
               </SelectTrigger>
               <SelectContent>
@@ -281,7 +281,7 @@ export default function MonthlyReport() {
               d.setMonth(parseInt(v));
               setSelectedMonth(d);
             }}>
-              <SelectTrigger className="w-full sm:w-[130px]">
+              <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue placeholder="Month" />
               </SelectTrigger>
               <SelectContent>
@@ -292,12 +292,17 @@ export default function MonthlyReport() {
             </Select>
           </div>
         </CardHeader>
-        <CardContent className="px-0 sm:px-6">
-          <div className="overflow-x-auto border-y sm:border rounded-none sm:rounded-xl">
-            <Table>
+
+        <CardContent className="p-0 sm:p-4">
+          {/* హారిజాంటల్ స్క్రోలింగ్ బాక్స్ */}
+          <div className="w-full overflow-x-auto border-t sm:border rounded-none sm:rounded-xl shadow-sm" style={{ WebkitOverflowScrolling: 'touch' }}>
+            {/* కనీస వెడల్పు 1850px ఇవ్వడం వల్ల 31 రోజులు ఇరుకు కాకుండా చక్కగా వస్తాయి */}
+            <Table className="min-w-[1850px] w-full border-collapse">
               <TableHeader>
-                <TableRow className="bg-muted/50 text-[9px] sm:text-[10px]">
-                  <TableHead className="sticky left-0 bg-muted z-30 min-w-[120px] border-r shadow-[2px_0_5px_rgba(0,0,0,0.05)]">Employee Name</TableHead>
+                <TableRow className="bg-slate-100 text-xs text-slate-800">
+                  <TableHead className="min-w-[160px] p-3 font-bold border-r bg-slate-100">
+                    Employee Name
+                  </TableHead>
                   
                   {daysInMonth.map(day => {
                     const isSun = isSunday(day);
@@ -305,36 +310,37 @@ export default function MonthlyReport() {
                     return (
                       <TableHead 
                         key={day.toISOString()} 
-                        className={`text-center min-w-[40px] border-l p-1 ${
-                          isSun ? 'bg-red-50 text-red-600 font-black' : 
-                          isSat ? 'bg-amber-50 text-amber-600 font-bold' : ''
+                        className={`text-center min-w-[48px] border-l px-1 py-2 ${
+                          isSun ? 'bg-red-100/80 text-red-700 font-extrabold' : 
+                          isSat ? 'bg-amber-100/80 text-amber-700 font-bold' : 'text-slate-700'
                         }`}
                       >
-                        <div className="flex flex-col items-center leading-tight">
-                          <span>{format(day, 'd')}</span>
-                          <span className="text-[7px] sm:text-[8px] uppercase">{format(day, 'EEE')}</span>
+                        <div className="flex flex-col items-center justify-center leading-tight">
+                          <span className="text-xs font-bold">{format(day, 'd')}</span>
+                          <span className="text-[9px] uppercase tracking-tighter opacity-80">{format(day, 'EEE')}</span>
                         </div>
                       </TableHead>
                     );
                   })}
 
-                  <TableHead className="text-center font-bold px-2 text-green-600 bg-slate-50 border-l border-r">P</TableHead>
-                  <TableHead className="text-center font-bold px-2 text-red-600 bg-slate-50 border-r">A</TableHead>
-                  <TableHead className="text-center font-bold px-2 text-teal-600 bg-slate-50 border-r">C-off</TableHead>
-                  <TableHead className="text-center font-bold px-2 text-red-500 bg-slate-50 border-r">Late</TableHead>
-                  <TableHead className="text-center font-bold px-2 bg-primary/10 text-primary border-r">Paid</TableHead>
-                  <TableHead className="sticky right-0 bg-primary/10 z-30 min-w-[80px] text-primary font-bold text-center border-l shadow-[-2px_0_5px_rgba(0,0,0,0.05)]">Net Sal</TableHead>
+                  <TableHead className="text-center font-bold px-3 min-w-[48px] text-green-700 bg-green-50 border-l border-r">P</TableHead>
+                  <TableHead className="text-center font-bold px-3 min-w-[48px] text-red-700 bg-red-50 border-r">A</TableHead>
+                  <TableHead className="text-center font-bold px-3 min-w-[52px] text-teal-700 bg-teal-50 border-r">C-off</TableHead>
+                  <TableHead className="text-center font-bold px-3 min-w-[52px] text-red-600 bg-slate-50 border-r">Late</TableHead>
+                  <TableHead className="text-center font-bold px-3 min-w-[55px] bg-primary/10 text-primary border-r">Paid</TableHead>
+                  <TableHead className="min-w-[110px] text-primary font-bold text-center border-l bg-primary/10">Net Sal</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody className="text-[10px] sm:text-[11px]">
+
+              <TableBody className="text-xs">
                 {reportData.map(row => (
-                  <TableRow key={row.id} className="hover:bg-slate-50/50">
-                    <TableCell className="sticky left-0 bg-white font-bold z-20 border-r shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
-                      <div className="flex items-center gap-1 truncate max-w-[100px]">
-                        {row.name}
-                        {row.status === 'Resigned' && <span className="text-[7px] bg-amber-100 px-1 border border-amber-500 text-amber-600 rounded">F</span>}
+                  <TableRow key={row.id} className="hover:bg-slate-50 transition-colors">
+                    <TableCell className="bg-white font-semibold border-r p-3">
+                      <div className="flex items-center gap-1.5 truncate max-w-[150px]">
+                        <span className="truncate">{row.name}</span>
+                        {row.status === 'Resigned' && <span className="text-[8px] bg-amber-100 px-1 border border-amber-500 text-amber-700 font-bold rounded">F</span>}
                       </div>
-                      <div className="text-[8px] text-muted-foreground font-normal">{row.id}</div>
+                      <div className="text-[10px] text-muted-foreground font-normal mt-0.5">{row.id}</div>
                     </TableCell>
 
                     {row.dailyStatus.map((s, i) => {
@@ -343,19 +349,19 @@ export default function MonthlyReport() {
                       return (
                         <TableCell 
                           key={i} 
-                          className={`p-1 text-center cursor-pointer border-l hover:bg-slate-100 transition-colors ${
-                            isSun ? 'bg-red-50/30' : isSat ? 'bg-amber-50/30' : ''
+                          className={`p-1.5 text-center cursor-pointer border-l hover:bg-blue-50 transition-colors ${
+                            isSun ? 'bg-red-50/40' : isSat ? 'bg-amber-50/40' : ''
                           }`} 
                           onClick={() => handleDayClick(row.id, s.dateStr)}
                         >
-                          <div className={`h-6 w-6 rounded-md mx-auto flex items-center justify-center font-bold text-[10px] shadow-sm relative ${
-                            s.status === 'Present' ? 'bg-green-500 text-white' : 
-                            s.status === 'Half-Day' ? 'bg-orange-400 text-white' : 
-                            s.status === 'Holiday' ? 'bg-purple-500 text-white' :
-                            s.status === 'Leave' ? 'bg-blue-500 text-white' :
-                            s.status === 'C-off' ? 'bg-indigo-500 text-white' :
-                            s.status === 'Week-off' ? 'bg-amber-400 text-amber-900' : 
-                            s.status === 'Absent' ? 'bg-red-100 text-red-400' : 'bg-slate-100 text-slate-400'
+                          <div className={`h-8 w-8 rounded-lg mx-auto flex items-center justify-center font-bold text-xs shadow-sm relative ${
+                            s.status === 'Present' ? 'bg-green-600 text-white' : 
+                            s.status === 'Half-Day' ? 'bg-amber-500 text-white' : 
+                            s.status === 'Holiday' ? 'bg-purple-600 text-white' :
+                            s.status === 'Leave' ? 'bg-blue-600 text-white' :
+                            s.status === 'C-off' ? 'bg-teal-600 text-white' :
+                            s.status === 'Week-off' ? 'bg-slate-200 text-slate-700 font-semibold border border-slate-300' : 
+                            s.status === 'Absent' ? 'bg-red-100 text-red-600 font-bold border border-red-200' : 'bg-slate-100 text-slate-400'
                           }`}>
                             {s.status === 'Present' ? 'P' : 
                              s.status === 'Half-Day' ? 'HD' : 
@@ -364,41 +370,45 @@ export default function MonthlyReport() {
                              s.status === 'C-off' ? 'C' : 
                              s.status === 'Week-off' ? 'W' : 'A'}
                              
-                             {s.punches > 1 && (
-                                <div className="absolute -top-1 -right-1 bg-primary text-white text-[7px] w-3 h-3 flex items-center justify-center rounded-full border border-white">
-                                    {s.punches}
-                                </div>
-                             )}
+                            {s.punches > 1 && (
+                              <div className="absolute -top-1 -right-1 bg-blue-700 text-white text-[8px] w-3.5 h-3.5 flex items-center justify-center rounded-full border border-white font-bold">
+                                {s.punches}
+                              </div>
+                            )}
                           </div>
                         </TableCell>
                       );
                     })}
 
-                    <TableCell className="text-center font-bold text-green-600 border-l border-r">{row.stats.Present || 0}</TableCell>
-                    <TableCell className="text-center font-bold text-red-600 border-r">{row.stats.Absent || 0}</TableCell>
-                    <TableCell className="text-center text-teal-600 font-bold border-r">{row.totalCoffsEarned.toFixed(1)}</TableCell>
-                    <TableCell className="text-center border-r text-red-500 font-bold">{row.totalLateHoursCut.toFixed(1)}</TableCell>
-                    <TableCell className="text-center bg-primary/5 font-black text-primary border-r">{row.paidWorkingDays}</TableCell>
-                    <TableCell className="sticky right-0 bg-white z-20 font-black text-primary text-center border-l shadow-[-2px_0_5px_rgba(0,0,0,0.02)]">
+                    <TableCell className="text-center font-bold text-green-700 border-l border-r p-2">{row.stats.Present || 0}</TableCell>
+                    <TableCell className="text-center font-bold text-red-600 border-r p-2">{row.stats.Absent || 0}</TableCell>
+                    <TableCell className="text-center text-teal-700 font-bold border-r p-2">{row.totalCoffsEarned.toFixed(1)}</TableCell>
+                    <TableCell className="text-center border-r text-red-500 font-bold p-2">{row.totalLateHoursCut.toFixed(1)}</TableCell>
+                    <TableCell className="text-center bg-primary/5 font-extrabold text-primary border-r p-2">{row.paidWorkingDays}</TableCell>
+                    <TableCell className="bg-white font-bold text-primary text-center border-l p-2">
                       ₹{Math.round(row.salary).toLocaleString()}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
-              <TableFooter className="bg-muted/80 text-[10px] font-black text-slate-900">
+
+              {/* గ్రాండ్ టోటల్ రో - మెర్జింగ్ లేకుండా ప్రతి కాలమ్ సరిగ్గా ఉండేలా సెట్ చేయబడింది */}
+              <TableFooter className="bg-slate-100 text-xs font-bold text-slate-900">
                 <TableRow>
-                  <TableCell className="sticky left-0 bg-slate-100 font-black z-20 border-r shadow-[2px_0_5px_rgba(0,0,0,0.05)]">Grand Total</TableCell>
+                  <TableCell className="bg-slate-200 font-extrabold border-r p-3">Grand Total</TableCell>
                   
                   {daysInMonth.map((_, i) => (
-                    <TableCell key={`ft-date-${i}`} className="border-l"></TableCell>
+                    <TableCell key={`ft-date-${i}`} className="border-l text-center p-1 text-slate-400 font-normal">
+                      -
+                    </TableCell>
                   ))}
 
-                  <TableCell className="text-center text-green-700 font-black border-l border-r bg-slate-100">{grandTotals.present}</TableCell>
-                  <TableCell className="text-center text-red-600 font-black border-r bg-slate-100">{grandTotals.absent}</TableCell>
-                  <TableCell className="text-center text-teal-600 font-black border-r bg-slate-100">{grandTotals.coffsEarned.toFixed(1)}</TableCell>
-                  <TableCell className="text-center border-r bg-slate-100 text-red-50">{reportData.reduce((acc, r) => acc + r.totalLateHoursCut, 0).toFixed(1)}</TableCell>
-                  <TableCell className="text-center text-primary font-black border-r bg-primary/5">{grandTotals.paidWorkingDays}</TableCell>
-                  <TableCell className="sticky right-0 bg-primary/20 z-20 font-black text-primary text-center border-l">₹{Math.round(grandTotals.salary).toLocaleString()}</TableCell>
+                  <TableCell className="text-center text-green-700 font-extrabold border-l border-r bg-green-50 p-2">{grandTotals.present}</TableCell>
+                  <TableCell className="text-center text-red-600 font-extrabold border-r bg-red-50 p-2">{grandTotals.absent}</TableCell>
+                  <TableCell className="text-center text-teal-700 font-extrabold border-r bg-teal-50 p-2">{grandTotals.coffsEarned.toFixed(1)}</TableCell>
+                  <TableCell className="text-center border-r bg-slate-50 text-red-600 font-bold p-2">{reportData.reduce((acc, r) => acc + r.totalLateHoursCut, 0).toFixed(1)}</TableCell>
+                  <TableCell className="text-center text-primary font-black border-r bg-primary/10 p-2">{grandTotals.paidWorkingDays}</TableCell>
+                  <TableCell className="bg-primary/20 font-black text-primary text-center border-l p-2">₹{Math.round(grandTotals.salary).toLocaleString()}</TableCell>
                 </TableRow>
               </TableFooter>
             </Table>
@@ -430,7 +440,7 @@ export default function MonthlyReport() {
               </Select>
             </div>
             
-            <div className="p-3 bg-blue-50 text-blue-900 border border-blue-200 text-[10px] sm:text-xs rounded-xl flex items-start gap-2">
+            <div className="p-3 bg-blue-50 text-blue-900 border border-blue-200 text-xs rounded-xl flex items-start gap-2">
               <Calculator className="h-4 w-4 shrink-0 mt-0.5 text-blue-600" />
               <div>
                 <p className="font-bold">Note:</p>
@@ -460,7 +470,7 @@ export default function MonthlyReport() {
                 <Input 
                   type="number" 
                   step="0.1" 
-                  className="h-10 rounded-lg"
+                  className="h-10 rounded-lg" 
                   placeholder={editingDay?.autoLate.toFixed(2) || "0"} 
                   value={editForm.lateIn} 
                   onChange={(e) => setEditForm(p => ({ ...p, lateIn: e.target.value }))} 
@@ -471,7 +481,7 @@ export default function MonthlyReport() {
                 <Input 
                   type="number" 
                   step="0.1" 
-                  className="h-10 rounded-lg"
+                  className="h-10 rounded-lg" 
                   placeholder="0" 
                   value={editForm.earlyOut} 
                   onChange={(e) => setEditForm(p => ({ ...p, earlyOut: e.target.value }))} 
